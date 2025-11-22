@@ -8,9 +8,12 @@ export type Event = {
   title: string
   description: string
   triggerPhase: 'day' | 'night'
+  vibe?: 'mundane' | 'occult'
+  condition?: { laiAbove?: number; sanityBelow?: number }
   media?: { type: 'image' | 'video'; src: string; alt: string }
   choices: {
     text: string
+    dcCheck?: { stat: 'pimppaus' | 'byroslavia' | 'sisu'; dc: number }
     effect: {
       money?: number
       sanity?: number
@@ -84,6 +87,183 @@ export const INITIAL_EVENTS: Event[] = [
         text: 'Katkaise linja, vaihda kasetti',
         effect: { money: 0, reputation: -10, sanity: 8 },
         outcomeText: 'VHS pysähtyy. Pää kevenee, mutta huhumylly alkaa.',
+      },
+    ],
+  },
+  {
+    id: 'EVT_006',
+    title: 'NEON-FAX: Kurkkudirektiivi 2.0',
+    description:
+      'Bryssel lähettää yömyöhään neon-faksin: kurkkujen kaarevuus koskee nyt myös drinkkien koristeita.',
+    triggerPhase: 'day',
+    media: { type: 'image', src: faxImg, alt: 'Kimmeltävä neon-faksi' },
+    vibe: 'mundane',
+    choices: [
+      {
+        text: 'Leimaa poikkeuslupa Lapin valolla',
+        dcCheck: { stat: 'byroslavia', dc: 13 },
+        effect: { reputation: 6, money: 40 },
+        outcomeText: 'Poikkeuslupa menee läpi. RAHAT säästyvät ja MAINE kasvaa.',
+      },
+      {
+        text: 'Osta laatikko standardikurkkuja',
+        effect: { money: -120, reputation: 4 },
+        outcomeText: 'Kylmävarasto täyttyy, mutta EU on tyytyväinen.',
+      },
+      {
+        text: 'Ignoraa ja tarjoa poron suolakurkkuja',
+        effect: { reputation: -6, sanity: 4 },
+        outcomeText: 'Turisti ihmettelee, mutta pää rauhoittuu hetkeksi.',
+      },
+    ],
+  },
+  {
+    id: 'EVT_007',
+    title: 'Neon-fax: Kylmä sää',
+    description:
+      'EU varoittaa: pakkanen rikkoo neonputket. Faksi vilkkuu ja paperi on jäinen.',
+    triggerPhase: 'day',
+    media: { type: 'image', src: faxImg, alt: 'Jäinen faksi' },
+    choices: [
+      {
+        text: 'Tilaa lämpövastukset Brysselistä',
+        effect: { money: -90, sanity: 2, reputation: 5 },
+        outcomeText: 'Putket pysyvät ehjinä, faksit kiittävät.',
+      },
+      {
+        text: 'Kirjoita vastine: Lapissa on aina kylmä',
+        dcCheck: { stat: 'pimppaus', dc: 11 },
+        effect: { reputation: 2, money: 30, sanity: -2 },
+        outcomeText: 'Fax-operaattori naurahtaa ja lähettää sinulle pienen tuen.',
+      },
+    ],
+  },
+  {
+    id: 'EVT_008',
+    title: 'Turisti-shamaani revontulilla',
+    description:
+      'Saksalainen shamaani palaa ja väittää virittäneensä aurorakanavan. LAI värähtää.',
+    triggerPhase: 'night',
+    media: { type: 'video', src: streetVideo, alt: 'Revontulen alla seisova shamaani' },
+    vibe: 'occult',
+    choices: [
+      {
+        text: 'Anna hänelle dj-slot ja savukone',
+        effect: { money: 160, reputation: 8, sanity: -3 },
+        outcomeText: 'Rummut ja savut nostavat kassaa, mutta JÄRKI kipinöi.',
+      },
+      {
+        text: 'Myy hänelle Lapin kristalli',
+        dcCheck: { stat: 'pimppaus', dc: 12 },
+        effect: { money: 90, reputation: 3 },
+        outcomeText: 'Shamaani maksaa hyvin ja kehuu baarin mainetta.',
+      },
+      {
+        text: 'Sammuta valot ja pyydä hiljaisuutta',
+        effect: { sanity: 5, reputation: -4 },
+        outcomeText: 'Hiljaisuus rauhoittaa, mutta turistit katoavat.',
+      },
+    ],
+  },
+  {
+    id: 'EVT_009',
+    title: 'Doris: Tangon pohja',
+    description: 'Doris haluaa järjestää salaisen tangokisan Wanha Mestari -henkisesti.',
+    triggerPhase: 'night',
+    media: { type: 'image', src: officeBg, alt: 'Hämärä karaokelava' },
+    choices: [
+      {
+        text: 'Mainosta paikallisradiossa',
+        effect: { money: 130, reputation: 7, sanity: -2 },
+        outcomeText: 'Tangokansa valuu sisään ja kassa laulaa.',
+      },
+      {
+        text: 'Pitkä soundcheck, pidä ovet kiinni',
+        effect: { sanity: 6, reputation: -5 },
+        outcomeText: 'Rauhoitut, mutta yleisö jää ulos ja huhut leviävät.',
+      },
+    ],
+  },
+  {
+    id: 'EVT_010',
+    title: 'Wanha Mestari: Salainen resepti',
+    description: 'Mestari kuiskaa sinulle reseptin lämpimästä simasta, mutta haluaa osan kassasta.',
+    triggerPhase: 'night',
+    media: { type: 'image', src: officeBg, alt: 'Kellarin neonkynttilät' },
+    choices: [
+      {
+        text: 'Maksa ja ota resepti',
+        effect: { money: -80, sanity: 2, reputation: 5 },
+        outcomeText: 'Juoma myy kuin häkä, MAINE kasvaa.',
+      },
+      {
+        text: 'Bluffaa, että resepti löytyy jo',
+        dcCheck: { stat: 'byroslavia', dc: 14 },
+        effect: { reputation: -2, sanity: 3, money: 60 },
+        outcomeText: 'Mestari mutisee, mutta kassaan ilmestyy seteleitä.',
+      },
+    ],
+  },
+  {
+    id: 'EVT_011',
+    title: 'Metsänpeitto-varoitus',
+    description:
+      'Aamulla ikkuna on huurussa ja joku on piirtänyt siihen sanan METSÄNPEITTO. LAI pysyy matalana, mutta tunnelma kiristyy.',
+    triggerPhase: 'day',
+    media: { type: 'video', src: streetVideo, alt: 'Huurteinen katu' },
+    vibe: 'occult',
+    choices: [
+      {
+        text: 'Sytytä valoketju ulos',
+        effect: { money: -30, reputation: 4 },
+        outcomeText: 'Valo leikkaa sumun ja asiakkaat uskaltautuvat sisään.',
+      },
+      {
+        text: 'Pysy sisällä ja juo kahvia',
+        effect: { sanity: 6, reputation: -2 },
+        outcomeText: 'Mieli tasaantuu, mutta kylä luulee sinun pelkäävän.',
+      },
+    ],
+  },
+  {
+    id: 'EVT_012',
+    title: 'Maahisen kolkutin',
+    description:
+      'Yöllä tiskin alta kuuluu naputus. Maahinen haluaa vaihtaa VHS-kasetin markkoihin.',
+    triggerPhase: 'night',
+    vibe: 'occult',
+    choices: [
+      {
+        text: 'Osta kasetti ja anna juomaraha',
+        effect: { money: -50, sanity: 3, reputation: 4 },
+        outcomeText: 'Kasetti sisältää outoa mainosrahaa, LAI värähtää.',
+      },
+      {
+        text: 'Torju ja sulje luukku',
+        effect: { reputation: -4, sanity: 2 },
+        outcomeText: 'Naputus hiljenee, mutta asiakas näkee kaiken.',
+      },
+    ],
+  },
+  {
+    id: 'EVT_013',
+    title: 'LAI-kipinä: Net Monitor välähtää',
+    description:
+      'Net Monitor ruudulla näkyy hetken Staalo-symboli. Jos LAI on korkea, koko huone värähtää.',
+    triggerPhase: 'day',
+    media: { type: 'video', src: bossVideo, alt: 'Häiriöruutu' },
+    vibe: 'occult',
+    condition: { laiAbove: 50 },
+    choices: [
+      {
+        text: 'Kirjoita häiriö raporttiin',
+        effect: { reputation: 3, sanity: -2 },
+        outcomeText: 'Raportti rauhoittaa vähän, mutta LAI kipinöi.',
+      },
+      {
+        text: 'Vedä virta ja hengitä syvään',
+        effect: { sanity: 5, reputation: -1, money: -10 },
+        outcomeText: 'Sähkölasku kasvaa, mutta pää selkenee hetkeksi.',
       },
     ],
   },

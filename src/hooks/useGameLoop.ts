@@ -25,6 +25,8 @@ export type NetMonitorReading = {
   band: 'calm' | 'odd' | 'rift'
   message: string
   sanityDelta?: number
+  signalDbm: number
+  pingMs: number
 }
 
 type ChoiceResolution = {
@@ -54,6 +56,7 @@ type GameActions = {
   resolveChoice: (choice: GameEventChoice) => ChoiceResolution
   resetGame: () => void
   pingNetMonitor: () => NetMonitorReading
+  adjustLAI: (delta: number) => number
 }
 
 type PersistedStateBase = {
@@ -166,11 +169,17 @@ export const useGameLoop = (): GameState & GameActions => {
     if (stats.sanity <= 0) return { type: 'psychWard', dayCount, stats }
     if (stats.money < -1000) return { type: 'bankruptcy', dayCount, stats }
     if (stats.reputation > 95) return { type: 'taxRaid', dayCount, stats }
-    if (dayCount > MAX_DAYS) return { type: 'vappu', dayCount: MAX_DAYS, stats }
+    if (dayCount >= MAX_DAYS && phase === 'MORNING') return { type: 'vappu', dayCount: MAX_DAYS, stats }
     return null
-  }, [dayCount, stats])
+  }, [dayCount, stats, phase])
 
   const isGlitching = stats.sanity < 20 || lai > 70
+
+  const adjustLAI = (delta: number) => {
+    const next = clamp(lai + delta, 0, 100)
+    setLai(next)
+    return next
+  }
 
   const handleChoice = (effect: Partial<Stats>) => {
     setStats((prev) => ({
@@ -196,6 +205,8 @@ export const useGameLoop = (): GameState & GameActions => {
         handleChoice({ money: -50 })
         if (lai > 85) handleChoice({ sanity: -2 })
         if (lai < 10) handleChoice({ sanity: 1 })
+        const sanityTension = stats.sanity < 25 ? 3 : stats.sanity < 50 ? 1 : stats.sanity > 85 ? -1 : 0
+        if (sanityTension !== 0) adjustLAI(sanityTension)
       }
 
       return next
@@ -263,46 +274,55 @@ export const useGameLoop = (): GameState & GameActions => {
   }
 
   const buildLaiBand = (value: number): NetMonitorReading['band'] => {
-    if (value <= 20) return 'calm'
-    if (value <= 60) return 'odd'
+    if (value < 20) return 'calm'
+    if (value < 80) return 'odd'
     return 'rift'
   }
 
-  const buildLaiMessage = (band: NetMonitorReading['band']) => {
-    if (band === 'calm')
+  const buildLaiMessage = (value: number, band: NetMonitorReading['band']) => {
+    if (value < 20)
       return Math.random() > 0.5
-        ? 'Kenttä: tyyni. Tukiasemat humisevat kuin hiljainen suo.'
-        : 'Net Monitor: Ei henkimaailman piikkejä. Maahiset nukkuu.'
+        ? 'Verkko ok. Turistiystävällinen latenssi.'
+        : 'Kenttä: tyyni. Tukiasemat humisevat kuin hiljainen suo.'
+    if (value < 50)
+      return Math.random() > 0.5
+        ? 'Revontuli-kanava auki. Linjassa kuiskitaan.'
+        : 'Verkkopakat sihisee. Staalo kurkistaa lukemien välistä.'
     if (band === 'odd')
       return Math.random() > 0.5
-        ? 'Verkkopakat sihisee. Staalo kurkistaa lukemien välistä.'
-        : 'Revontuli-taajuus vilkkuu, LAI aaltoilee kuin Lapinmeri.'
+        ? 'Häiriöitä: signaali nykii kuin VHS-lumi. LAI aaltoilee.'
+        : 'Signaali vääristyy, maahinen rummuttaa antennia.'
     return Math.random() > 0.5
-      ? 'Häiriö! Maahiset jyrsii kaapelia. Linja soi kuin noitarumpu.'
+      ? 'Staalo häiritsee. Todellisuus repeää.'
       : 'Staalo syöttää outoa puhetta. GSM-kanava välkkyy verenpunaisena.'
   }
 
   const pingNetMonitor = (): NetMonitorReading => {
-    const randomSwing = Math.floor(Math.random() * 9) - 2 // -2...6
-    const sanityInfluence = stats.sanity < 35 ? 4 : stats.sanity > 75 ? -3 : 0
-    const drift = Math.random() > 0.6 ? 2 : -1
-    const delta = clamp(randomSwing + sanityInfluence + drift, -6, 10)
-    const nextLai = clamp(lai + delta, 0, 100)
+    const signalDbm = Math.floor(-110 + Math.random() * 35)
+    const basePing = Math.floor(40 + Math.random() * 180)
+    const sanityVolatility = stats.sanity < 50 ? 1.6 : 1
+    const randomSwing = Math.floor((Math.random() * 7 - 2) * sanityVolatility) // wider if low sanity
+    const sanityInfluence = stats.sanity < 35 ? 3 : stats.sanity > 80 ? -2 : 0
+    const drift = Math.random() > 0.55 ? 2 : -1
+    const delta = clamp(randomSwing + sanityInfluence + drift, -5, 9)
+    const nextLai = adjustLAI(delta)
     const band = buildLaiBand(nextLai)
+    const pingJitter = nextLai >= 80 ? Math.random() * 120 : nextLai >= 50 ? Math.random() * 60 : Math.random() * 20
+    const pingMs = Math.max(12, Math.round(basePing + (band === 'rift' ? pingJitter * 1.5 : pingJitter)))
 
     const sanityDelta = nextLai > 90 ? -2 : nextLai < 8 ? 1 : undefined
     if (sanityDelta) {
       handleChoice({ sanity: sanityDelta })
     }
 
-    setLai(nextLai)
-
     return {
       newLai: nextLai,
       laiDelta: delta,
       band,
       sanityDelta,
-      message: buildLaiMessage(band),
+      signalDbm,
+      pingMs,
+      message: buildLaiMessage(nextLai, band),
     }
   }
 
@@ -395,6 +415,7 @@ export const useGameLoop = (): GameState & GameActions => {
     resolveChoice,
     resetGame,
     pingNetMonitor,
+    adjustLAI,
   }
 }
 

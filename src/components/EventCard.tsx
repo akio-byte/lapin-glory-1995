@@ -1,16 +1,22 @@
 import { useMemo } from 'react'
 import type { GameEvent, GameEventChoice } from '../data/gameData'
 import type { Phase } from '../hooks/useGameLoop'
+import { canonicalStats } from '../data/statMeta'
 import CRTVisual from './CRTVisual'
 
 const formatEffect = (choice: GameEventChoice) => {
   const deltas = choice.outcomeSuccess.effects
-  const summary = ['money', 'reputation', 'sanity']
+  const summary = (['money', 'sanity', 'reputation'] as const)
     .map((key) => {
-      const value = deltas[key as keyof typeof deltas]
+      const value = deltas[key]
       if (value === undefined) return null
       const prefix = value > 0 ? '+' : ''
-      return `${key === 'money' ? 'mk' : key}: ${prefix}${value}`
+      const displayLabel = canonicalStats[key]?.label ?? key
+      const formatted =
+        key === 'money'
+          ? `${prefix}${value.toFixed(0)} mk`
+          : `${prefix}${value}`
+      return `${displayLabel}: ${formatted}`
     })
     .filter(Boolean)
 
@@ -73,7 +79,7 @@ const EventCard = ({ event, locked, outcome, onChoice, onNextPhase, fallbackMedi
 
         {outcome && (
           <div className="border-2 border-dashed border-neon/70 bg-coal/80 p-4 shadow-inner text-sm">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-neon">Outcome</p>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-neon">Lopputulos</p>
             <p className="mt-2">{outcome}</p>
             <div className="mt-3 text-right">
               <button
