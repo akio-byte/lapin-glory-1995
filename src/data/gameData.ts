@@ -14,21 +14,23 @@ export interface Stats {
   byroslavia: number
 }
 
+export interface ItemEffects {
+  immediate?: Partial<Stats>
+  passive?: Partial<Stats>
+}
+
 export interface Item {
   id: string
   name: string
   price: number
   description: string
   type: ItemType
-  effects: {
-    sanity?: number
-    reputation?: number
-    byroslavia_bonus?: number
-    sisu?: number
-  }
+  icon: string
+  effects: ItemEffects
   req_stats?: {
     byroslavia?: number
   }
+  autoUseOnPurchase?: boolean
 }
 
 export interface GameEventChoice {
@@ -59,7 +61,8 @@ export const items: Item[] = [
     price: 120,
     description: 'Pahvilaatikkoon piilotettu kansallisaarre. Lämmität mielen ja unohtuu byrokratia.',
     type: 'consumable',
-    effects: { sanity: 12, sisu: 6 },
+    icon: '🍾',
+    effects: { immediate: { sanity: 12, sisu: 6 } },
   },
   {
     id: 'nokia-2110',
@@ -67,7 +70,8 @@ export const items: Item[] = [
     price: 480,
     description: 'Operatiivinen Net Monitor. Kuulee faksien väliset kuiskaukset ja näyttää tukiaseman haamut.',
     type: 'tool',
-    effects: { reputation: 4, byroslavia_bonus: 5 },
+    icon: '📟',
+    effects: { passive: { reputation: 4, byroslavia: 5 } },
   },
   {
     id: 'lomake-5057e',
@@ -75,7 +79,8 @@ export const items: Item[] = [
     price: 75,
     description: 'Verohallinnon esoteerinen kaavake. Leikkaa jonot ja avaa salaiset luukut.',
     type: 'form',
-    effects: { byroslavia_bonus: 15, sanity: -2 },
+    icon: '📑',
+    effects: { passive: { byroslavia: 15, sanity: -2 } },
     req_stats: { byroslavia: 8 },
   },
   {
@@ -84,7 +89,8 @@ export const items: Item[] = [
     price: 90,
     description: 'Aito apteekin sekoitus. Nostaa sisua, mutta maksa huutaa.',
     type: 'consumable',
-    effects: { sanity: 8, reputation: -2, sisu: 10 },
+    icon: '🥃',
+    effects: { immediate: { sanity: 8, reputation: -2, sisu: 10 } },
   },
 ]
 

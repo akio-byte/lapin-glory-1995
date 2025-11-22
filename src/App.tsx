@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import EventCard from './components/EventCard'
 import NokiaPhone from './components/NokiaPhone'
+import Shop from './components/Shop'
 import StatsBar from './components/StatsBar'
 import type { Stats } from './data/gameData'
 import type { EndingType } from './hooks/useGameLoop'
@@ -147,6 +148,7 @@ function App() {
   const {
     stats,
     phase,
+    inventory,
     dayCount,
     ending,
     isGlitching,
@@ -154,6 +156,8 @@ function App() {
     fallbackMedia,
     advancePhase,
     resolveChoice,
+    buyItem,
+    useItem,
     morningReport,
     resetGame,
   } = useGameLoop()
@@ -252,6 +256,8 @@ function App() {
           </div>
 
           <aside className="space-y-4">
+            <Shop phase={phase} inventory={inventory} stats={stats} onBuy={buyItem} onUse={useItem} />
+
             <div className="panel bg-asphalt/70">
               <p className="text-xs uppercase tracking-[0.3em] text-neon">Lokikone</p>
               <ul className="mt-3 space-y-2 text-sm max-h-72 overflow-y-auto pr-2">
