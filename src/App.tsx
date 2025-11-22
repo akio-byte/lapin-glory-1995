@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlarmClock, Brain, Coins, MoonStar, Sparkles, Sun } from 'lucide-react'
 import './App.css'
 import type { Event } from './data/events'
-import { INITIAL_EVENTS } from './data/events'
+import { FALLBACK_MEDIA, INITIAL_EVENTS } from './data/events'
 import CRTVisual from './components/CRTVisual'
 
 type Phase = 'day' | 'night' | 'morning'
@@ -40,32 +40,65 @@ const StatBadge = ({ label, value, icon, tone }: { label: string; value: string;
   </div>
 )
 
-const EventCard = ({ event, onChoice }: { event: Event; onChoice: (effect: Event['choices'][number]) => void }) => (
-  <div className="panel relative overflow-hidden">
-    <div className="absolute inset-0 opacity-5 bg-repeat bg-grid bg-[length:40px_40px]" />
-    {event.media && <CRTVisual media={event.media} />}
-    <p className="text-xs tracking-[0.3em] text-glitch">{event.id}</p>
-    <h2 className="text-2xl font-bold mb-2 glitch-text" data-text={event.title}>
-      {event.title}
-    </h2>
-    <p className="text-sm leading-relaxed mb-6 text-slate-200">{event.description}</p>
-    <div className="space-y-3">
-      {event.choices.map((choice) => (
-        <button
-          key={choice.text}
-          className="button-raw w-full text-left"
-          onClick={() => onChoice(choice)}
-        >
-          <span className="block text-sm">{choice.text}</span>
-          <span className="block text-xs text-coal mt-1">
-            RAHAT {formatDelta(choice.effect.money ?? 0)} mk | MAINE {formatDelta(choice.effect.reputation ?? 0)} | MIELI{' '}
-            {formatDelta(choice.effect.sanity ?? 0)}
-          </span>
-        </button>
-      ))}
+const EventCard = ({
+  event,
+  onChoice,
+  selectedChoiceIndex,
+  outcome,
+  fallbackMedia,
+}: {
+  event: Event
+  onChoice: (effect: Event['choices'][number], index: number) => void
+  selectedChoiceIndex: number | null
+  outcome: string
+  fallbackMedia: NonNullable<Event['media']>
+}) => {
+  const media = event.media ?? fallbackMedia
+  const isLocked = selectedChoiceIndex !== null
+
+  return (
+    <div className="panel relative overflow-hidden">
+      <div className="absolute inset-0 opacity-5 bg-repeat bg-grid bg-[length:40px_40px]" />
+      {media && <CRTVisual media={media} />}
+      <p className="text-xs tracking-[0.3em] text-glitch">{event.id}</p>
+      <h2 className="text-2xl font-bold mb-2 glitch-text" data-text={event.title}>
+        {event.title}
+      </h2>
+      <p className="text-sm leading-relaxed mb-6 text-slate-200">{event.description}</p>
+      <div className="space-y-3">
+        {event.choices.map((choice, index) => {
+          const isSelected = selectedChoiceIndex === index
+          const buttonTone = [
+            'button-raw w-full text-left transition',
+            isSelected ? 'bg-neon text-coal border-neon' : '',
+            isLocked && !isSelected ? 'opacity-50 cursor-not-allowed' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')
+
+          return (
+            <button
+              key={choice.text}
+              className={buttonTone}
+              onClick={() => onChoice(choice, index)}
+              disabled={isLocked}
+            >
+              <span className="block text-sm">{choice.text}</span>
+              <span className="block text-xs text-coal mt-1">
+                RAHAT {formatDelta(choice.effect.money ?? 0)} mk | MAINE {formatDelta(choice.effect.reputation ?? 0)} | MIELI{' '}
+                {formatDelta(choice.effect.sanity ?? 0)}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <div className="mt-4 p-3 bg-coal/60 border border-neon/50 rounded-sm text-sm text-slate-200">
+        <p className="text-xs uppercase tracking-[0.2em] text-neon">Outcome</p>
+        <p className="mt-1">{outcome}</p>
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 const PhaseTicker = ({ phase }: { phase: Phase }) => {
   const meta = phaseMeta[phase]
@@ -108,6 +141,7 @@ function App() {
   const [outcome, setOutcome] = useState('Valitse kohtalosi Lapissa.')
   const [nightReport, setNightReport] = useState('Jono ulottuu pakkaseen. Kassakone pitää metallista ääntä kuin kairan terä.')
   const [journal, setJournal] = useState<string[]>([])
+  const [selectedChoiceIndex, setSelectedChoiceIndex] = useState<number | null>(null)
 
   const activeEvent = useMemo(() => INITIAL_EVENTS.find((evt) => evt.triggerPhase === phase), [phase])
 
@@ -125,7 +159,10 @@ function App() {
     }))
   }
 
-  const handleChoice = (choice: Event['choices'][number]) => {
+  const handleChoice = (choice: Event['choices'][number], index: number) => {
+    if (selectedChoiceIndex !== null) return
+
+    setSelectedChoiceIndex(index)
     applyEffect(choice.effect)
     setOutcome(choice.outcomeText)
     pushLog(`${phase.toUpperCase()}: ${choice.text}`)
@@ -148,6 +185,7 @@ function App() {
 
   const nextPhase = () => {
     const upcoming = PHASE_SEQUENCE[phase]
+    setSelectedChoiceIndex(null)
     if (phase === 'day') {
       rollNight()
     }
@@ -193,14 +231,22 @@ function App() {
 
         <section className="grid md:grid-cols-3 gap-6 mt-10 items-start">
           <div className="md:col-span-2 space-y-4">
-            {phase === 'day' && activeEvent && <EventCard event={activeEvent} onChoice={handleChoice} />}
+            {phase === 'day' && activeEvent && (
+              <EventCard
+                event={activeEvent}
+                onChoice={handleChoice}
+                selectedChoiceIndex={selectedChoiceIndex}
+                outcome={outcome}
+                fallbackMedia={FALLBACK_MEDIA}
+              />
+            )}
             {phase === 'night' && <NightCard report={nightReport} />}
             {phase === 'morning' && <MorningCard stats={stats} />}
 
             <div className="panel bg-coal/70 flex flex-col md:flex-row gap-3 items-center justify-between">
               <div className="text-sm text-slate-200">
-                <p className="font-semibold text-neon">Outcome</p>
-                <p>{outcome}</p>
+                <p className="font-semibold text-neon">Simulaation ohjaus</p>
+                <p>Valitse toiminto, tarkkaile Outcomea ja jatka seuraavaan vaiheeseen.</p>
               </div>
               <button className="button-raw" onClick={nextPhase}>
                 Next Phase →
