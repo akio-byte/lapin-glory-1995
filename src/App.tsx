@@ -86,24 +86,29 @@ const MorningReport = ({
 
 const endingCopy: Record<EndingType, { title: string; description: (params: { stats: Stats }) => string }> = {
   psychWard: {
-    title: 'Suljettu osasto',
-    description: () => 'Mielenterveys romahti. Neonvalot himmenivät ja OS/95 palautui tehdasasetuksiin.',
+    title: 'Game Over: Suljettu osasto',
+    description: () => 'JÄRKI putosi nollaan. Neonvalot himmenivät ja OS/95 palautui tehdasasetuksiin.',
   },
   taxRaid: {
-    title: 'Veropetos-ratsia',
+    title: 'Game Over: Veropetos-ratsia',
     description: () =>
-      'Maine paisui yli 95 pisteen. Verottajan valokuitu syöksyy sisään ja klubin ovet sinetöidään.',
+      'MAINE ylitti 95. Verottajan valokuitu syöksyy sisään, faksit piipittävät ja ovet sinetöidään.',
   },
   bankruptcy: {
-    title: 'Voudin Huutokauppa',
-    description: () => 'Markat katosivat kuin revontulet. Faksi laulaa ulosmittaus-iskelmiä.',
+    title: 'Game Over: Voudin huutokauppa',
+    description: () => 'RAHAT vajosi alle -1000 mk. Vouti vie neonkyltit ja kassalipas myydään pakkohuutokaupassa.',
   },
   vappu: {
-    title: 'Vappu vapauttaa',
-    description: ({ stats }) =>
-      stats.sanity > 60 && stats.reputation > 40
-        ? 'Selvisit 30 päivää. Torilla soi humina ja velhot nostavat sinut juhlapöytään.'
-        : 'Vappu saapuu sumuisena. Olet yhä pystyssä, mutta hörpit simaa yksin neonvalossa.',
+    title: 'Vappu – Laajennettu todellisuus',
+    description: ({ stats }) => {
+      if (stats.reputation > 80 && stats.sanity > 60)
+        return 'Vappu vapauttaa. Kansa kantaa sinut lavalle, LAI hiljenee ja markat virtaavat neon-simana.'
+      if (stats.money > 400 && stats.sanity > 40)
+        return 'Selvisit 30 päivää. Rahaa riittää simaan, mutta revontulikanava pysyy varuillaan.'
+      if (stats.sanity < 35)
+        return 'Vappu sumenee. Torin punssin seasta kuuluu maahisen nauru ja LAI kipinöi otsasuonissa.'
+      return 'Vappu saapuu hiljaa. Olet pystyssä, mutta juhlinta jää sivummalle neonvalojen taakse.'
+    },
   },
 }
 
@@ -119,7 +124,7 @@ const RunOverScreen = ({
   return (
     <div className="min-h-screen bg-[#0f1118] text-white flex items-center justify-center px-6 py-10">
       <div className="panel max-w-xl w-full space-y-4 bg-coal/80 border-2 border-neon/50">
-        <p className="text-[10px] uppercase tracking-[0.35em] text-neon/70 text-center">Run over</p>
+        <p className="text-[10px] uppercase tracking-[0.35em] text-neon/70 text-center">Game Over</p>
         <h2 className="text-3xl font-bold glitch-text text-center" data-text={copy.title}>
           {copy.title}
         </h2>

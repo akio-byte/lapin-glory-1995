@@ -6,9 +6,9 @@ import fallbackImage from '../assets/react.svg'
 export type ItemType = 'consumable' | 'tool' | 'form' | 'relic'
 
 export interface Stats {
-  money: number
-  reputation: number
-  sanity: number
+  money: number // RAHAT (mk)
+  reputation: number // MAINE
+  sanity: number // JÄRKI
   sisu: number
   pimppaus: number
   byroslavia: number
