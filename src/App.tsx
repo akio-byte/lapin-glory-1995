@@ -4,6 +4,7 @@ import { AlarmClock, Brain, Coins, MoonStar, Sparkles, Sun } from 'lucide-react'
 import './App.css'
 import type { Event } from './data/events'
 import { INITIAL_EVENTS } from './data/events'
+import CRTVisual from './components/CRTVisual'
 
 type Phase = 'day' | 'night' | 'morning'
 
@@ -42,6 +43,7 @@ const StatBadge = ({ label, value, icon, tone }: { label: string; value: string;
 const EventCard = ({ event, onChoice }: { event: Event; onChoice: (effect: Event['choices'][number]) => void }) => (
   <div className="panel relative overflow-hidden">
     <div className="absolute inset-0 opacity-5 bg-repeat bg-grid bg-[length:40px_40px]" />
+    {event.media && <CRTVisual media={event.media} />}
     <p className="text-xs tracking-[0.3em] text-glitch">{event.id}</p>
     <h2 className="text-2xl font-bold mb-2 glitch-text" data-text={event.title}>
       {event.title}
