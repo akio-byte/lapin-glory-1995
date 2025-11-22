@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AlarmClock, Brain, Coins, MoonStar, Sparkles, Sun } from 'lucide-react'
 import './App.css'
 import type { Event } from './data/events'
@@ -7,6 +7,7 @@ import { FALLBACK_MEDIA, INITIAL_EVENTS } from './data/events'
 import CRTVisual from './components/CRTVisual'
 
 type Phase = 'day' | 'night' | 'morning'
+type GameStep = 'EVENT_PENDING' | 'EVENT_RESOLVED'
 
 type Stats = {
   money: number
@@ -30,6 +31,12 @@ const phaseMeta: Record<Phase, { label: string; icon: JSX.Element; accent: strin
 
 const formatDelta = (value: number) => (value > 0 ? `+${value}` : `${value}`)
 
+const typewriterStyles = `
+@keyframes typewriter { from { width: 0; } to { width: 100%; } }
+@keyframes caret { from, to { border-color: transparent; } 50% { border-color: currentColor; } }
+.typewriter-text { animation: typewriter 1.5s steps(40, end) forwards, caret 1s step-end infinite; overflow: hidden; white-space: pre-wrap; border-right: 2px solid currentColor; display: inline-block; }
+`
+
 const StatBadge = ({ label, value, icon, tone }: { label: string; value: string; icon: JSX.Element; tone: string }) => (
   <div className={`panel flex items-center gap-3 bg-gradient-to-br from-asphalt to-coal ${tone}`}>
     <div className="p-3 bg-coal border-2 border-neon text-neon shadow-neon">{icon}</div>
@@ -44,47 +51,51 @@ const EventCard = ({
   event,
   onChoice,
   selectedChoiceIndex,
-  outcome,
+  gameStep,
+  currentOutcome,
   fallbackMedia,
 }: {
   event: Event
   onChoice: (effect: Event['choices'][number], index: number) => void
   selectedChoiceIndex: number | null
-  outcome: string
+  gameStep: GameStep
+  currentOutcome: string | null
   fallbackMedia: NonNullable<Event['media']>
 }) => {
   const media = event.media ?? fallbackMedia
-  const isLocked = selectedChoiceIndex !== null
+  const isLocked = gameStep === 'EVENT_RESOLVED'
+  const showOutcome = isLocked && currentOutcome
 
   return (
-    <div className="panel relative overflow-hidden">
+    <div className="panel relative overflow-hidden space-y-4">
+      <style>{typewriterStyles}</style>
       <div className="absolute inset-0 opacity-5 bg-repeat bg-grid bg-[length:40px_40px]" />
       {media && <CRTVisual media={media} />}
       <p className="text-xs tracking-[0.3em] text-glitch">{event.id}</p>
       <h2 className="text-2xl font-bold mb-2 glitch-text" data-text={event.title}>
         {event.title}
       </h2>
-      <p className="text-sm leading-relaxed mb-6 text-slate-200">{event.description}</p>
+      <p className="text-base leading-relaxed font-mono text-slate-50 bg-coal/60 border border-neon/30 p-3 shadow-inner">
+        {event.description}
+      </p>
       <div className="space-y-3">
         {event.choices.map((choice, index) => {
           const isSelected = selectedChoiceIndex === index
-          const buttonTone = [
-            'button-raw w-full text-left transition',
-            isSelected ? 'bg-neon text-coal border-neon' : '',
-            isLocked && !isSelected ? 'opacity-50 cursor-not-allowed' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')
+          const baseTone =
+            'w-full text-left uppercase tracking-[0.2em] border-2 border-neon bg-transparent text-neon px-4 py-3 rounded-none shadow-neon transition'
+          const hoverTone = !isLocked ? 'hover:bg-neon/10 hover:text-neon' : ''
+          const selectedTone = isSelected ? 'bg-neon text-coal font-bold' : ''
+          const disabledTone = isLocked ? (isSelected ? '' : 'opacity-30 grayscale') : ''
 
           return (
             <button
               key={choice.text}
-              className={buttonTone}
+              className={[baseTone, hoverTone, selectedTone, disabledTone].filter(Boolean).join(' ')}
               onClick={() => onChoice(choice, index)}
               disabled={isLocked}
             >
               <span className="block text-sm">{choice.text}</span>
-              <span className="block text-xs text-coal mt-1">
+              <span className="block text-xs text-slate-200 mt-1">
                 RAHAT {formatDelta(choice.effect.money ?? 0)} mk | MAINE {formatDelta(choice.effect.reputation ?? 0)} | MIELI{' '}
                 {formatDelta(choice.effect.sanity ?? 0)}
               </span>
@@ -92,10 +103,13 @@ const EventCard = ({
           )
         })}
       </div>
-      <div className="mt-4 p-3 bg-coal/60 border border-neon/50 rounded-sm text-sm text-slate-200">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon">Outcome</p>
-        <p className="mt-1">{outcome}</p>
-      </div>
+
+      {showOutcome && (
+        <div className="mt-1 p-4 border-2 border-dashed border-neon/70 bg-green-900/20 text-sm text-slate-100 shadow-inner">
+          <p className="text-xs uppercase tracking-[0.2em] text-neon">Outcome</p>
+          <p className="mt-2 typewriter-text">{currentOutcome}</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -138,10 +152,11 @@ const MorningCard = ({ stats }: { stats: Stats }) => (
 function App() {
   const [phase, setPhase] = useState<Phase>('day')
   const [stats, setStats] = useState<Stats>({ money: 0, reputation: 0, sanity: 100 })
-  const [outcome, setOutcome] = useState('Valitse kohtalosi Lapissa.')
+  const [currentOutcome, setCurrentOutcome] = useState<string | null>(null)
   const [nightReport, setNightReport] = useState('Jono ulottuu pakkaseen. Kassakone pitää metallista ääntä kuin kairan terä.')
   const [journal, setJournal] = useState<string[]>([])
   const [selectedChoiceIndex, setSelectedChoiceIndex] = useState<number | null>(null)
+  const [gameStep, setGameStep] = useState<GameStep>('EVENT_PENDING')
 
   const activeEvent = useMemo(() => INITIAL_EVENTS.find((evt) => evt.triggerPhase === phase), [phase])
 
@@ -160,11 +175,12 @@ function App() {
   }
 
   const handleChoice = (choice: Event['choices'][number], index: number) => {
-    if (selectedChoiceIndex !== null) return
+    if (gameStep === 'EVENT_RESOLVED') return
 
     setSelectedChoiceIndex(index)
     applyEffect(choice.effect)
-    setOutcome(choice.outcomeText)
+    setCurrentOutcome(choice.outcomeText)
+    setGameStep('EVENT_RESOLVED')
     pushLog(`${phase.toUpperCase()}: ${choice.text}`)
   }
 
@@ -186,6 +202,9 @@ function App() {
   const nextPhase = () => {
     const upcoming = PHASE_SEQUENCE[phase]
     setSelectedChoiceIndex(null)
+    setCurrentOutcome(null)
+    setGameStep(upcoming === 'day' ? 'EVENT_PENDING' : 'EVENT_RESOLVED')
+
     if (phase === 'day') {
       rollNight()
     }
@@ -193,18 +212,14 @@ function App() {
       pushLog('AAMU: Lasketaan kierroksen tulokset')
     }
     if (upcoming === 'day') {
-      setOutcome('Uusi faksi särisee linjalla. Päivä on jälleen käsillä.')
+      pushLog('PÄIVÄ: Uusi faksi särisee linjalla')
     }
+
     setPhase(upcoming)
   }
 
-  useEffect(() => {
-    if (phase === 'day' && activeEvent) {
-      setOutcome(activeEvent.description)
-    }
-  }, [phase, activeEvent])
-
   const sanityGlitch = stats.sanity < 20
+  const canAdvance = phase !== 'day' || gameStep === 'EVENT_RESOLVED'
 
   return (
     <div className="relative min-h-screen bg-coal text-white overflow-hidden">
@@ -236,7 +251,8 @@ function App() {
                 event={activeEvent}
                 onChoice={handleChoice}
                 selectedChoiceIndex={selectedChoiceIndex}
-                outcome={outcome}
+                gameStep={gameStep}
+                currentOutcome={currentOutcome}
                 fallbackMedia={FALLBACK_MEDIA}
               />
             )}
@@ -246,18 +262,21 @@ function App() {
             <div className="panel bg-coal/70 flex flex-col md:flex-row gap-3 items-center justify-between">
               <div className="text-sm text-slate-200">
                 <p className="font-semibold text-neon">Simulaation ohjaus</p>
-                <p>Valitse toiminto, tarkkaile Outcomea ja jatka seuraavaan vaiheeseen.</p>
+                <p>Valitse toiminto, näe outcome neon-boksissa ja etene kierroksessa.</p>
               </div>
-              <button className="button-raw" onClick={nextPhase}>
-                Next Phase →
-              </button>
+              {canAdvance && (
+                <button className="button-raw animate-pulse" onClick={nextPhase}>
+                  Next Phase →
+                </button>
+              )}
             </div>
 
             {isGameOver && (
               <div className="panel border-4 border-red-500 text-red-200">
                 <p className="text-xl font-bold">GAME OVER</p>
                 <p>
-                  {isBankrupt && 'Velkakello soi liian kovaa. '} {isBroken && 'Mielenterveys suli neonin alle.'}
+                  {isBankrupt && 'Velkakello soi liian kovaa. '}
+                  {isBroken && 'Mielenterveys suli neonin alle.'}
                 </p>
               </div>
             )}
