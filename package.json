@@ -1,8 +1,9 @@
 {
-  "name": "temp",
+  "name": "lapin-glory-1995",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "description": "Satirical Lapland 1995 management-horror where you juggle faxes, neon nightlife, and sanity in a cursed OS/95 UI.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
