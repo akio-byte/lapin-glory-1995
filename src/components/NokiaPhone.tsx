@@ -1,5 +1,6 @@
 type NokiaPhoneProps = {
   sanity: number
+  onPing?: () => void
 }
 
 const pixelVibes = `
@@ -12,7 +13,7 @@ const pixelVibes = `
 }
 `
 
-const NokiaPhone = ({ sanity }: NokiaPhoneProps) => {
+const NokiaPhone = ({ sanity, onPing }: NokiaPhoneProps) => {
   const isGlitch = sanity < 20
   const message = isGlitch ? (Math.random() > 0.5 ? 'RUN: DIE' : 'GHOST: 100%') : 'Signal: -85dBm'
 
@@ -33,6 +34,15 @@ const NokiaPhone = ({ sanity }: NokiaPhoneProps) => {
             </>
           )}
           {isGlitch && <p>Revontuli-kanava: kuiskaus kuuluu linjassa.</p>}
+          <div className="pt-2">
+            <button
+              className="w-full bg-lime-800/60 border border-lime-600 text-lime-100 uppercase tracking-[0.2em] text-xs py-1 hover:bg-lime-700"
+              onClick={onPing}
+              type="button"
+            >
+              Pingaa verkkoa
+            </button>
+          </div>
         </div>
       </div>
     </div>
