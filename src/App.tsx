@@ -5,6 +5,7 @@ import './App.css'
 import type { Event } from './data/events'
 import { FALLBACK_MEDIA, INITIAL_EVENTS } from './data/events'
 import CRTVisual from './components/CRTVisual'
+import NokiaPhone from './components/NokiaPhone'
 
 type Phase = 'day' | 'night' | 'morning'
 type GameStep = 'EVENT_PENDING' | 'EVENT_RESOLVED'
@@ -224,6 +225,7 @@ function App() {
   return (
     <div className="relative min-h-screen bg-coal text-white overflow-hidden">
       <div className="absolute inset-0 opacity-30 bg-grid bg-[length:60px_60px]" />
+      <NokiaPhone stats={stats} />
       <main className="relative max-w-6xl mx-auto px-6 py-10 crt-overlay">
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
