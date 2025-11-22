@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import EventCard from './components/EventCard'
 import NokiaPhone from './components/NokiaPhone'
+import PaperWar, { type PaperWarResolution } from './components/PaperWar'
 import Shop from './components/Shop'
 import StatsBar from './components/StatsBar'
 import type { Stats } from './data/gameData'
@@ -154,6 +155,7 @@ function App() {
     isGlitching,
     currentEvent,
     fallbackMedia,
+    handleChoice: applyChoiceEffects,
     advancePhase,
     resolveChoice,
     buyItem,
@@ -172,6 +174,7 @@ function App() {
   }, [phase])
 
   const activeEvent = useMemo(() => currentEvent, [currentEvent])
+  const isPaperWar = activeEvent?.paperWar
 
   const handleRestart = () => {
     setJournal([])
@@ -184,12 +187,20 @@ function App() {
     return <RunOverScreen ending={ending} onRestart={handleRestart} />
   }
 
-  const handleChoice = (choice: Parameters<typeof resolveChoice>[0]) => {
+  const handleEventChoice = (choice: Parameters<typeof resolveChoice>[0]) => {
     if (locked || !activeEvent) return
     const result = resolveChoice(choice)
     setOutcome(result.outcomeText)
     setLocked(true)
     setJournal((prev) => [`${phase}: ${choice.label} -> ${result.outcomeText}`, ...prev].slice(0, 6))
+  }
+
+  const handlePaperWarResolve = (result: PaperWarResolution) => {
+    if (locked || !activeEvent) return
+    applyChoiceEffects(result.appliedEffects)
+    setOutcome(result.summary)
+    setLocked(true)
+    setJournal((prev) => [`${phase}: ${activeEvent.id} -> ${result.summary}`, ...prev].slice(0, 6))
   }
 
   const wrapperGlitchClass = isGlitching ? 'animate-[shake_0.6s_linear_infinite] invert' : ''
@@ -222,15 +233,27 @@ function App() {
         <section className="grid md:grid-cols-3 gap-6 items-start">
           <div className="md:col-span-2 space-y-4">
             {phase !== 'MORNING' && activeEvent && (
-              <EventCard
-                event={activeEvent}
-                locked={locked}
-                outcome={outcome}
-                onChoice={handleChoice}
-                onNextPhase={advancePhase}
-                fallbackMedia={fallbackMedia}
-                phase={phase}
-              />
+              isPaperWar ? (
+                <PaperWar
+                  event={activeEvent}
+                  stats={stats}
+                  locked={locked}
+                  outcome={outcome}
+                  fallbackMedia={fallbackMedia}
+                  onResolve={handlePaperWarResolve}
+                  onNextPhase={advancePhase}
+                />
+              ) : (
+                <EventCard
+                  event={activeEvent}
+                  locked={locked}
+                  outcome={outcome}
+                  onChoice={handleEventChoice}
+                  onNextPhase={advancePhase}
+                  fallbackMedia={fallbackMedia}
+                  phase={phase}
+                />
+              )
             )}
 
             {phase !== 'MORNING' && !activeEvent && (
