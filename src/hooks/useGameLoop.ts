@@ -1,8 +1,23 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { GameEvent, GameEventChoice, Item, Stats } from '../data/gameData'
 import { fallbackEventMedia, gameEvents, items as availableItems } from '../data/gameData'
 
 export type Phase = 'DAY' | 'NIGHT' | 'MORNING'
+
+export type EndingType = 'psychWard' | 'bankruptcy' | 'vappu'
+
+type EndingState = {
+  type: EndingType
+  dayCount: number
+  stats: Stats
+}
+
+type MorningReport = {
+  moneyDelta: number
+  sanityDelta: number
+  note: string
+  day: number
+}
 
 type ChoiceResolution = {
   outcomeText: string
@@ -14,10 +29,11 @@ type GameState = {
   inventory: Item[]
   phase: Phase
   dayCount: number
-  isGameOver: boolean
+  ending: EndingState | null
   isGlitching: boolean
   currentEvent: GameEvent | null
   fallbackMedia: NonNullable<GameEvent['media']>
+  morningReport: MorningReport | null
 }
 
 type GameActions = {
@@ -25,9 +41,12 @@ type GameActions = {
   handleChoice: (effect: Partial<Stats>) => void
   buyItem: (item: Item) => boolean
   resolveChoice: (choice: GameEventChoice) => ChoiceResolution
+  resetGame: () => void
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
+const MAX_DAYS = 30
 
 const INITIAL_STATS: Stats = {
   money: 0,
@@ -53,10 +72,18 @@ export const useGameLoop = (): GameState & GameActions => {
   const [inventory, setInventory] = useState<Item[]>([])
   const [phase, setPhase] = useState<Phase>('DAY')
   const [dayCount, setDayCount] = useState<number>(1)
+  const [dayStartStats, setDayStartStats] = useState<Stats>(INITIAL_STATS)
+  const [morningReport, setMorningReport] = useState<MorningReport | null>(null)
 
   const currentEvent = useMemo(() => pickEventForPhase(phase, stats), [phase, stats])
 
-  const isGameOver = stats.sanity <= 0 || stats.money < -1000
+  const ending: EndingState | null = useMemo(() => {
+    if (stats.sanity <= 0) return { type: 'psychWard', dayCount, stats }
+    if (stats.money < -1000) return { type: 'bankruptcy', dayCount, stats }
+    if (dayCount > MAX_DAYS) return { type: 'vappu', dayCount: MAX_DAYS, stats }
+    return null
+  }, [dayCount, stats])
+
   const isGlitching = stats.sanity < 20
 
   const handleChoice = (effect: Partial<Stats>) => {
@@ -71,12 +98,15 @@ export const useGameLoop = (): GameState & GameActions => {
   }
 
   const advancePhase = () => {
+    if (ending) return
+
     setPhase((prev) => {
       const currentIndex = PHASE_ORDER.indexOf(prev)
       const next = PHASE_ORDER[(currentIndex + 1) % PHASE_ORDER.length]
 
       if (next === 'DAY') {
         setDayCount((count) => count + 1)
+        setDayStartStats(() => ({ ...stats }))
         handleChoice({ money: -50 })
       }
 
@@ -121,19 +151,67 @@ export const useGameLoop = (): GameState & GameActions => {
     return { outcomeText: outcome.text, appliedEffects: combinedEffects }
   }
 
+  const resetGame = () => {
+    setStats(INITIAL_STATS)
+    setInventory([])
+    setPhase('DAY')
+    setDayCount(1)
+    setDayStartStats(INITIAL_STATS)
+    setMorningReport(null)
+  }
+
+  const buildMorningNote = (state: Stats) => {
+    const randomPick = (options: string[]) => options[Math.floor(Math.random() * options.length)]
+
+    if (state.sanity < 20)
+      return randomPick([
+        'Näytön takaa ilmestyy faksi: "Käy lepää, veli".',
+        'Ruudun kulma vuotaa valoa. Kuulostat itseltäsi vastaantulevassa faksissa.',
+      ])
+    if (state.reputation > 65)
+      return randomPick([
+        'Huhu kiertää: olet Lapin virallinen neon-ikonoklasti.',
+        'Posti tuo tuplakirjauksen: kansa odottaa uutta raporttia sinulta.',
+      ])
+    if (state.money < -500)
+      return randomPick([
+        'Kirjanpitäjä kuiskaa, että markat pakenevat kuin revontulet.',
+        'Pankin faksi kysyy: onko tää vielä harrastus vai performanssi?',
+      ])
+    return randomPick([
+      'Kahvinkeittimen ääni muistuttaa huminaa. Uusi päivä, uusi lomake.',
+      'OS/95 piippaa hiljaa: "Muista hengittää ennen kuin avaat postin".',
+    ])
+  }
+
+  useEffect(() => {
+    if (phase === 'MORNING') {
+      const moneyDelta = stats.money - dayStartStats.money
+      const sanityDelta = stats.sanity - dayStartStats.sanity
+      setMorningReport({
+        moneyDelta,
+        sanityDelta,
+        note: buildMorningNote(stats),
+        day: dayCount,
+      })
+    }
+  }, [phase, stats, dayStartStats, dayCount])
+
   return {
     stats,
     inventory,
     phase,
     dayCount,
-    isGameOver,
+    ending,
     isGlitching,
     currentEvent,
     fallbackMedia: fallbackEventMedia,
+    morningReport,
     advancePhase,
     handleChoice,
     buyItem,
     resolveChoice,
+    resetGame,
   }
 }
 

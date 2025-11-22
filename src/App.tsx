@@ -4,6 +4,7 @@ import EventCard from './components/EventCard'
 import NokiaPhone from './components/NokiaPhone'
 import StatsBar from './components/StatsBar'
 import type { Stats } from './data/gameData'
+import type { EndingType } from './hooks/useGameLoop'
 import { useGameLoop } from './hooks/useGameLoop'
 
 const shakeStyles = `
@@ -22,33 +23,140 @@ const shakeStyles = `
 }
 `
 
-const MorningReport = ({ stats, dayCount, onAdvance }: { stats: Stats; dayCount: number; onAdvance: () => void }) => (
-  <div className="panel space-y-3 bg-asphalt/70">
-    <p className="text-[10px] uppercase tracking-[0.35em] text-neon/70">Aamuraportti</p>
-    <h2 className="text-2xl font-bold glitch-text" data-text="Raportti">
-      Raportti
+const formatDelta = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(0)}`
+
+const MorningReport = ({
+  stats,
+  dayCount,
+  moneyDelta,
+  sanityDelta,
+  note,
+  onAdvance,
+}: {
+  stats: Stats
+  dayCount: number
+  moneyDelta: number
+  sanityDelta: number
+  note: string
+  onAdvance: () => void
+}) => (
+  <div className="panel space-y-4 bg-asphalt/70 border border-neon/40">
+    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-neon/70">
+      <span>OS/95 Raportti</span>
+      <span className="text-[11px]">Päivä {dayCount} →</span>
+    </div>
+    <h2 className="text-2xl font-bold glitch-text" data-text="Aamuraportti">
+      Aamuraportti
     </h2>
     <p className="text-sm leading-relaxed text-slate-200">
       Yö vaihtuu siniseen hetkeen. Lomakkeet kuivuvat, kassalipas jäätyy. Pidä mieli kasassa ennen seuraavaa faksia.
     </p>
-    <ul className="text-sm text-slate-100 space-y-1 border border-neon/30 p-3 bg-coal/60">
-      <li>Markat: {stats.money.toFixed(0)} mk</li>
-      <li>Maine: {stats.reputation} / 100</li>
-      <li>Mielenterveys: {stats.sanity} / 100</li>
-      <li>Sisu: {stats.sisu} / 100</li>
-      <li>Päivä: {dayCount}</li>
-    </ul>
+    <div className="grid grid-cols-2 gap-3 text-sm">
+      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Markat</p>
+        <p className="text-lg font-semibold">{stats.money.toFixed(0)} mk</p>
+        <p className="text-xs text-slate-300">Eilen: {formatDelta(moneyDelta)} mk</p>
+      </div>
+      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Mielenterveys</p>
+        <p className="text-lg font-semibold">{stats.sanity} / 100</p>
+        <p className="text-xs text-slate-300">Eilen: {formatDelta(sanityDelta)}</p>
+      </div>
+      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Maine</p>
+        <p className="text-lg font-semibold">{stats.reputation} / 100</p>
+      </div>
+      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Sisu</p>
+        <p className="text-lg font-semibold">{stats.sisu} / 100</p>
+      </div>
+    </div>
+    <div className="p-3 bg-black/40 border border-neon/30 text-sm rounded italic text-slate-100">{note}</div>
     <div className="text-right">
       <button className="button-raw" onClick={onAdvance}>
-        Seuraava vaihe →
+        Hyväksy raportti →
       </button>
     </div>
   </div>
 )
 
+const endingCopy: Record<EndingType, { title: string; description: (params: { stats: Stats }) => string }> = {
+  psychWard: {
+    title: 'Suljettu osasto',
+    description: () => 'Mielenterveys romahti. Neonvalot himmenivät ja OS/95 palautui tehdasasetuksiin.',
+  },
+  bankruptcy: {
+    title: 'Voudin Huutokauppa',
+    description: () => 'Markat katosivat kuin revontulet. Faksi laulaa ulosmittaus-iskelmiä.',
+  },
+  vappu: {
+    title: 'Vappu vapauttaa',
+    description: ({ stats }) =>
+      stats.sanity > 60 && stats.reputation > 40
+        ? 'Selvisit 30 päivää. Torilla soi humina ja velhot nostavat sinut juhlapöytään.'
+        : 'Vappu saapuu sumuisena. Olet yhä pystyssä, mutta hörpit simaa yksin neonvalossa.',
+  },
+}
+
+const RunOverScreen = ({
+  ending,
+  onRestart,
+}: {
+  ending: { type: EndingType; stats: Stats; dayCount: number }
+  onRestart: () => void
+}) => {
+  const copy = endingCopy[ending.type]
+
+  return (
+    <div className="min-h-screen bg-[#0f1118] text-white flex items-center justify-center px-6 py-10">
+      <div className="panel max-w-xl w-full space-y-4 bg-coal/80 border-2 border-neon/50">
+        <p className="text-[10px] uppercase tracking-[0.35em] text-neon/70 text-center">Run over</p>
+        <h2 className="text-3xl font-bold glitch-text text-center" data-text={copy.title}>
+          {copy.title}
+        </h2>
+        <p className="text-sm text-slate-200 text-center">{copy.description({ stats: ending.stats })}</p>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="border border-neon/30 p-3 bg-black/40 rounded">
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Päiviä selvittiin</p>
+            <p className="text-lg font-semibold">{ending.dayCount}</p>
+          </div>
+          <div className="border border-neon/30 p-3 bg-black/40 rounded">
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Markat</p>
+            <p className="text-lg font-semibold">{ending.stats.money.toFixed(0)} mk</p>
+          </div>
+          <div className="border border-neon/30 p-3 bg-black/40 rounded">
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Mielenterveys</p>
+            <p className="text-lg font-semibold">{ending.stats.sanity} / 100</p>
+          </div>
+          <div className="border border-neon/30 p-3 bg-black/40 rounded">
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Maine</p>
+            <p className="text-lg font-semibold">{ending.stats.reputation} / 100</p>
+          </div>
+        </div>
+        <div className="text-center pt-2">
+          <button className="button-raw" onClick={onRestart}>
+            Aloita uusi run →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function App() {
-  const { stats, phase, dayCount, isGameOver, isGlitching, currentEvent, fallbackMedia, advancePhase, resolveChoice } =
-    useGameLoop()
+  const {
+    stats,
+    phase,
+    dayCount,
+    ending,
+    isGlitching,
+    currentEvent,
+    fallbackMedia,
+    advancePhase,
+    resolveChoice,
+    morningReport,
+    resetGame,
+  } = useGameLoop()
 
   const [outcome, setOutcome] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
@@ -61,6 +169,17 @@ function App() {
 
   const activeEvent = useMemo(() => currentEvent, [currentEvent])
 
+  const handleRestart = () => {
+    setJournal([])
+    setOutcome(null)
+    setLocked(false)
+    resetGame()
+  }
+
+  if (ending) {
+    return <RunOverScreen ending={ending} onRestart={handleRestart} />
+  }
+
   const handleChoice = (choice: Parameters<typeof resolveChoice>[0]) => {
     if (locked || !activeEvent) return
     const result = resolveChoice(choice)
@@ -70,6 +189,9 @@ function App() {
   }
 
   const wrapperGlitchClass = isGlitching ? 'animate-[shake_0.6s_linear_infinite] invert' : ''
+
+  const report =
+    morningReport ?? ({ moneyDelta: 0, sanityDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
 
   // TODO: Play "Humina" drone sound loop here when audio pipeline is connected.
 
@@ -117,13 +239,15 @@ function App() {
               </div>
             )}
 
-            {phase === 'MORNING' && <MorningReport stats={stats} dayCount={dayCount} onAdvance={advancePhase} />}
-
-            {isGameOver && (
-              <div className="panel border-4 border-red-500 bg-red-900/20 text-red-200">
-                <p className="text-xl font-bold">Game Over</p>
-                <p>Voudin huutokauppa tai suljettu osasto. Mieli {stats.sanity}, markat {stats.money.toFixed(0)} mk.</p>
-              </div>
+            {phase === 'MORNING' && (
+              <MorningReport
+                stats={stats}
+                dayCount={report.day}
+                moneyDelta={report.moneyDelta}
+                sanityDelta={report.sanityDelta}
+                note={report.note}
+                onAdvance={advancePhase}
+              />
             )}
           </div>
 
