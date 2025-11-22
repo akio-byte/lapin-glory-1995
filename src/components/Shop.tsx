@@ -1,5 +1,6 @@
 import type { Item, Stats } from '../data/gameData'
 import { items as availableItems } from '../data/gameData'
+import { canonicalStats } from '../data/statMeta'
 import type { Phase } from '../hooks/useGameLoop'
 
 const formatPrice = (price: number) => `${price} mk`
@@ -89,7 +90,10 @@ const Shop = ({
           <ItemTag label="Päiväkauppa" />
           <p className="text-sm text-slate-200">Salkku auki: neon-puhelin vastaanottaa tilauksia.</p>
         </div>
-        <p className="text-sm text-neon">Kassa: {formatPrice(stats.money)}</p>
+        <div className="text-right">
+          <p className="text-sm text-neon">{canonicalStats.money.label}: {formatPrice(stats.money)}</p>
+          <p className="text-[10px] text-slate-300 uppercase tracking-[0.2em]">{canonicalStats.money.short}</p>
+        </div>
       </div>
 
       <div className="space-y-3">

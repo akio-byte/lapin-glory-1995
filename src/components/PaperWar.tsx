@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { GameEvent, Stats } from '../data/gameData'
 import CRTVisual from './CRTVisual'
+import { canonicalStats } from '../data/statMeta'
 
 export type PaperWarMove = 'ATTACK_FORM' | 'DEFEND_RECEIPT' | 'BLUFF'
 
@@ -32,12 +33,19 @@ const mergeEffects = (prev: Partial<Stats>, delta: Partial<Stats>) => {
 }
 
 const formatEffectSummary = (effects: Partial<Stats>) => {
-  const chunks = ['money', 'sanity', 'reputation']
-    .map((key) => {
-      const typedKey = key as keyof Stats
+  const statLabels: Record<'money' | 'sanity' | 'reputation', string> = {
+    money: 'Rahat',
+    sanity: 'Järki',
+    reputation: 'Maine',
+  }
+
+  const statKeys = ['money', 'sanity', 'reputation'] as const
+
+  const chunks = statKeys
+    .map((typedKey) => {
       const value = effects[typedKey]
       if (value === undefined) return null
-      const label = key === 'money' ? 'mk' : typedKey
+      const label = typedKey === 'money' ? `${statLabels.money} (mk)` : statLabels[typedKey]
       const prefix = value > 0 ? '+' : ''
       return `${label}: ${prefix}${value}`
     })
@@ -172,14 +180,14 @@ const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onN
 
         <div className="grid md:grid-cols-3 gap-3 text-sm">
           <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Mielenterveys</p>
-            <p className="text-lg font-semibold">{localSanity.toFixed(0)} / 100</p>
-            <p className="text-[11px] text-slate-300">Jäljellä kun ruudukko täyttyy.</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.sanity.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.sanity.format(localSanity)}</p>
+            <p className="text-[11px] text-slate-300">Kestääkö järki vai viekö suljettu osasto.</p>
           </div>
           <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Markat</p>
-            <p className="text-lg font-semibold">{localMoney.toFixed(0)} mk</p>
-            <p className="text-[11px] text-slate-300">Lomakekirjojen kipuraja.</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.money.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.money.format(localMoney)}</p>
+            <p className="text-[11px] text-slate-300">Älä anna velan upota alle -1000 mk.</p>
           </div>
           <div className="border border-neon/30 p-3 bg-coal/60 rounded">
             <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Lokit</p>

@@ -4,12 +4,18 @@
 - `useGameLoop` (`src/hooks/useGameLoop.ts`) drives the state machine with `PHASE_ORDER` cycling DAY → NIGHT → MORNING.
 - Each phase swap can pick a new `GameEvent` via `pickEventForPhase` based on `triggerPhase` (`day` or `night`) and optional stat-based conditions.
 - Morning automatically applies rent (`handleChoice({ money: -50 })`) and increments `dayCount` before returning to DAY.
-- Glitching/UI distortion toggles when sanity drops under 20, and game over triggers when sanity ≤ 0 or money < -1000.
+- Glitching/UI distortion toggles when sanity drops under 20, and game over triggers when sanity ≤ 0, money < -1000, or reputation > 95.
 
 ## Stats model and modifiers
 - Core stats live in `Stats` (`src/data/gameData.ts`): `money`, `reputation`, `sanity`, `sisu`, `pimppaus`, `byroslavia`.
 - `handleChoice` clamps most stats between 0–100 (money is unbounded) and is the single entry point for applying effects.
 - Event outcomes, item purchases, and rent all route through `handleChoice`, ensuring consistent bounds and failure checks.
+
+## Canon stats and fail states
+- **RAHAT (money):** käytetään vuokriin ja lahjuksiin; jos saldo laskee alle **-1000 mk**, päädytään "Voudin huutokauppa" -loppuruutuun.
+- **MAINE (reputation):** kuvaa näkyvyyttä; kun MAINE nousee yli **95**, "Veropetos-ratsia" katkaisee runin.
+- **JÄRKI (sanity):** henkinen kesto; **0** JÄRKEÄ päättää pelin "Suljettu osasto" -lopetukseen.
+- **Erikoistapaus:** 30 päivän selviytyminen johtaa Vappu-loppuun.
 
 ## Data contracts
 - `GameEvent` and `GameEventChoice` (see `src/data/gameData.ts`):
