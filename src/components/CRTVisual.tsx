@@ -3,7 +3,7 @@ export type CRTVisualProps = {
 }
 
 const CRTVisual = ({ media }: CRTVisualProps) => (
-  <div className="relative w-full h-64 bg-black border-2 border-neon rounded-sm overflow-hidden shadow-[0_0_15px_rgba(255,0,255,0.3)] mb-4">
+  <div className="crt-screen relative w-full h-64 overflow-hidden border-2 border-neon shadow-[0_0_18px_rgba(255,0,255,0.25)]">
     {media.type === 'video' ? (
       <video
         className="w-full h-full object-cover opacity-80"
@@ -17,7 +17,8 @@ const CRTVisual = ({ media }: CRTVisualProps) => (
     ) : (
       <img className="w-full h-full object-cover opacity-80" src={media.src} alt={media.alt} />
     )}
-    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]" />
+    <div className="pointer-events-none absolute inset-0 mix-blend-screen bg-[linear-gradient(rgba(255,255,255,0.02)_50%,rgba(0,0,0,0.35)_50%)] bg-[length:100%_2px] opacity-60" />
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,0,255,0.05),transparent_30%)]" />
   </div>
 )
 

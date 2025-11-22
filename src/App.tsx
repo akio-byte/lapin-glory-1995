@@ -1,293 +1,136 @@
-import type { JSX } from 'react'
-import { useMemo, useState } from 'react'
-import { AlarmClock, Brain, Coins, MoonStar, Sparkles, Sun } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
-import type { Event } from './data/events'
-import { FALLBACK_MEDIA, INITIAL_EVENTS } from './data/events'
-import CRTVisual from './components/CRTVisual'
+import EventCard from './components/EventCard'
 import NokiaPhone from './components/NokiaPhone'
+import StatsBar from './components/StatsBar'
+import type { Stats } from './data/gameData'
+import { useGameLoop } from './hooks/useGameLoop'
 
-type Phase = 'day' | 'night' | 'morning'
-type GameStep = 'EVENT_PENDING' | 'EVENT_RESOLVED'
-
-type Stats = {
-  money: number
-  reputation: number
-  sanity: number
+const shakeStyles = `
+@keyframes shake {
+  0% { transform: translate(1px, 1px) rotate(0deg); }
+  10% { transform: translate(-1px, -2px) rotate(-1deg); }
+  20% { transform: translate(-3px, 0px) rotate(1deg); }
+  30% { transform: translate(3px, 2px) rotate(0deg); }
+  40% { transform: translate(1px, -1px) rotate(1deg); }
+  50% { transform: translate(-1px, 2px) rotate(-1deg); }
+  60% { transform: translate(-3px, 1px) rotate(0deg); }
+  70% { transform: translate(3px, 1px) rotate(-1deg); }
+  80% { transform: translate(-1px, -1px) rotate(1deg); }
+  90% { transform: translate(1px, 2px) rotate(0deg); }
+  100% { transform: translate(1px, -2px) rotate(-1deg); }
 }
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
-
-const PHASE_SEQUENCE: Record<Phase, Phase> = {
-  day: 'night',
-  night: 'morning',
-  morning: 'day',
-}
-
-const phaseMeta: Record<Phase, { label: string; icon: JSX.Element; accent: string }> = {
-  day: { label: 'PÄIVÄ / VIRKAKONE', icon: <Sun className="h-5 w-5" />, accent: 'border-neon' },
-  night: { label: 'YÖ / BAARI', icon: <MoonStar className="h-5 w-5" />, accent: 'border-glitch' },
-  morning: { label: 'AAMU / RAPORTTI', icon: <AlarmClock className="h-5 w-5" />, accent: 'border-white' },
-}
-
-const formatDelta = (value: number) => (value > 0 ? `+${value}` : `${value}`)
-
-const typewriterStyles = `
-@keyframes typewriter { from { width: 0; } to { width: 100%; } }
-@keyframes caret { from, to { border-color: transparent; } 50% { border-color: currentColor; } }
-.typewriter-text { animation: typewriter 1.5s steps(40, end) forwards, caret 1s step-end infinite; overflow: hidden; white-space: pre-wrap; border-right: 2px solid currentColor; display: inline-block; }
 `
 
-const StatBadge = ({ label, value, icon, tone }: { label: string; value: string; icon: JSX.Element; tone: string }) => (
-  <div className={`panel flex items-center gap-3 bg-gradient-to-br from-asphalt to-coal ${tone}`}>
-    <div className="p-3 bg-coal border-2 border-neon text-neon shadow-neon">{icon}</div>
-    <div>
-      <p className="text-xs tracking-[0.2em] text-glitch">{label}</p>
-      <p className="text-2xl font-semibold">{value}</p>
-    </div>
-  </div>
-)
-
-const EventCard = ({
-  event,
-  onChoice,
-  selectedChoiceIndex,
-  gameStep,
-  currentOutcome,
-  fallbackMedia,
-}: {
-  event: Event
-  onChoice: (effect: Event['choices'][number], index: number) => void
-  selectedChoiceIndex: number | null
-  gameStep: GameStep
-  currentOutcome: string | null
-  fallbackMedia: NonNullable<Event['media']>
-}) => {
-  const media = event.media ?? fallbackMedia
-  const isLocked = gameStep === 'EVENT_RESOLVED'
-  const showOutcome = isLocked && currentOutcome
-
-  return (
-    <div className="panel relative overflow-hidden space-y-4">
-      <style>{typewriterStyles}</style>
-      <div className="absolute inset-0 opacity-5 bg-repeat bg-grid bg-[length:40px_40px]" />
-      {media && <CRTVisual media={media} />}
-      <p className="text-xs tracking-[0.3em] text-glitch">{event.id}</p>
-      <h2 className="text-2xl font-bold mb-2 glitch-text" data-text={event.title}>
-        {event.title}
-      </h2>
-      <p className="text-base leading-relaxed font-mono text-slate-50 bg-coal/60 border border-neon/30 p-3 shadow-inner">
-        {event.description}
-      </p>
-      <div className="space-y-3">
-        {event.choices.map((choice, index) => {
-          const isSelected = selectedChoiceIndex === index
-          const baseTone =
-            'w-full text-left uppercase tracking-[0.2em] border-2 border-neon bg-transparent text-neon px-4 py-3 rounded-none shadow-neon transition'
-          const hoverTone = !isLocked ? 'hover:bg-neon/10 hover:text-neon' : ''
-          const selectedTone = isSelected ? 'bg-neon text-coal font-bold' : ''
-          const disabledTone = isLocked ? (isSelected ? '' : 'opacity-30 grayscale') : ''
-
-          return (
-            <button
-              key={choice.text}
-              className={[baseTone, hoverTone, selectedTone, disabledTone].filter(Boolean).join(' ')}
-              onClick={() => onChoice(choice, index)}
-              disabled={isLocked}
-            >
-              <span className="block text-sm">{choice.text}</span>
-              <span className="block text-xs text-slate-200 mt-1">
-                RAHAT {formatDelta(choice.effect.money ?? 0)} mk | MAINE {formatDelta(choice.effect.reputation ?? 0)} | MIELI{' '}
-                {formatDelta(choice.effect.sanity ?? 0)}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
-      {showOutcome && (
-        <div className="mt-1 p-4 border-2 border-dashed border-neon/70 bg-green-900/20 text-sm text-slate-100 shadow-inner">
-          <p className="text-xs uppercase tracking-[0.2em] text-neon">Outcome</p>
-          <p className="mt-2 typewriter-text">{currentOutcome}</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-const PhaseTicker = ({ phase }: { phase: Phase }) => {
-  const meta = phaseMeta[phase]
-  return (
-    <div className={`panel flex items-center gap-3 border-2 ${meta.accent}`}>
-      <div className="flex items-center gap-2 text-neon">
-        {meta.icon}
-        <span className="text-sm tracking-[0.25em]">{meta.label}</span>
-      </div>
-      <div className="ml-auto text-xs uppercase bg-neon text-coal px-3 py-1">Lapin Glory OS/95</div>
-    </div>
-  )
-}
-
-const NightCard = ({ report }: { report: string }) => (
-  <div className="panel space-y-3">
-    <p className="text-xs tracking-[0.3em] text-glitch">YÖSIMULAATTORI</p>
-    <h2 className="text-2xl font-bold">Neon pölyää ja kassakone yskii</h2>
-    <p className="text-sm text-slate-200 leading-relaxed">{report}</p>
-    <div className="text-xs uppercase tracking-[0.2em] text-neon">Tulokset päivittyvät automaattisesti</div>
-  </div>
-)
-
-const MorningCard = ({ stats }: { stats: Stats }) => (
-  <div className="panel space-y-3">
-    <p className="text-xs tracking-[0.3em] text-glitch">AAMURAPORTTI</p>
-    <h2 className="text-2xl font-bold">Sininen hetki, vihreä verokirje</h2>
-    <ul className="text-sm text-slate-200 space-y-2">
-      <li>Rahat: {stats.money} mk</li>
+const MorningReport = ({ stats, dayCount, onAdvance }: { stats: Stats; dayCount: number; onAdvance: () => void }) => (
+  <div className="panel space-y-3 bg-asphalt/70">
+    <p className="text-[10px] uppercase tracking-[0.35em] text-neon/70">Aamuraportti</p>
+    <h2 className="text-2xl font-bold glitch-text" data-text="Raportti">
+      Raportti
+    </h2>
+    <p className="text-sm leading-relaxed text-slate-200">
+      Yö vaihtuu siniseen hetkeen. Lomakkeet kuivuvat, kassalipas jäätyy. Pidä mieli kasassa ennen seuraavaa faksia.
+    </p>
+    <ul className="text-sm text-slate-100 space-y-1 border border-neon/30 p-3 bg-coal/60">
+      <li>Markat: {stats.money.toFixed(0)} mk</li>
       <li>Maine: {stats.reputation} / 100</li>
       <li>Mielenterveys: {stats.sanity} / 100</li>
+      <li>Sisu: {stats.sisu} / 100</li>
+      <li>Päivä: {dayCount}</li>
     </ul>
-    <p className="text-xs uppercase tracking-[0.2em] text-neon">Paina NEXT aloittaaksesi seuraavan kierroksen</p>
+    <div className="text-right">
+      <button className="button-raw" onClick={onAdvance}>
+        Seuraava vaihe →
+      </button>
+    </div>
   </div>
 )
 
 function App() {
-  const [phase, setPhase] = useState<Phase>('day')
-  const [stats, setStats] = useState<Stats>({ money: 0, reputation: 0, sanity: 100 })
-  const [currentOutcome, setCurrentOutcome] = useState<string | null>(null)
-  const [nightReport, setNightReport] = useState('Jono ulottuu pakkaseen. Kassakone pitää metallista ääntä kuin kairan terä.')
+  const { stats, phase, dayCount, isGameOver, isGlitching, currentEvent, fallbackMedia, advancePhase, resolveChoice } =
+    useGameLoop()
+
+  const [outcome, setOutcome] = useState<string | null>(null)
+  const [locked, setLocked] = useState(false)
   const [journal, setJournal] = useState<string[]>([])
-  const [selectedChoiceIndex, setSelectedChoiceIndex] = useState<number | null>(null)
-  const [gameStep, setGameStep] = useState<GameStep>('EVENT_PENDING')
 
-  const activeEvent = useMemo(() => INITIAL_EVENTS.find((evt) => evt.triggerPhase === phase), [phase])
+  useEffect(() => {
+    setOutcome(null)
+    setLocked(false)
+  }, [phase])
 
-  const isBankrupt = stats.money < -1000
-  const isBroken = stats.sanity <= 0
-  const isGameOver = isBankrupt || isBroken
+  const activeEvent = useMemo(() => currentEvent, [currentEvent])
 
-  const pushLog = (entry: string) => setJournal((prev) => [entry, ...prev].slice(0, 6))
-
-  const applyEffect = (effect: Event['choices'][number]['effect']) => {
-    setStats((prev) => ({
-      money: prev.money + (effect.money ?? 0),
-      reputation: clamp(prev.reputation + (effect.reputation ?? 0), 0, 100),
-      sanity: clamp(prev.sanity + (effect.sanity ?? 0), 0, 100),
-    }))
+  const handleChoice = (choice: Parameters<typeof resolveChoice>[0]) => {
+    if (locked || !activeEvent) return
+    const result = resolveChoice(choice)
+    setOutcome(result.outcomeText)
+    setLocked(true)
+    setJournal((prev) => [`${phase}: ${choice.label} -> ${result.outcomeText}`, ...prev].slice(0, 6))
   }
 
-  const handleChoice = (choice: Event['choices'][number], index: number) => {
-    if (gameStep === 'EVENT_RESOLVED') return
+  const wrapperGlitchClass = isGlitching ? 'animate-[shake_0.6s_linear_infinite] invert' : ''
 
-    setSelectedChoiceIndex(index)
-    applyEffect(choice.effect)
-    setCurrentOutcome(choice.outcomeText)
-    setGameStep('EVENT_RESOLVED')
-    pushLog(`${phase.toUpperCase()}: ${choice.text}`)
-  }
-
-  const rollNight = () => {
-    const vignettes = [
-      'EU-tarkastaja eksyy porokämpälle ja maksaa laskun vahingossa kahdesti.',
-      'Joku tanssii yksin VHS-karaoken edessä. Juomatuloissa outo piikki.',
-      'Sähkökatko pimentää baarin. Fluoresoivat tarrat hohtavat kuin revontulet.',
-    ]
-    const blip = vignettes[Math.floor(Math.random() * vignettes.length)]
-    const cash = Math.round(Math.random() * 200 - 80)
-    const rep = Math.round(Math.random() * 10 - 3)
-    const sanity = Math.round(Math.random() * 8 - 4)
-    setNightReport(`${blip} Kassavirta ${formatDelta(cash)} mk, maine ${formatDelta(rep)}, mieli ${formatDelta(sanity)}.`)
-    applyEffect({ money: cash, reputation: rep, sanity })
-    pushLog(`YÖ: ${blip}`)
-  }
-
-  const nextPhase = () => {
-    const upcoming = PHASE_SEQUENCE[phase]
-    setSelectedChoiceIndex(null)
-    setCurrentOutcome(null)
-    setGameStep(upcoming === 'day' ? 'EVENT_PENDING' : 'EVENT_RESOLVED')
-
-    if (phase === 'day') {
-      rollNight()
-    }
-    if (phase === 'night') {
-      pushLog('AAMU: Lasketaan kierroksen tulokset')
-    }
-    if (upcoming === 'day') {
-      pushLog('PÄIVÄ: Uusi faksi särisee linjalla')
-    }
-
-    setPhase(upcoming)
-  }
-
-  const sanityGlitch = stats.sanity < 20
-  const canAdvance = phase !== 'day' || gameStep === 'EVENT_RESOLVED'
+  // TODO: Play "Humina" drone sound loop here when audio pipeline is connected.
 
   return (
-    <div className="relative min-h-screen bg-coal text-white overflow-hidden">
-      <div className="absolute inset-0 opacity-30 bg-grid bg-[length:60px_60px]" />
-      <NokiaPhone stats={stats} />
-      <main className="relative max-w-6xl mx-auto px-6 py-10 crt-overlay">
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <p className="text-xs tracking-[0.35em] text-glitch">Pimppisimulaattori: Lapin Glory</p>
-            <h1 className={`text-4xl font-bold mt-2 ${sanityGlitch ? 'glitch-text' : ''}`} data-text="LAPIN GLORY OS/95">
-              LAPIN GLORY OS/95
-            </h1>
-            <p className="text-sm text-slate-300 max-w-xl">
-              Lama-Noir managerointi: päivästä yöhön, yöhön aamuun. Neon pinkki vastaan harmaa byrokratia.
-            </p>
-          </div>
-          <PhaseTicker phase={phase} />
+    <div className={`min-h-screen bg-[#0f1118] text-white relative overflow-hidden ${wrapperGlitchClass}`}>
+      <style>{shakeStyles}</style>
+      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
+
+      <NokiaPhone sanity={stats.sanity} />
+
+      <main className="relative max-w-6xl mx-auto px-6 py-10 space-y-8">
+        <header className="space-y-2">
+          <p className="text-xs tracking-[0.35em] text-neon">Pimppisimulaattori: Lapin Glory</p>
+          <h1 className="text-4xl font-bold glitch-text" data-text="Lapin Glory OS/95">
+            Lapin Glory OS/95
+          </h1>
+          <p className="text-sm text-slate-300 max-w-2xl">
+            Lama-Noir managerointi: faksaa päivällä, pimppaa yöllä, toivo aamulla. Neon pinkki vastaan harmaa byrokratia.
+          </p>
         </header>
 
-        <section className="grid md:grid-cols-3 gap-4 mt-8">
-          <StatBadge label="Rahat" value={`${stats.money} mk`} icon={<Coins />} tone="" />
-          <StatBadge label="Maine" value={`${stats.reputation} / 100`} icon={<Sparkles />} tone="" />
-          <StatBadge label="Mielenterveys" value={`${stats.sanity} / 100`} icon={<Brain />} tone={sanityGlitch ? 'animate-pulse' : ''} />
-        </section>
+        <StatsBar stats={stats} phase={phase} dayCount={dayCount} />
 
-        <section className="grid md:grid-cols-3 gap-6 mt-10 items-start">
+        <section className="grid md:grid-cols-3 gap-6 items-start">
           <div className="md:col-span-2 space-y-4">
-            {phase === 'day' && activeEvent && (
+            {phase !== 'MORNING' && activeEvent && (
               <EventCard
                 event={activeEvent}
+                locked={locked}
+                outcome={outcome}
                 onChoice={handleChoice}
-                selectedChoiceIndex={selectedChoiceIndex}
-                gameStep={gameStep}
-                currentOutcome={currentOutcome}
-                fallbackMedia={FALLBACK_MEDIA}
+                onNextPhase={advancePhase}
+                fallbackMedia={fallbackMedia}
+                phase={phase}
               />
             )}
-            {phase === 'night' && <NightCard report={nightReport} />}
-            {phase === 'morning' && <MorningCard stats={stats} />}
 
-            <div className="panel bg-coal/70 flex flex-col md:flex-row gap-3 items-center justify-between">
-              <div className="text-sm text-slate-200">
-                <p className="font-semibold text-neon">Simulaation ohjaus</p>
-                <p>Valitse toiminto, näe outcome neon-boksissa ja etene kierroksessa.</p>
-              </div>
-              {canAdvance && (
-                <button className="button-raw animate-pulse" onClick={nextPhase}>
-                  Next Phase →
+            {phase !== 'MORNING' && !activeEvent && (
+              <div className="panel bg-coal/70">
+                <p className="text-xs uppercase tracking-[0.3em] text-neon">Hiljainen linja</p>
+                <p className="text-sm text-slate-200 mt-2">Ei tapahtumia juuri nyt. Avaa ovi ja kuuntele huminaa.</p>
+                <button className="button-raw mt-3" onClick={advancePhase}>
+                  Pakota seuraava vaihe →
                 </button>
-              )}
-            </div>
+              </div>
+            )}
+
+            {phase === 'MORNING' && <MorningReport stats={stats} dayCount={dayCount} onAdvance={advancePhase} />}
 
             {isGameOver && (
-              <div className="panel border-4 border-red-500 text-red-200">
-                <p className="text-xl font-bold">GAME OVER</p>
-                <p>
-                  {isBankrupt && 'Velkakello soi liian kovaa. '}
-                  {isBroken && 'Mielenterveys suli neonin alle.'}
-                </p>
+              <div className="panel border-4 border-red-500 bg-red-900/20 text-red-200">
+                <p className="text-xl font-bold">Game Over</p>
+                <p>Voudin huutokauppa tai suljettu osasto. Mieli {stats.sanity}, markat {stats.money.toFixed(0)} mk.</p>
               </div>
             )}
           </div>
 
           <aside className="space-y-4">
-            <div className="panel">
-              <p className="text-xs tracking-[0.3em] text-glitch">LOKIKONE</p>
-              <ul className="mt-3 space-y-2 text-sm max-h-64 overflow-y-auto pr-2">
+            <div className="panel bg-asphalt/70">
+              <p className="text-xs uppercase tracking-[0.3em] text-neon">Lokikone</p>
+              <ul className="mt-3 space-y-2 text-sm max-h-72 overflow-y-auto pr-2">
                 {journal.length === 0 && <li className="text-slate-400">Ei merkintöjä vielä.</li>}
                 {journal.map((entry, idx) => (
                   <li key={idx} className="border-l-2 border-neon pl-2">
@@ -296,11 +139,12 @@ function App() {
                 ))}
               </ul>
             </div>
-            <div className="panel text-sm text-slate-200">
-              <p className="text-xs tracking-[0.3em] text-glitch">FAKSILINJA</p>
+
+            <div className="panel text-sm text-slate-200 bg-coal/70">
+              <p className="text-xs uppercase tracking-[0.3em] text-neon">Ohje</p>
               <p className="mt-2">
-                Päivävaihe: vastaa byrokraattisiin fakseihin ja tee valinnat. Yö: tulos simuloidaan automaattisesti. Aamu: tarkista
-                tilanne ja jatka sykliä.
+                Päivä: Leimaa faksit ja uhraa markkoja. Yö: kohtaa bussit tai tarkastajat. Aamu: maksa vuokra (-50 mk) ja jatka,
+                jos mielenterveys sallii.
               </p>
             </div>
           </aside>
