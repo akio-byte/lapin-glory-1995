@@ -1,73 +1,20 @@
-# React + TypeScript + Vite
+# Lapin Glory OS/95
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Lapin Glory OS/95 on satiirinen management-horror, jossa pyörität rovaniemeläistä yökerhoa lama-ajan jälkeisessä 1995:ssa. Päivällä faksaat lomakkeita ja juokset byrokratiaa, yöllä pimppaat turisteja neonvalon välkkeessä, ja aamulla selviät vuokran ja mielenhapuilun kanssa. Statit, faksit ja VHS-glitchit tuuppivat sinua kohti joko Voudin huutokauppaa tai mystistä vapautta. Ruumis on kylmä, mutta Sisu palaa.
 
-Currently, two official plugins are available:
+## Tech stack
+- React 19 + TypeScript
+- Vite + Tailwind CSS
+- Component-driven UI (Nokia-tyylinen käyttöliittymä ja glitch-efektit)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Code map
+- **Game loop:** `src/hooks/useGameLoop.ts` hallitsee DAY → NIGHT → MORNING -silmukkaa, statit, inventaarion ja tapahtumavalinnat.
+- **Stats & items:** `src/data/gameData.ts` määrittelee `Stats`-mallin, esineet ja fallback-medialinkit.
+- **Events & narrative:** `src/data/gameData.ts` sisältää pelin `GameEvent`-pankin; `src/data/events.ts` säilyttää varhaisen event-prototyypin.
+- **UI & flow:** `src/App.tsx` sitoo kaikki yhteen (StatBar, EventCard, NokiaPhone). Media-assetit löytyvät `src/assets/`-kansiosta.
+- **Adding content:** Lisää uusia eventtejä ja valintoja `gameEvents`-taulukkoon, uusia esineitä `items`-taulukkoon ja uutta mediaa `src/assets/`-kansioon.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## How to run
+1. `npm install`
+2. `npm run dev`
+3. Avaa selaimella kehityspalvelimen osoite (oletuksena http://localhost:5173).
