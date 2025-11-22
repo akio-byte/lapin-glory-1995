@@ -103,6 +103,104 @@ const fallbackMedia: NonNullable<GameEvent['media']> = {
 
 export const gameEvents: GameEvent[] = [
   {
+    id: 'Prologi: Paluu Lappiin',
+    triggerPhase: 'day',
+    condition: (stats) => stats.reputation <= 15,
+    media: fallbackMedia,
+    text: 'Saavut Rovaniemelle. Vanha neon-kyltti välähtää ja kylmä huuru lyö kasvoille.',
+    choices: [
+      {
+        label: 'Avataan ovi ja laitetaan kahvi tippumaan',
+        outcomeSuccess: {
+          text: 'Tila tuoksuu tutulta. Olet taas kotona.',
+          effects: { sanity: 6, money: 20 },
+        },
+        outcomeFail: {
+          text: 'Sulakkeet kärähtävät. Ensimmäinen päivä alkaa hermoillen.',
+          effects: { sanity: -8, money: -40 },
+        },
+      },
+      {
+        label: 'Soita Kallelle ja pyydä vanhaa kassakonetta',
+        skillCheck: { stat: 'pimppaus', dc: 10 },
+        outcomeSuccess: {
+          text: 'Kalle lupaa tukea. Kassakone kilahtaa vanhaan malliin.',
+          effects: { money: 80, reputation: 2 },
+        },
+        outcomeFail: {
+          text: 'Kalle ei vastaa. Kuuntelet vain pohjoistuulta.',
+          effects: { sanity: -4 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Prologi: Ensimmäinen EU-faksi',
+    triggerPhase: 'day',
+    condition: (stats) => stats.reputation <= 18,
+    media: { type: 'image', src: faxMachine, alt: 'Ensimmäinen neon-faksi' },
+    text: 'Brysselistä jyrähtää neonilla korostettu faksi: "Poro migreenit neonvaloista".',
+    choices: [
+      {
+        label: 'Himmennä kyltit ja allekirjoita vastaanotto',
+        cost: { money: 50 },
+        outcomeSuccess: {
+          text: 'Poro kiittää nyökkäyksellä ikkunan takaa.',
+          effects: { reputation: 6, sanity: 3 },
+        },
+        outcomeFail: {
+          text: 'Valot välähtävät uudelleen. Poro soittaa lehdistöä.',
+          effects: { reputation: -6, sanity: -6 },
+        },
+      },
+      {
+        label: 'Teippaa faksin kiinni ja kirjoita vastine',
+        skillCheck: { stat: 'byroslavia', dc: 12 },
+        outcomeSuccess: {
+          text: 'Perustelusi menevät läpi. Saat jatkoaikaa.',
+          effects: { money: 60, reputation: 3 },
+        },
+        outcomeFail: {
+          text: 'Teksti jää musteläiskäksi. EU-tiskillä pudistellaan päätä.',
+          effects: { sanity: -10, reputation: -4 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Prologi: Krok esittäytyy',
+    triggerPhase: 'day',
+    condition: (stats) => stats.reputation >= 12 && stats.reputation <= 30,
+    media: { type: 'video', src: surrealVideo, alt: 'Krok hologrammina' },
+    text: 'Verotarkastaja Krok välähtää hologrammina: "Näen teidät pian".',
+    choices: [
+      {
+        label: 'Valmistele kahvit ja kansiot',
+        cost: { sanity: 5 },
+        outcomeSuccess: {
+          text: 'Krok arvostaa valmistelua. Saat hetken rauhan.',
+          effects: { reputation: 5, sanity: 2 },
+        },
+        outcomeFail: {
+          text: 'Kansiot sekaisin, kahvi läikkyy. Krok hymähtää kylmästi.',
+          effects: { reputation: -5, sanity: -7 },
+        },
+      },
+      {
+        label: 'Uhmaa ja laita VHS-suoja oveen',
+        skillCheck: { stat: 'pimppaus', dc: 13 },
+        outcomeSuccess: {
+          text: 'Hologrammi säröytyy. Saat lisäaikaa veroihin.',
+          effects: { money: 90, sanity: 4 },
+        },
+        outcomeFail: {
+          text: 'Särö kääntyy takaisin. Krok merkitsee nimesi punaiseen.',
+          effects: { reputation: -8, money: -40 },
+        },
+      },
+    ],
+  },
+  {
     id: 'EU Faksi',
     triggerPhase: 'day',
     media: {
@@ -135,6 +233,270 @@ export const gameEvents: GameEvent[] = [
         outcomeFail: {
           text: 'Puhelin pirahtaa. EU-puhelinvaihde kiristää ääntään.',
           effects: { sanity: -6, reputation: -2 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Kurkkudirektiivi iskee',
+    triggerPhase: 'day',
+    condition: (stats) => stats.reputation >= 10,
+    media: fallbackMedia,
+    text: 'Saapuu faksi: "Kurkkudirektiivi – jokainen drinkki mitattava 11,3 cm kurkulla".',
+    choices: [
+      {
+        label: 'Tilaa laatikollinen kurkkuja',
+        cost: { money: 70 },
+        outcomeSuccess: {
+          text: 'Drinkit näyttävät standardilta. EU-virkailija hymyilee.',
+          effects: { reputation: 7, sanity: 2 },
+        },
+        outcomeFail: {
+          text: 'Kurkkujen hinta räjähtää. Asiakkaat nauravat sinulle.',
+          effects: { money: -80, reputation: -5 },
+        },
+      },
+      {
+        label: 'Vetoa poikkeuslupaan, Lapin valo-olosuhteet',
+        skillCheck: { stat: 'byroslavia', dc: 15 },
+        outcomeSuccess: {
+          text: 'Poikkeuslupa myönnetään. Säästät rahat.',
+          effects: { money: 120, reputation: 4 },
+        },
+        outcomeFail: {
+          text: 'Hakemus katoaa. Saat sakon.',
+          effects: { money: -120, sanity: -8 },
+        },
+      },
+      {
+        label: 'Juo kaikki kurkut itse protestina',
+        outcomeSuccess: {
+          text: 'Outo energia valtaa sinut. Tarinat leviävät.',
+          effects: { sanity: -4, reputation: 5, sisu: 6 },
+        },
+        outcomeFail: {
+          text: 'Suola kuivattaa. Menet shokkiin hetkeksi.',
+          effects: { sanity: -10, reputation: -3 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Turisti-shamaani',
+    triggerPhase: 'night',
+    media: fallbackMedia,
+    text: 'Saksalainen shamaani tuo minitrummun: "Lapin aurora, minä kutsua!"',
+    choices: [
+      {
+        label: 'Anna hänelle lava ja valot',
+        outcomeSuccess: {
+          text: 'Rituaali kerää yleisön. Kassakone kilisee.',
+          effects: { money: 170, reputation: 8, sanity: -2 },
+        },
+        outcomeFail: {
+          text: 'Hän kaataa glögin mikseriin. Kaikki piippaa.',
+          effects: { money: -90, sanity: -7 },
+        },
+      },
+      {
+        label: 'Peru esitys ja myy t-paita matkamuistona',
+        skillCheck: { stat: 'pimppaus', dc: 12 },
+        outcomeSuccess: {
+          text: 'Shamaani ostaa kolme. Hän mainitsee sinut blogissa.',
+          effects: { money: 110, reputation: 4 },
+        },
+        outcomeFail: {
+          text: 'Hän suuttuu ja kiroaa tiskin.',
+          effects: { reputation: -6, sanity: -5 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Doris-ilta',
+    triggerPhase: 'night',
+    media: fallbackMedia,
+    text: 'Doris järjestää karaoken. Tangokuningas vs. poromies -duetto uhkaa.',
+    choices: [
+      {
+        label: 'Mainosta ilta somessa',
+        cost: { money: 30 },
+        outcomeSuccess: {
+          text: 'Talvi-hipstereitä valuu sisään. Lippuja myydään.',
+          effects: { money: 180, reputation: 10, sanity: -4 },
+        },
+        outcomeFail: {
+          text: 'Algoritmi ei näytä mainosta. Hiljainen ilta.',
+          effects: { money: -30, sanity: 2 },
+        },
+      },
+      {
+        label: 'Salli vain paikallisille legendat',
+        skillCheck: { stat: 'pimppaus', dc: 14 },
+        outcomeSuccess: {
+          text: 'Tunnelma tiivistyy. Maine kasvaa legendaarisena.',
+          effects: { reputation: 12, sanity: 3 },
+        },
+        outcomeFail: {
+          text: 'Ulkopaikkakuntalaiset boikotoivat.',
+          effects: { money: -60, reputation: -5 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Wanha Mestari -yö',
+    triggerPhase: 'night',
+    media: fallbackMedia,
+    text: 'Wanha Mestari kutsuu sinut kellariin juomaan "retrovarastoa".',
+    choices: [
+      {
+        label: 'Lähde mukaan, ota sisuvaraus',
+        cost: { sanity: 6 },
+        outcomeSuccess: {
+          text: 'Vanha konjakki avaa tarinoita. Saat yhteyksiä.',
+          effects: { reputation: 7, money: 90, sisu: 8 },
+        },
+        outcomeFail: {
+          text: 'Heräät aamulla varastossa. Kukkaro keventynyt.',
+          effects: { money: -100, sanity: -8 },
+        },
+      },
+      {
+        label: 'Kieltäydy ja lähetä lahjakori',
+        outcomeSuccess: {
+          text: 'Mestari arvostaa kohteliaisuutta.',
+          effects: { reputation: 5, sanity: 4 },
+        },
+        outcomeFail: {
+          text: 'Lahjakori tippuu portaisiin. Mestari suuttuu.',
+          effects: { reputation: -7, money: -40 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Metsänpeitto',
+    triggerPhase: 'day',
+    media: fallbackMedia,
+    text: 'Kaupunkia peittää outo sumu. Metsänpeitto nielaisee kadunkulman.',
+    choices: [
+      {
+        label: 'Sytytä valoketju ja johdata asiakkaita',
+        outcomeSuccess: {
+          text: 'Valot halkovat sumun. Olet sankari.',
+          effects: { reputation: 9, money: 120, sanity: 2 },
+        },
+        outcomeFail: {
+          text: 'Valot vilkkuvat. Poro törmää ikkunaan.',
+          effects: { money: -70, sanity: -6 },
+        },
+      },
+      {
+        label: 'Sulje ovet ja kuuntele sumun huminaa',
+        cost: { sanity: 4 },
+        outcomeSuccess: {
+          text: 'Humina rauhoittaa. Säästät sähkön.',
+          effects: { sanity: 10, money: 40 },
+        },
+        outcomeFail: {
+          text: 'Humina muuttuu kuiskauksiksi. Pelko hiipii.',
+          effects: { sanity: -12, reputation: -3 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Staalo varjosta',
+    triggerPhase: 'night',
+    media: { type: 'video', src: snowyStreet, alt: 'Varjo liikkuu kadulla' },
+    text: 'Staalo ilmestyy varjona oven taakse. Sarvet piirtyvät valoon.',
+    choices: [
+      {
+        label: 'Tarjoa hopeinen shottilasi',
+        cost: { money: 40 },
+        outcomeSuccess: {
+          text: 'Staalo tyyntyy ja katoaa lumeen.',
+          effects: { sanity: 8, reputation: 6 },
+        },
+        outcomeFail: {
+          text: 'Staalo murskaa lasin. Pelko leviää asiakkaisiin.',
+          effects: { sanity: -14, reputation: -7 },
+        },
+      },
+      {
+        label: 'Pelaa säkkijärven polkkaa kovalla',
+        skillCheck: { stat: 'pimppaus', dc: 15 },
+        outcomeSuccess: {
+          text: 'Rytmi ajaa varjon kauemmas.',
+          effects: { reputation: 5, sanity: 6 },
+        },
+        outcomeFail: {
+          text: 'Rytmi ärsyttää. Varjo paiskoo roskiksen.',
+          effects: { money: -60, sanity: -10 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Maahisen diili',
+    triggerPhase: 'night',
+    condition: (stats) => stats.money < 100,
+    media: fallbackMedia,
+    text: 'Pöydän alta kurkistaa maahinen ja tarjoaa: "Kaksi kasettia, yksi sielu".',
+    choices: [
+      {
+        label: 'Ota diili, pyydä kuitit',
+        outcomeSuccess: {
+          text: 'Maahinen leimaa kuittisi. Rahaa löytyy lattianraoista.',
+          effects: { money: 140, reputation: 3, sanity: -4 },
+        },
+        outcomeFail: {
+          text: 'Kuitit palavat kädessä. Varjo nauraa.',
+          effects: { sanity: -12, reputation: -4 },
+        },
+      },
+      {
+        label: 'Kieltäydy ja lähetä hänet metsänpeittoon',
+        skillCheck: { stat: 'byroslavia', dc: 11 },
+        outcomeSuccess: {
+          text: 'Maahinen häipyy mutisten säädöksiä.',
+          effects: { sanity: 6, reputation: 2 },
+        },
+        outcomeFail: {
+          text: 'Hän kiroaa tilikirjan. Numerot pomppivat.',
+          effects: { money: -50, sanity: -8 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Outo räntä',
+    triggerPhase: 'day',
+    media: fallbackMedia,
+    text: 'Räntää sataa vaakasuoraan sisään faksiin. Muste leviää.',
+    choices: [
+      {
+        label: 'Suunnittele pressu-liputus',
+        cost: { money: 40 },
+        outcomeSuccess: {
+          text: 'Räntä pysyy ulkona. Saat kiitoksen palokunnalta.',
+          effects: { reputation: 6, sanity: 3 },
+        },
+        outcomeFail: {
+          text: 'Pressu repeää. Paperit liukuvat viemäriin.',
+          effects: { money: -70, reputation: -6 },
+        },
+      },
+      {
+        label: 'Anna räntäsateen täyttää ämpärit',
+        outcomeSuccess: {
+          text: 'Keksit myydä räntäjuomia. Hullu idea toimii.',
+          effects: { money: 130, reputation: 5, sanity: -3 },
+        },
+        outcomeFail: {
+          text: 'Ämpärit homehtuvat. Kukaan ei osta.',
+          effects: { money: -20, sanity: -6 },
         },
       },
     ],

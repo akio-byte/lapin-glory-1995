@@ -7,6 +7,12 @@ Lapin Glory OS/95 on satiirinen management-horror, jossa pyörität rovaniemelä
 - Vite + Tailwind CSS
 - Component-driven UI (Nokia-tyylinen käyttöliittymä ja glitch-efektit)
 
+## Ydinresurssit
+- **RAHAT (mk):** Markat ja lahjonnat pitävät klubin auki. Jos saldo putoaa alle **-1000 mk**, Voudin huutokauppa vie koko puljun.
+- **MAINE:** Reputaatio Rovaniemen neon-verkostoissa. Kun mittari ylittää **95**, Veropetos-ratsia jyrähtää ja peli päättyy.
+- **JÄRKI (Mielenterveys):** Faksin ja neonin puristama pääkoppasi. Kun Järki putoaa **0**:aan, päädyt Suljetulle osastolle.
+- **Vappu-erikoistapaus:** Selviä 30 päivää saadaksesi Vappu-loppuruudun.
+
 ## Code map
 - **Game loop:** `src/hooks/useGameLoop.ts` hallitsee DAY → NIGHT → MORNING -silmukkaa, statit, inventaarion ja tapahtumavalinnat.
 - **Stats & items:** `src/data/gameData.ts` määrittelee `Stats`-mallin, esineet ja fallback-medialinkit.

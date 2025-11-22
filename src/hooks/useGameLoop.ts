@@ -4,7 +4,7 @@ import { fallbackEventMedia, gameEvents, items as availableItems } from '../data
 
 export type Phase = 'DAY' | 'NIGHT' | 'MORNING'
 
-export type EndingType = 'psychWard' | 'bankruptcy' | 'vappu'
+export type EndingType = 'psychWard' | 'bankruptcy' | 'taxRaid' | 'vappu'
 
 type EndingState = {
   type: EndingType
@@ -131,6 +131,7 @@ export const useGameLoop = (): GameState & GameActions => {
   const ending: EndingState | null = useMemo(() => {
     if (stats.sanity <= 0) return { type: 'psychWard', dayCount, stats }
     if (stats.money < -1000) return { type: 'bankruptcy', dayCount, stats }
+    if (stats.reputation > 95) return { type: 'taxRaid', dayCount, stats }
     if (dayCount > MAX_DAYS) return { type: 'vappu', dayCount: MAX_DAYS, stats }
     return null
   }, [dayCount, stats])

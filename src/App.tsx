@@ -6,6 +6,7 @@ import PaperWar, { type PaperWarResolution } from './components/PaperWar'
 import Shop from './components/Shop'
 import StatsBar from './components/StatsBar'
 import type { Stats } from './data/gameData'
+import { canonicalStats } from './data/statMeta'
 import type { EndingType } from './hooks/useGameLoop'
 import { useGameLoop } from './hooks/useGameLoop'
 import { useAudio } from './hooks/useAudio'
@@ -56,18 +57,18 @@ const MorningReport = ({
     </p>
     <div className="grid grid-cols-2 gap-3 text-sm">
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Markat</p>
-        <p className="text-lg font-semibold">{stats.money.toFixed(0)} mk</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.money.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.money.format(stats.money)}</p>
         <p className="text-xs text-slate-300">Eilen: {formatDelta(moneyDelta)} mk</p>
       </div>
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Mielenterveys</p>
-        <p className="text-lg font-semibold">{stats.sanity} / 100</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.sanity.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.sanity.format(stats.sanity)}</p>
         <p className="text-xs text-slate-300">Eilen: {formatDelta(sanityDelta)}</p>
       </div>
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Maine</p>
-        <p className="text-lg font-semibold">{stats.reputation} / 100</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.reputation.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.reputation.format(stats.reputation)}</p>
       </div>
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
         <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Sisu</p>
@@ -87,6 +88,11 @@ const endingCopy: Record<EndingType, { title: string; description: (params: { st
   psychWard: {
     title: 'Suljettu osasto',
     description: () => 'Mielenterveys romahti. Neonvalot himmenivät ja OS/95 palautui tehdasasetuksiin.',
+  },
+  taxRaid: {
+    title: 'Veropetos-ratsia',
+    description: () =>
+      'Maine paisui yli 95 pisteen. Verottajan valokuitu syöksyy sisään ja klubin ovet sinetöidään.',
   },
   bankruptcy: {
     title: 'Voudin Huutokauppa',
@@ -124,16 +130,16 @@ const RunOverScreen = ({
             <p className="text-lg font-semibold">{ending.dayCount}</p>
           </div>
           <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Markat</p>
-            <p className="text-lg font-semibold">{ending.stats.money.toFixed(0)} mk</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.money.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.money.format(ending.stats.money)}</p>
           </div>
           <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Mielenterveys</p>
-            <p className="text-lg font-semibold">{ending.stats.sanity} / 100</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.sanity.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.sanity.format(ending.stats.sanity)}</p>
           </div>
           <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Maine</p>
-            <p className="text-lg font-semibold">{ending.stats.reputation} / 100</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.reputation.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.reputation.format(ending.stats.reputation)}</p>
           </div>
         </div>
         <div className="text-center pt-2">
@@ -356,6 +362,9 @@ function App() {
 
             <div className="panel bg-asphalt/70">
               <p className="text-xs uppercase tracking-[0.3em] text-neon">Lokikone</p>
+              <p className="text-[11px] text-slate-300 mt-1">
+                Seuraa Rahat, Maine ja Järki -merkinnät faksien välistä.
+              </p>
               <ul className="mt-3 space-y-2 text-sm max-h-72 overflow-y-auto pr-2">
                 {journal.length === 0 && <li className="text-slate-400">Ei merkintöjä vielä.</li>}
                 {journal.map((entry, idx) => (
