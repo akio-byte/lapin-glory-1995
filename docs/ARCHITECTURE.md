@@ -11,6 +11,15 @@
 - `handleChoice` clamps most stats between 0–100 (money is unbounded) and is the single entry point for applying effects.
 - Event outcomes, item purchases, and rent all route through `handleChoice`, ensuring consistent bounds and failure checks.
 
+## Lapin Anomalian Indeksi (LAI)
+- Lightweight, global 0–100 meter stored inside `useGameLoop` and persisted (version 2 save shape). Starts at 0.
+- `pingNetMonitor()` mutates LAI with a mix of randomness and current `sanity`: low sanity makes spikes likelier, high sanity dampens them. Extreme LAI can nudge sanity slightly.
+- The NokiaPhone UI reads `lai` + `pingNetMonitor()` to show Net Monitor bands: **tyyni** (0–20), **outo humina** (21–60), **staalo/rift** (61–100). Each ping echoes a Finnish GSM-shamanism message and displays ΔLAI.
+- LAI influences play:
+  - `pickEventForPhase` biases toward events tagged `vibe: 'occult'` (Maahiset/Staalo/weather) when LAI is high, and toward mundane pools when LAI is very low.
+  - UI glitching kicks in either when sanity < 20 or LAI > 70.
+  - Dawn phase applies tiny sanity drift if LAI is extreme (bonus when calm, penalty when the rift screams).
+
 ## Canon stats and fail states
 - **RAHAT (money):** käytetään vuokriin ja lahjuksiin; jos saldo laskee alle **-1000 mk**, päädytään "Voudin huutokauppa" -loppuruutuun.
 - **MAINE (reputation):** kuvaa näkyvyyttä; kun MAINE nousee yli **95**, "Veropetos-ratsia" katkaisee runin.

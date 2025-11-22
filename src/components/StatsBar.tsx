@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { Brain, Coins, Sparkles } from 'lucide-react'
+import { Antenna, Brain, Coins, Sparkles } from 'lucide-react'
 import type { Stats } from '../data/gameData'
 import type { Phase } from '../hooks/useGameLoop'
 import { canonicalStats } from '../data/statMeta'
@@ -27,7 +27,16 @@ const StatChip = ({
   </div>
 )
 
-const StatsBar = ({ stats, phase, dayCount }: { stats: Stats; phase: Phase; dayCount: number }) => (
+const getLaiMood = (lai: number) => {
+  if (lai > 60) return { label: 'LAI: staalo-häiriö', accent: 'text-rose-200' }
+  if (lai > 20) return { label: 'LAI: outo humina', accent: 'text-amber-200' }
+  return { label: 'LAI: tyyni kenttä', accent: 'text-emerald-200' }
+}
+
+const StatsBar = ({ stats, phase, dayCount, lai }: { stats: Stats; phase: Phase; dayCount: number; lai: number }) => {
+  const laiMood = getLaiMood(lai)
+
+  return (
   <div className="grid md:grid-cols-4 gap-3 items-center">
     <div className="md:col-span-3 grid md:grid-cols-3 gap-3">
       <StatChip
@@ -52,8 +61,12 @@ const StatsBar = ({ stats, phase, dayCount }: { stats: Stats; phase: Phase; dayC
     <div className="text-right text-xs uppercase tracking-[0.2em] bg-coal border border-neon text-neon px-4 py-3 shadow-neon">
       <p>Phase: {phase}</p>
       <p>Päivä: {dayCount}</p>
+      <p className={`flex items-center justify-end gap-1 ${laiMood.accent}`}>
+        <Antenna size={14} /> {laiMood.label} ({lai})
+      </p>
     </div>
   </div>
-)
+  )
+}
 
 export default StatsBar
