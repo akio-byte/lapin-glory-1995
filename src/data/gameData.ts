@@ -51,6 +51,7 @@ export interface GameEvent {
     alt: string
   }
   text: string
+  paperWar?: boolean
   choices: GameEventChoice[]
 }
 
@@ -137,6 +138,15 @@ export const gameEvents: GameEvent[] = [
         },
       },
     ],
+  },
+  {
+    id: 'Verottajan Paper War',
+    triggerPhase: 'day',
+    condition: (stats) => stats.reputation > 12,
+    paperWar: true,
+    media: { type: 'video', src: surrealVideo, alt: 'Krok-tarkastajan hologrammi' },
+    text: 'Hannele Krok ilmestyy faksista neon-silmä välkkyen. Hän kaataa pöydälle nipun lomakkeita ja kuiskuttaa: "Paper War, kolmesta kierroksesta paras".',
+    choices: [],
   },
   {
     id: 'Faksi Jumiutuu',
