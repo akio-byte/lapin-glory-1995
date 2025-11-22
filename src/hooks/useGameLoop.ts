@@ -34,6 +34,7 @@ type GameState = {
   currentEvent: GameEvent | null
   fallbackMedia: NonNullable<GameEvent['media']>
   morningReport: MorningReport | null
+  wasRestored: boolean
 }
 
 type GameActions = {
@@ -43,6 +44,15 @@ type GameActions = {
   useItem: (itemId: string) => boolean
   resolveChoice: (choice: GameEventChoice) => ChoiceResolution
   resetGame: () => void
+}
+
+export type PersistedState = {
+  version: 1
+  stats: Stats
+  inventory: Item[]
+  phase: Phase
+  dayCount: number
+  dayStartStats: Stats
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
@@ -60,6 +70,43 @@ const INITIAL_STATS: Stats = {
 
 const PHASE_ORDER: Phase[] = ['DAY', 'NIGHT', 'MORNING']
 
+const STORAGE_KEY = 'lapin-glory-state'
+
+const hasPersistedShape = (data: unknown): data is PersistedState => {
+  if (!data || typeof data !== 'object') return false
+  const candidate = data as Record<string, unknown>
+  return (
+    candidate.version === 1 &&
+    'stats' in candidate &&
+    'inventory' in candidate &&
+    'phase' in candidate &&
+    'dayCount' in candidate &&
+    'dayStartStats' in candidate
+  )
+}
+
+const loadPersistedState = (): PersistedState | null => {
+  if (typeof localStorage === 'undefined') return null
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (hasPersistedShape(parsed)) {
+      return parsed
+    }
+  } catch (error) {
+    console.warn('Failed to parse persisted state', error)
+  }
+
+  return null
+}
+
+const savePersistedState = (state: PersistedState): void => {
+  if (typeof localStorage === 'undefined') return
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+}
+
 const pickEventForPhase = (phase: Phase, stats: Stats): GameEvent | null => {
   const pool = gameEvents.filter((event) => event.triggerPhase === phase.toLowerCase())
   const conditioned = pool.filter((event) => (event.condition ? event.condition(stats) : true))
@@ -69,12 +116,15 @@ const pickEventForPhase = (phase: Phase, stats: Stats): GameEvent | null => {
 }
 
 export const useGameLoop = (): GameState & GameActions => {
-  const [stats, setStats] = useState<Stats>(INITIAL_STATS)
-  const [inventory, setInventory] = useState<Item[]>([])
-  const [phase, setPhase] = useState<Phase>('DAY')
-  const [dayCount, setDayCount] = useState<number>(1)
-  const [dayStartStats, setDayStartStats] = useState<Stats>(INITIAL_STATS)
+  const persistedState = loadPersistedState()
+
+  const [stats, setStats] = useState<Stats>(() => persistedState?.stats ?? INITIAL_STATS)
+  const [inventory, setInventory] = useState<Item[]>(() => persistedState?.inventory ?? [])
+  const [phase, setPhase] = useState<Phase>(() => persistedState?.phase ?? 'DAY')
+  const [dayCount, setDayCount] = useState<number>(() => persistedState?.dayCount ?? 1)
+  const [dayStartStats, setDayStartStats] = useState<Stats>(() => persistedState?.dayStartStats ?? INITIAL_STATS)
   const [morningReport, setMorningReport] = useState<MorningReport | null>(null)
+  const [wasRestored, setWasRestored] = useState(() => Boolean(persistedState))
 
   const currentEvent = useMemo(() => pickEventForPhase(phase, stats), [phase, stats])
 
@@ -182,6 +232,10 @@ export const useGameLoop = (): GameState & GameActions => {
     setDayCount(1)
     setDayStartStats(INITIAL_STATS)
     setMorningReport(null)
+    setWasRestored(false)
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY)
+    }
   }
 
   const buildMorningNote = (state: Stats) => {
@@ -221,6 +275,24 @@ export const useGameLoop = (): GameState & GameActions => {
     }
   }, [phase, stats, dayStartStats, dayCount])
 
+  useEffect(() => {
+    if (ending) {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(STORAGE_KEY)
+      }
+      return
+    }
+
+    savePersistedState({
+      version: 1,
+      stats,
+      inventory,
+      phase,
+      dayCount,
+      dayStartStats,
+    })
+  }, [stats, inventory, phase, dayCount, dayStartStats, ending])
+
   return {
     stats,
     inventory,
@@ -231,6 +303,7 @@ export const useGameLoop = (): GameState & GameActions => {
     currentEvent,
     fallbackMedia: fallbackEventMedia,
     morningReport,
+    wasRestored,
     advancePhase,
     handleChoice,
     buyItem,

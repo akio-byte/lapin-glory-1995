@@ -163,6 +163,7 @@ function App() {
     useItem,
     morningReport,
     resetGame,
+    wasRestored,
   } = useGameLoop()
 
   const { muted, toggleMute, backgroundPlaying, toggleBackground, playSfx } = useAudio()
@@ -249,6 +250,16 @@ function App() {
           <p className="text-sm text-slate-300 max-w-2xl">
             Lama-Noir managerointi: faksaa päivällä, pimppaa yöllä, toivo aamulla. Neon pinkki vastaan harmaa byrokratia.
           </p>
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            {wasRestored && (
+              <span className="px-3 py-1 rounded-full border border-neon/40 bg-neon/10 text-neon">
+                Ladattu tallennettu run
+              </span>
+            )}
+            <button className="button-raw px-3 py-1" onClick={handleRestart}>
+              Aloita uusi run
+            </button>
+          </div>
         </header>
 
         <StatsBar stats={stats} phase={phase} dayCount={dayCount} />
