@@ -45,6 +45,7 @@ export interface GameEvent {
   id: string
   triggerPhase: 'day' | 'night'
   condition?: (stats: Stats) => boolean
+  vibe?: 'occult' | 'mundane'
   media?: {
     type: 'image' | 'video'
     src: string
@@ -102,6 +103,76 @@ const fallbackMedia: NonNullable<GameEvent['media']> = {
 }
 
 export const gameEvents: GameEvent[] = [
+  {
+    id: 'Net Monitor: Maahis-piikki',
+    triggerPhase: 'day',
+    vibe: 'occult',
+    media: fallbackMedia,
+    text: 'Net Monitor välähtää. Maahisten GSM-paketti soi kuin noitarumpu ja LAI kohoaa.',
+    choices: [
+      {
+        label: 'Kirjoita ylös häiriö',
+        outcomeSuccess: {
+          text: 'Faksi tulostaa käyrän: maahiset huutelee, mutta pysyt tyynenä.',
+          effects: { sanity: 2, reputation: 1 },
+        },
+        outcomeFail: {
+          text: 'Piikki särähtää hermoihin. Maine kasvaa, mutta uni häiriintyy.',
+          effects: { sanity: -4, reputation: 3 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Staalo yössä',
+    triggerPhase: 'night',
+    vibe: 'occult',
+    text: 'Pimeys tihkuu. Staalo kolistelee tukiasemaa ja yrittää soittaa sinulle suoraan.',
+    choices: [
+      {
+        label: 'Vastaa rohkeasti',
+        outcomeSuccess: {
+          text: 'Staalo puhuu byrokratiaa. Saat oudon vinkin ja mieli pysyy kasassa.',
+          effects: { sanity: 3, money: 30 },
+        },
+        outcomeFail: {
+          text: 'Puhelu katkeaa, mutta korvissa soi. Järki rätisee.',
+          effects: { sanity: -6 },
+        },
+      },
+      {
+        label: 'Katkaise virta',
+        outcomeSuccess: {
+          text: 'Linja hiljenee. LAI laskee hetkeksi, mutta et saa tietoa.',
+          effects: { sanity: 1 },
+        },
+        outcomeFail: {
+          text: 'Virta palaa itsekseen. Staalo nauraa jossain kaukana.',
+          effects: { sanity: -2, money: -10 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Paranormaali sääbrief',
+    triggerPhase: 'day',
+    vibe: 'occult',
+    media: fallbackMedia,
+    text: 'Revontuli-sääkeskus faksaa: solmyrsky kuumenee, LAI aaltoilee. Net Monitor hurisee.',
+    choices: [
+      {
+        label: 'Hae markkinahäiriöhyöty',
+        outcomeSuccess: {
+          text: 'Spekuloit sääpiikillä. Markat liikkuvat ja maine kasvaa.',
+          effects: { money: 90, reputation: 4 },
+        },
+        outcomeFail: {
+          text: 'Sähkökatko. Faksi sulaa, joudut maksamaan korjaukset.',
+          effects: { money: -60, sanity: -3 },
+        },
+      },
+    ],
+  },
   {
     id: 'Prologi: Paluu Lappiin',
     triggerPhase: 'day',

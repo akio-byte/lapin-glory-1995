@@ -162,6 +162,7 @@ function App() {
     isGlitching,
     currentEvent,
     fallbackMedia,
+    lai,
     handleChoice: applyChoiceEffects,
     advancePhase,
     resolveChoice,
@@ -170,6 +171,7 @@ function App() {
     morningReport,
     resetGame,
     wasRestored,
+    pingNetMonitor,
   } = useGameLoop()
 
   const { muted, toggleMute, backgroundPlaying, toggleBackground, playSfx } = useAudio()
@@ -245,7 +247,15 @@ function App() {
       <style>{shakeStyles}</style>
       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
 
-      <NokiaPhone sanity={stats.sanity} onPing={() => playSfx('nokia')} />
+      <NokiaPhone
+        sanity={stats.sanity}
+        lai={lai}
+        onPing={() => {
+          const reading = pingNetMonitor()
+          playSfx('nokia')
+          return reading
+        }}
+      />
 
       <main className="relative max-w-6xl mx-auto px-6 py-10 space-y-8">
         <header className="space-y-2">
@@ -268,7 +278,7 @@ function App() {
           </div>
         </header>
 
-        <StatsBar stats={stats} phase={phase} dayCount={dayCount} />
+        <StatsBar stats={stats} phase={phase} dayCount={dayCount} lai={lai} />
 
         <section className="grid md:grid-cols-3 gap-6 items-start">
           <div className="md:col-span-2 space-y-4">

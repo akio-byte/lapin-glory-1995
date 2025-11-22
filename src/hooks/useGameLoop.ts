@@ -19,6 +19,14 @@ type MorningReport = {
   day: number
 }
 
+export type NetMonitorReading = {
+  newLai: number
+  laiDelta: number
+  band: 'calm' | 'odd' | 'rift'
+  message: string
+  sanityDelta?: number
+}
+
 type ChoiceResolution = {
   outcomeText: string
   appliedEffects: Partial<Stats>
@@ -35,6 +43,7 @@ type GameState = {
   fallbackMedia: NonNullable<GameEvent['media']>
   morningReport: MorningReport | null
   wasRestored: boolean
+  lai: number
 }
 
 type GameActions = {
@@ -44,16 +53,22 @@ type GameActions = {
   useItem: (itemId: string) => boolean
   resolveChoice: (choice: GameEventChoice) => ChoiceResolution
   resetGame: () => void
+  pingNetMonitor: () => NetMonitorReading
 }
 
-export type PersistedState = {
-  version: 1
+type PersistedStateBase = {
   stats: Stats
   inventory: Item[]
   phase: Phase
   dayCount: number
   dayStartStats: Stats
 }
+
+type PersistedStateV1 = PersistedStateBase & { version: 1 }
+
+type PersistedStateV2 = PersistedStateBase & { version: 2; lai: number }
+
+export type PersistedState = PersistedStateV1 | PersistedStateV2
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -76,7 +91,7 @@ const hasPersistedShape = (data: unknown): data is PersistedState => {
   if (!data || typeof data !== 'object') return false
   const candidate = data as Record<string, unknown>
   return (
-    candidate.version === 1 &&
+    (candidate.version === 1 || candidate.version === 2) &&
     'stats' in candidate &&
     'inventory' in candidate &&
     'phase' in candidate &&
@@ -84,6 +99,8 @@ const hasPersistedShape = (data: unknown): data is PersistedState => {
     'dayStartStats' in candidate
   )
 }
+
+const isPersistedV2 = (state: PersistedState | null): state is PersistedStateV2 => state?.version === 2
 
 const loadPersistedState = (): PersistedState | null => {
   if (typeof localStorage === 'undefined') return null
@@ -102,15 +119,31 @@ const loadPersistedState = (): PersistedState | null => {
   return null
 }
 
-const savePersistedState = (state: PersistedState): void => {
+const savePersistedState = (state: PersistedStateV2): void => {
   if (typeof localStorage === 'undefined') return
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
 
-const pickEventForPhase = (phase: Phase, stats: Stats): GameEvent | null => {
+const pickEventForPhase = (phase: Phase, stats: Stats, lai: number): GameEvent | null => {
   const pool = gameEvents.filter((event) => event.triggerPhase === phase.toLowerCase())
   const conditioned = pool.filter((event) => (event.condition ? event.condition(stats) : true))
   if (conditioned.length === 0) return null
+  const occultPool = conditioned.filter((event) => event.vibe === 'occult')
+  const mundanePool = conditioned.filter((event) => event.vibe !== 'occult')
+
+  const occultBias = Math.min(Math.max(lai - 40, 0) / 60, 1)
+  const mundaneBias = Math.min(Math.max(20 - lai, 0) / 30, 1)
+
+  if (occultPool.length > 0 && Math.random() < occultBias) {
+    const roll = Math.floor(Math.random() * occultPool.length)
+    return occultPool[roll]
+  }
+
+  if (mundanePool.length > 0 && Math.random() < mundaneBias) {
+    const roll = Math.floor(Math.random() * mundanePool.length)
+    return mundanePool[roll]
+  }
+
   const roll = Math.floor(Math.random() * conditioned.length)
   return conditioned[roll]
 }
@@ -125,8 +158,9 @@ export const useGameLoop = (): GameState & GameActions => {
   const [dayStartStats, setDayStartStats] = useState<Stats>(() => persistedState?.dayStartStats ?? INITIAL_STATS)
   const [morningReport, setMorningReport] = useState<MorningReport | null>(null)
   const [wasRestored, setWasRestored] = useState(() => Boolean(persistedState))
+  const [lai, setLai] = useState<number>(() => (isPersistedV2(persistedState) ? persistedState.lai : 0))
 
-  const currentEvent = useMemo(() => pickEventForPhase(phase, stats), [phase, stats])
+  const currentEvent = useMemo(() => pickEventForPhase(phase, stats, lai), [phase, stats, lai])
 
   const ending: EndingState | null = useMemo(() => {
     if (stats.sanity <= 0) return { type: 'psychWard', dayCount, stats }
@@ -136,7 +170,7 @@ export const useGameLoop = (): GameState & GameActions => {
     return null
   }, [dayCount, stats])
 
-  const isGlitching = stats.sanity < 20
+  const isGlitching = stats.sanity < 20 || lai > 70
 
   const handleChoice = (effect: Partial<Stats>) => {
     setStats((prev) => ({
@@ -160,6 +194,8 @@ export const useGameLoop = (): GameState & GameActions => {
         setDayCount((count) => count + 1)
         setDayStartStats(() => ({ ...stats }))
         handleChoice({ money: -50 })
+        if (lai > 85) handleChoice({ sanity: -2 })
+        if (lai < 10) handleChoice({ sanity: 1 })
       }
 
       return next
@@ -226,6 +262,50 @@ export const useGameLoop = (): GameState & GameActions => {
     return { outcomeText: outcome.text, appliedEffects: combinedEffects }
   }
 
+  const buildLaiBand = (value: number): NetMonitorReading['band'] => {
+    if (value <= 20) return 'calm'
+    if (value <= 60) return 'odd'
+    return 'rift'
+  }
+
+  const buildLaiMessage = (band: NetMonitorReading['band']) => {
+    if (band === 'calm')
+      return Math.random() > 0.5
+        ? 'Kenttä: tyyni. Tukiasemat humisevat kuin hiljainen suo.'
+        : 'Net Monitor: Ei henkimaailman piikkejä. Maahiset nukkuu.'
+    if (band === 'odd')
+      return Math.random() > 0.5
+        ? 'Verkkopakat sihisee. Staalo kurkistaa lukemien välistä.'
+        : 'Revontuli-taajuus vilkkuu, LAI aaltoilee kuin Lapinmeri.'
+    return Math.random() > 0.5
+      ? 'Häiriö! Maahiset jyrsii kaapelia. Linja soi kuin noitarumpu.'
+      : 'Staalo syöttää outoa puhetta. GSM-kanava välkkyy verenpunaisena.'
+  }
+
+  const pingNetMonitor = (): NetMonitorReading => {
+    const randomSwing = Math.floor(Math.random() * 9) - 2 // -2...6
+    const sanityInfluence = stats.sanity < 35 ? 4 : stats.sanity > 75 ? -3 : 0
+    const drift = Math.random() > 0.6 ? 2 : -1
+    const delta = clamp(randomSwing + sanityInfluence + drift, -6, 10)
+    const nextLai = clamp(lai + delta, 0, 100)
+    const band = buildLaiBand(nextLai)
+
+    const sanityDelta = nextLai > 90 ? -2 : nextLai < 8 ? 1 : undefined
+    if (sanityDelta) {
+      handleChoice({ sanity: sanityDelta })
+    }
+
+    setLai(nextLai)
+
+    return {
+      newLai: nextLai,
+      laiDelta: delta,
+      band,
+      sanityDelta,
+      message: buildLaiMessage(band),
+    }
+  }
+
   const resetGame = () => {
     setStats(INITIAL_STATS)
     setInventory([])
@@ -233,6 +313,7 @@ export const useGameLoop = (): GameState & GameActions => {
     setDayCount(1)
     setDayStartStats(INITIAL_STATS)
     setMorningReport(null)
+    setLai(0)
     setWasRestored(false)
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY)
@@ -285,14 +366,15 @@ export const useGameLoop = (): GameState & GameActions => {
     }
 
     savePersistedState({
-      version: 1,
+      version: 2,
       stats,
       inventory,
       phase,
       dayCount,
       dayStartStats,
+      lai,
     })
-  }, [stats, inventory, phase, dayCount, dayStartStats, ending])
+  }, [stats, inventory, phase, dayCount, dayStartStats, ending, lai])
 
   return {
     stats,
@@ -305,12 +387,14 @@ export const useGameLoop = (): GameState & GameActions => {
     fallbackMedia: fallbackEventMedia,
     morningReport,
     wasRestored,
+    lai,
     advancePhase,
     handleChoice,
     buyItem,
     useItem,
     resolveChoice,
     resetGame,
+    pingNetMonitor,
   }
 }
 
