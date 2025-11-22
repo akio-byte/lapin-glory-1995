@@ -70,9 +70,10 @@ type PaperWarProps = {
   outcome: string | null
   onResolve: (result: PaperWarResolution) => void
   onNextPhase: () => void
+  isGlitching?: boolean
 }
 
-const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onNextPhase }: PaperWarProps) => {
+const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onNextPhase, isGlitching }: PaperWarProps) => {
   const media = useMemo(() => event.media ?? fallbackMedia, [event.media, fallbackMedia])
   const [rounds, setRounds] = useState<RoundLog[]>([])
   const [pendingEffects, setPendingEffects] = useState<Partial<Stats>>({})
@@ -129,7 +130,7 @@ const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onN
   }
 
   return (
-    <div className="panel relative space-y-4 bg-asphalt/60">
+    <div className={`panel relative space-y-4 bg-asphalt/60 ${isGlitching ? 'glitch-veil' : ''}`}>
       <div className="absolute inset-0 bg-repeat bg-[linear-gradient(90deg,rgba(255,0,255,0.06)_1px,transparent_1px),linear-gradient(rgba(255,0,255,0.05)_1px,transparent_1px)] bg-[length:22px_22px] opacity-10" />
       <div className="relative space-y-3">
         <div className="flex items-center justify-between">
@@ -142,7 +143,7 @@ const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onN
           <div className="text-xs text-neon uppercase tracking-[0.2em]">Kierros {Math.min(rounds.length + 1, TOTAL_ROUNDS)}/{TOTAL_ROUNDS}</div>
         </div>
 
-        <CRTVisual media={media} />
+        <CRTVisual media={media} isGlitching={isGlitching} />
         <p className="text-sm leading-relaxed bg-coal/70 border border-neon/40 p-3">{event.text}</p>
 
         <div className="grid md:grid-cols-3 gap-3">

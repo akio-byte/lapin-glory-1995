@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import './App.css'
 import EventCard from './components/EventCard'
 import NokiaPhone from './components/NokiaPhone'
@@ -8,6 +8,7 @@ import StatsBar from './components/StatsBar'
 import type { Stats } from './data/gameData'
 import type { EndingType } from './hooks/useGameLoop'
 import { useGameLoop } from './hooks/useGameLoop'
+import { useAudio } from './hooks/useAudio'
 
 const shakeStyles = `
 @keyframes shake {
@@ -164,9 +165,13 @@ function App() {
     resetGame,
   } = useGameLoop()
 
+  const { muted, toggleMute, backgroundPlaying, toggleBackground, playSfx } = useAudio()
+
   const [outcome, setOutcome] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
   const [journal, setJournal] = useState<string[]>([])
+  const [textSpeed, setTextSpeed] = useState(3)
+  const bossIntroRef = useRef<string | null>(null)
 
   useEffect(() => {
     setOutcome(null)
@@ -175,6 +180,21 @@ function App() {
 
   const activeEvent = useMemo(() => currentEvent, [currentEvent])
   const isPaperWar = activeEvent?.paperWar
+
+  const rootStyle = useMemo(() => ({ '--glitch-duration': `${textSpeed}s` } as CSSProperties), [textSpeed])
+
+  useEffect(() => {
+    if (activeEvent && (activeEvent.paperWar || activeEvent.id.toLowerCase().includes('verottaja'))) {
+      if (bossIntroRef.current !== activeEvent.id) {
+        playSfx('boss')
+        bossIntroRef.current = activeEvent.id
+      }
+    }
+
+    if (!activeEvent) {
+      bossIntroRef.current = null
+    }
+  }, [activeEvent, playSfx])
 
   const handleRestart = () => {
     setJournal([])
@@ -189,6 +209,7 @@ function App() {
 
   const handleEventChoice = (choice: Parameters<typeof resolveChoice>[0]) => {
     if (locked || !activeEvent) return
+    playSfx('choice')
     const result = resolveChoice(choice)
     setOutcome(result.outcomeText)
     setLocked(true)
@@ -197,25 +218,27 @@ function App() {
 
   const handlePaperWarResolve = (result: PaperWarResolution) => {
     if (locked || !activeEvent) return
+    playSfx('choice')
     applyChoiceEffects(result.appliedEffects)
     setOutcome(result.summary)
     setLocked(true)
     setJournal((prev) => [`${phase}: ${activeEvent.id} -> ${result.summary}`, ...prev].slice(0, 6))
   }
 
-  const wrapperGlitchClass = isGlitching ? 'animate-[shake_0.6s_linear_infinite] invert' : ''
+  const wrapperGlitchClass = isGlitching ? 'glitch-wrapper invert' : ''
 
   const report =
     morningReport ?? ({ moneyDelta: 0, sanityDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
 
-  // TODO: Play "Humina" drone sound loop here when audio pipeline is connected.
-
   return (
-    <div className={`min-h-screen bg-[#0f1118] text-white relative overflow-hidden ${wrapperGlitchClass}`}>
+    <div
+      className={`min-h-screen bg-[#0f1118] text-white relative overflow-hidden ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''}`}
+      style={rootStyle}
+    >
       <style>{shakeStyles}</style>
       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
 
-      <NokiaPhone sanity={stats.sanity} />
+      <NokiaPhone sanity={stats.sanity} onPing={() => playSfx('nokia')} />
 
       <main className="relative max-w-6xl mx-auto px-6 py-10 space-y-8">
         <header className="space-y-2">
@@ -242,6 +265,7 @@ function App() {
                   fallbackMedia={fallbackMedia}
                   onResolve={handlePaperWarResolve}
                   onNextPhase={advancePhase}
+                  isGlitching={isGlitching}
                 />
               ) : (
                 <EventCard
@@ -252,6 +276,7 @@ function App() {
                   onNextPhase={advancePhase}
                   fallbackMedia={fallbackMedia}
                   phase={phase}
+                  isGlitching={isGlitching}
                 />
               )
             )}
@@ -280,6 +305,43 @@ function App() {
 
           <aside className="space-y-4">
             <Shop phase={phase} inventory={inventory} stats={stats} onBuy={buyItem} onUse={useItem} />
+
+            <div className="panel bg-coal/80 space-y-3">
+              <p className="text-xs uppercase tracking-[0.3em] text-neon">Asetukset</p>
+              <div className="flex items-center justify-between text-sm">
+                <span>{muted ? 'Äänet: mykistetty' : 'Äänet: päällä'}</span>
+                <button className="button-raw px-3 py-1" onClick={toggleMute}>
+                  {muted ? 'Poista mykistys' : 'Mykistä'}
+                </button>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span>Humina-loop</span>
+                <button
+                  className={`button-raw px-3 py-1 ${muted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  onClick={toggleBackground}
+                  disabled={muted}
+                >
+                  {backgroundPlaying ? 'Tauko' : 'Soita hiljaa'}
+                </button>
+              </div>
+              <div className="space-y-2 text-sm">
+                <label className="flex items-center justify-between gap-3" htmlFor="textSpeed">
+                  <span>Tekstin glitch-tahti</span>
+                  <span className="text-xs text-neon">{textSpeed.toFixed(1)}s</span>
+                </label>
+                <input
+                  id="textSpeed"
+                  type="range"
+                  min={1.2}
+                  max={4}
+                  step={0.2}
+                  value={textSpeed}
+                  onChange={(event) => setTextSpeed(parseFloat(event.target.value))}
+                  className="w-full accent-neon"
+                />
+                <p className="text-xs text-slate-300">Hidasta jos silmät väsyy, nopeuta jos faksi palaa.</p>
+              </div>
+            </div>
 
             <div className="panel bg-asphalt/70">
               <p className="text-xs uppercase tracking-[0.3em] text-neon">Lokikone</p>
