@@ -40,6 +40,7 @@ type GameActions = {
   advancePhase: () => void
   handleChoice: (effect: Partial<Stats>) => void
   buyItem: (item: Item) => boolean
+  useItem: (itemId: string) => boolean
   resolveChoice: (choice: GameEventChoice) => ChoiceResolution
   resetGame: () => void
 }
@@ -114,17 +115,40 @@ export const useGameLoop = (): GameState & GameActions => {
     })
   }
 
+  const useItem = (itemId: string) => {
+    const ownedItem = inventory.find((inv) => inv.id === itemId)
+    if (!ownedItem) return false
+
+    if (ownedItem.effects.immediate) {
+      handleChoice(ownedItem.effects.immediate)
+    }
+
+    if (ownedItem.type === 'consumable') {
+      setInventory((prev) => {
+        const idx = prev.findIndex((entry) => entry.id === itemId)
+        if (idx === -1) return prev
+        return [...prev.slice(0, idx), ...prev.slice(idx + 1)]
+      })
+    }
+
+    return true
+  }
+
   const buyItem = (item: Item) => {
     if (stats.money < item.price) return false
+    if (item.req_stats?.byroslavia && stats.byroslavia < item.req_stats.byroslavia) return false
+
     handleChoice({ money: -item.price })
-    const bonus = item.effects.byroslavia_bonus ?? 0
-    if (bonus !== 0) {
-      handleChoice({ byroslavia: bonus })
-    }
-    if (item.effects.sanity) handleChoice({ sanity: item.effects.sanity })
-    if (item.effects.reputation) handleChoice({ reputation: item.effects.reputation })
-    if (item.effects.sisu) handleChoice({ sisu: item.effects.sisu })
     setInventory((prev) => [...prev, item])
+
+    if (item.type !== 'consumable' && item.effects.passive) {
+      handleChoice(item.effects.passive)
+    }
+
+    if (item.type === 'consumable' && item.autoUseOnPurchase) {
+      return useItem(item.id)
+    }
+
     return true
   }
 
@@ -210,6 +234,7 @@ export const useGameLoop = (): GameState & GameActions => {
     advancePhase,
     handleChoice,
     buyItem,
+    useItem,
     resolveChoice,
     resetGame,
   }
