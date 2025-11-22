@@ -48,7 +48,7 @@ export const INITIAL_EVENTS: Event[] = [
     triggerPhase: 'day',
     media: {
       type: 'video',
-      src: 'https://www.w3schools.com/html/mov_bbb.mp4',
+      src: 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4',
       alt: 'VHS-noise video baarin valvontakamerasta',
     },
     choices: [
