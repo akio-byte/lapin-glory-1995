@@ -57,19 +57,19 @@ const StatsBar = ({
     <div className="grid md:grid-cols-4 gap-3 items-center">
       <div className="md:col-span-3 grid md:grid-cols-3 gap-3">
         <StatChip
-          label={rahatLabel}
+          label={canonicalStats.rahat.label}
           value={canonicalStats.rahat.format(stats.rahat)}
           icon={<Coins size={20} />}
           subtitle="Vuokra -50 mk joka aamu"
         />
         <StatChip
-          label={maineLabel}
+          label={canonicalStats.maine.label}
           value={canonicalStats.maine.format(stats.maine)}
           icon={<Sparkles size={20} />}
           subtitle="Yli 95 → Veropetos-ratsia"
         />
         <StatChip
-          label={jarkiLabel}
+          label={canonicalStats.jarki.label}
           value={canonicalStats.jarki.format(stats.jarki)}
           icon={<Brain size={20} />}
           subtitle="0 → Suljettu osasto"
