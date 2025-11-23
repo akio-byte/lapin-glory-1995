@@ -1,7 +1,4 @@
-import faxMachine from '../assets/fax_machine.png.png'
-import snowyStreet from '../assets/Snowy_Finland_Street_VHS.mp4'
-import surrealVideo from '../assets/Surreal_Horror_Video_Generation.mp4'
-import fallbackImage from '../assets/react.svg'
+import { MediaRegistry } from './mediaRegistry'
 import { aiFaxEvents } from './aiFaxEvents'
 
 export type ItemType = 'consumable' | 'tool' | 'form' | 'relic'
@@ -134,9 +131,11 @@ export const items: Item[] = [
 
 const fallbackMedia: NonNullable<GameEvent['media']> = {
   type: 'image',
-  src: fallbackImage,
+  src: MediaRegistry.fallback,
   alt: 'Neon siluetti Lapista',
 }
+
+const media = MediaRegistry
 
 const eventTierMap: Record<string, EventTier> = {
   'Prologi: Paluu Lappiin': 1,
@@ -265,7 +264,7 @@ const coreGameEvents: GameEvent[] = [
     id: 'Prologi: Ensimmäinen EU-faksi',
     triggerPhase: 'day',
     condition: (stats) => stats.maine <= 18,
-    media: { type: 'image', src: faxMachine, alt: 'Ensimmäinen neon-faksi' },
+    media: { type: 'image', src: media.faxMachine, alt: 'Ensimmäinen neon-faksi' },
     text: 'Brysselistä jyrähtää neonilla korostettu faksi: "Poro migreenit neonvaloista".',
     choices: [
       {
@@ -298,7 +297,7 @@ const coreGameEvents: GameEvent[] = [
     id: 'Prologi: Krok esittäytyy',
     triggerPhase: 'day',
     condition: (stats) => stats.maine >= 12 && stats.maine <= 30,
-    media: { type: 'video', src: surrealVideo, alt: 'Krok hologrammina' },
+    media: { type: 'video', src: media.surrealVideo, alt: 'Krok hologrammina' },
     text: 'Verotarkastaja Krok välähtää hologrammina: "Näen teidät pian".',
     choices: [
       {
@@ -332,7 +331,7 @@ const coreGameEvents: GameEvent[] = [
     triggerPhase: 'day',
     media: {
       type: 'image',
-      src: faxMachine,
+      src: media.faxMachine,
       alt: 'Saapuva faksi Brysselistä',
     },
     text: 'Saapuva faksi Brysselistä. Paperi on kuuma ja muste tuoksuu otsonilta. EU haluaa tiedot heti.',
@@ -536,7 +535,7 @@ const coreGameEvents: GameEvent[] = [
   {
     id: 'Staalo varjosta',
     triggerPhase: 'night',
-    media: { type: 'video', src: snowyStreet, alt: 'Varjo liikkuu kadulla' },
+    media: { type: 'video', src: media.snowyStreet, alt: 'Varjo liikkuu kadulla' },
     text: 'Staalo ilmestyy varjona oven taakse. Sarvet piirtyvät valoon.',
     choices: [
       {
@@ -633,7 +632,7 @@ const coreGameEvents: GameEvent[] = [
     triggerPhase: 'day',
     condition: (stats) => stats.maine > 12,
     paperWar: true,
-    media: { type: 'video', src: surrealVideo, alt: 'Krok-tarkastajan hologrammi' },
+    media: { type: 'video', src: media.surrealVideo, alt: 'Krok-tarkastajan hologrammi' },
     text: 'Hannele Krok ilmestyy faksista neon-silmä välkkyen. Hän kaataa pöydälle nipun lomakkeita ja kuiskuttaa: "Paper War, kolmesta kierroksesta paras".',
     choices: [],
   },
@@ -990,7 +989,7 @@ const coreGameEvents: GameEvent[] = [
   {
     id: 'Yökelkkailijat',
     triggerPhase: 'night',
-    media: { type: 'video', src: snowyStreet, alt: 'Lumessa jyrisevät kelkat' },
+    media: { type: 'video', src: media.snowyStreet, alt: 'Lumessa jyrisevät kelkat' },
     text: 'Saksalaiset moottorikelkkailijat parkkeeraavat neonin alle ja huutavat "LÄMPIMÄÄ GLÖG!!"',
     choices: [
       {
@@ -1247,7 +1246,7 @@ const coreGameEvents: GameEvent[] = [
     id: 'GlitchyTaxSpirit',
     triggerPhase: 'night',
     condition: (stats) => stats.jarki < 35,
-    media: { type: 'video', src: surrealVideo, alt: 'Glitchaava tarkastus' },
+    media: { type: 'video', src: media.surrealVideo, alt: 'Glitchaava tarkastus' },
     text: 'Faksi kirjoittaa itseään: "RUN: FORM". Näet Krok-avarion varjon.',
     choices: [
       {
@@ -1723,7 +1722,7 @@ const coreGameEvents: GameEvent[] = [
     id: 'Verotarkastus Encore',
     triggerPhase: 'night',
     condition: (stats) => stats.maine > 70 && stats.jarki > 40,
-    media: { type: 'video', src: surrealVideo, alt: 'Toistuva verosilmä' },
+    media: { type: 'video', src: media.surrealVideo, alt: 'Toistuva verosilmä' },
     text: 'Hannele Krok palaa, mutta tällä kertaa hologrammina. Boss fight 2.0.',
     choices: [
       {
@@ -1758,7 +1757,7 @@ const coreGameEvents: GameEvent[] = [
     triggerPhase: 'night',
     media: {
       type: 'video',
-      src: snowyStreet,
+      src: media.snowyStreet,
       alt: 'Turistibussi luo sumuisen valon lumelle',
     },
     text: 'Ruotsalainen turistibussi kaartaa pihaan. Neon kyltti välkkyy, porot tuijottavat.',
@@ -1795,7 +1794,7 @@ const coreGameEvents: GameEvent[] = [
     condition: (stats) => stats.maine > 25,
     media: {
       type: 'video',
-      src: surrealVideo,
+      src: media.surrealVideo,
       alt: 'Verottaja ilmestyy lumiseen toimistoon',
     },
     text: 'Ovi paukahtaa. Hannele Krok astuu sisään paksun mapin kanssa. Boss fight: Paper War.',

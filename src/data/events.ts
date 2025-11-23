@@ -1,7 +1,4 @@
-import faxImg from '../assets/fax_machine.png.png'
-import officeBg from '../assets/office_bg.png.png'
-import bossVideo from '../assets/Surreal_Horror_Video_Generation.mp4'
-import streetVideo from '../assets/Snowy_Finland_Street_VHS.mp4'
+import { MediaRegistry } from './mediaRegistry'
 
 export type Event = {
   id: string
@@ -26,7 +23,7 @@ export type Event = {
 
 export const FALLBACK_MEDIA: NonNullable<Event['media']> = {
   type: 'image',
-  src: officeBg,
+  src: MediaRegistry.fallback,
   alt: 'Neoninen toimistotausta',
 }
 
@@ -37,7 +34,7 @@ export const INITIAL_EVENTS: Event[] = [
     description:
       'Faksi rätisee. Se on EU-direktiivi 882/B: "Viihderavintoloiden Valaisustandardit". Nykyiset neonvalosi ovat liian kirkkaat poroille.',
     triggerPhase: 'day',
-    media: { type: 'image', src: faxImg, alt: 'Rätisevä faksi' },
+    media: { type: 'image', src: MediaRegistry.faxMachine, alt: 'Rätisevä faksi' },
     choices: [
       {
         text: 'Revi faksi ja sytytä tupakka',
@@ -57,7 +54,7 @@ export const INITIAL_EVENTS: Event[] = [
     description:
       'Ulkona lumisade on kuin VHS-kohinaa. Joku jätti monitorin kadulle näyttämään yökuvaa, ja se vetää ohikulkijoita puoleensa.',
     triggerPhase: 'day',
-    media: { type: 'video', src: streetVideo, alt: 'Luminen katu' },
+    media: { type: 'video', src: MediaRegistry.snowyStreet, alt: 'Luminen katu' },
     choices: [
       {
         text: 'Siirrä monitori baarin ikkunaan',
@@ -77,7 +74,7 @@ export const INITIAL_EVENTS: Event[] = [
     description:
       'Verottajan VHS-päällikkö soittaa. Kasettia ei voi pausettaa, ja taustalla näkyy neoninen toimisto.',
     triggerPhase: 'day',
-    media: { type: 'video', src: bossVideo, alt: 'Verottaja' },
+    media: { type: 'video', src: MediaRegistry.surrealVideo, alt: 'Verottaja' },
     choices: [
       {
         text: 'Esitä raportti ja nosta ääntä',
@@ -97,7 +94,7 @@ export const INITIAL_EVENTS: Event[] = [
     description:
       'Bryssel lähettää yömyöhään neon-faksin: kurkkujen kaarevuus koskee nyt myös drinkkien koristeita.',
     triggerPhase: 'day',
-    media: { type: 'image', src: faxImg, alt: 'Kimmeltävä neon-faksi' },
+    media: { type: 'image', src: MediaRegistry.faxMachine, alt: 'Kimmeltävä neon-faksi' },
     vibe: 'mundane',
     choices: [
       {
@@ -124,7 +121,7 @@ export const INITIAL_EVENTS: Event[] = [
     description:
       'EU varoittaa: pakkanen rikkoo neonputket. Faksi vilkkuu ja paperi on jäinen.',
     triggerPhase: 'day',
-    media: { type: 'image', src: faxImg, alt: 'Jäinen faksi' },
+    media: { type: 'image', src: MediaRegistry.faxMachine, alt: 'Jäinen faksi' },
     choices: [
       {
         text: 'Tilaa lämpövastukset Brysselistä',
@@ -145,7 +142,7 @@ export const INITIAL_EVENTS: Event[] = [
     description:
       'Saksalainen shamaani palaa ja väittää virittäneensä aurorakanavan. LAI värähtää.',
     triggerPhase: 'night',
-    media: { type: 'video', src: streetVideo, alt: 'Revontulen alla seisova shamaani' },
+    media: { type: 'video', src: MediaRegistry.snowyStreet, alt: 'Revontulen alla seisova shamaani' },
     vibe: 'occult',
     choices: [
       {
@@ -171,7 +168,7 @@ export const INITIAL_EVENTS: Event[] = [
     title: 'Doris: Tangon pohja',
     description: 'Doris haluaa järjestää salaisen tangokisan Wanha Mestari -henkisesti.',
     triggerPhase: 'night',
-    media: { type: 'image', src: officeBg, alt: 'Hämärä karaokelava' },
+    media: { type: 'image', src: MediaRegistry.officeBg, alt: 'Hämärä karaokelava' },
     choices: [
       {
         text: 'Mainosta paikallisradiossa',
@@ -190,7 +187,7 @@ export const INITIAL_EVENTS: Event[] = [
     title: 'Wanha Mestari: Salainen resepti',
     description: 'Mestari kuiskaa sinulle reseptin lämpimästä simasta, mutta haluaa osan kassasta.',
     triggerPhase: 'night',
-    media: { type: 'image', src: officeBg, alt: 'Kellarin neonkynttilät' },
+    media: { type: 'image', src: MediaRegistry.officeBg, alt: 'Kellarin neonkynttilät' },
     choices: [
       {
         text: 'Maksa ja ota resepti',
@@ -211,7 +208,7 @@ export const INITIAL_EVENTS: Event[] = [
     description:
       'Aamulla ikkuna on huurussa ja joku on piirtänyt siihen sanan METSÄNPEITTO. LAI pysyy matalana, mutta tunnelma kiristyy.',
     triggerPhase: 'day',
-    media: { type: 'video', src: streetVideo, alt: 'Huurteinen katu' },
+    media: { type: 'video', src: MediaRegistry.snowyStreet, alt: 'Huurteinen katu' },
     vibe: 'occult',
     choices: [
       {
@@ -252,7 +249,7 @@ export const INITIAL_EVENTS: Event[] = [
     description:
       'Net Monitor ruudulla näkyy hetken Staalo-symboli. Jos LAI on korkea, koko huone värähtää.',
     triggerPhase: 'day',
-    media: { type: 'video', src: bossVideo, alt: 'Häiriöruutu' },
+    media: { type: 'video', src: MediaRegistry.surrealVideo, alt: 'Häiriöruutu' },
     vibe: 'occult',
     condition: { laiAbove: 50 },
     choices: [
