@@ -32,15 +32,15 @@ const formatDelta = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(0
 const MorningReport = ({
   stats,
   dayCount,
-  moneyDelta,
-  sanityDelta,
+  rahatDelta,
+  jarkiDelta,
   note,
   onAdvance,
 }: {
   stats: Stats
   dayCount: number
-  moneyDelta: number
-  sanityDelta: number
+  rahatDelta: number
+  jarkiDelta: number
   note: string
   onAdvance: () => void
 }) => (
@@ -57,18 +57,18 @@ const MorningReport = ({
     </p>
     <div className="grid grid-cols-2 gap-3 text-sm">
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.money.label}</p>
-        <p className="text-lg font-semibold">{canonicalStats.money.format(stats.money)}</p>
-        <p className="text-xs text-slate-300">Eilen: {formatDelta(moneyDelta)} mk</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.rahat.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.rahat.format(stats.rahat)}</p>
+        <p className="text-xs text-slate-300">Eilen: {formatDelta(rahatDelta)} mk</p>
       </div>
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.sanity.label}</p>
-        <p className="text-lg font-semibold">{canonicalStats.sanity.format(stats.sanity)}</p>
-        <p className="text-xs text-slate-300">Eilen: {formatDelta(sanityDelta)}</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.jarki.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.jarki.format(stats.jarki)}</p>
+        <p className="text-xs text-slate-300">Eilen: {formatDelta(jarkiDelta)}</p>
       </div>
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.reputation.label}</p>
-        <p className="text-lg font-semibold">{canonicalStats.reputation.format(stats.reputation)}</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.maine.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.maine.format(stats.maine)}</p>
       </div>
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
         <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Sisu</p>
@@ -101,11 +101,7 @@ const endingCopy: Record<EndingType, { title: string; description: (params: { st
   vappu: {
     title: 'Vappu – Laajennettu todellisuus',
     description: ({ stats }) => {
-      if (stats.reputation > 80 && stats.sanity > 60)
-        return 'Vappu vapauttaa. Kansa kantaa sinut lavalle, LAI hiljenee ja markat virtaavat neon-simana.'
-      if (stats.money > 400 && stats.sanity > 40)
-        return 'Selvisit 30 päivää. Rahaa riittää simaan, mutta revontulikanava pysyy varuillaan.'
-      if (stats.sanity < 35)
+
         return 'Vappu sumenee. Torin punssin seasta kuuluu maahisen nauru ja LAI kipinöi otsasuonissa.'
       return 'Vappu saapuu hiljaa. Olet pystyssä, mutta juhlinta jää sivummalle neonvalojen taakse.'
     },
@@ -135,16 +131,16 @@ const RunOverScreen = ({
             <p className="text-lg font-semibold">{ending.dayCount}</p>
           </div>
           <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.money.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.money.format(ending.stats.money)}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.rahat.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.rahat.format(ending.stats.rahat)}</p>
           </div>
           <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.sanity.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.sanity.format(ending.stats.sanity)}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.jarki.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.jarki.format(ending.stats.jarki)}</p>
           </div>
           <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.reputation.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.reputation.format(ending.stats.reputation)}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.maine.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.maine.format(ending.stats.maine)}</p>
           </div>
         </div>
         <div className="text-center pt-2">
@@ -242,7 +238,7 @@ function App() {
   const wrapperGlitchClass = isGlitching ? 'glitch-wrapper invert' : ''
 
   const report =
-    morningReport ?? ({ moneyDelta: 0, sanityDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
+    morningReport ?? ({ rahatDelta: 0, jarkiDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
 
   return (
     <div
@@ -253,7 +249,7 @@ function App() {
       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
 
       <NokiaPhone
-        sanity={stats.sanity}
+        jarki={stats.jarki}
         lai={lai}
         onPing={() => {
           const reading = pingNetMonitor()
@@ -327,8 +323,8 @@ function App() {
               <MorningReport
                 stats={stats}
                 dayCount={report.day}
-                moneyDelta={report.moneyDelta}
-                sanityDelta={report.sanityDelta}
+                rahatDelta={report.rahatDelta}
+                jarkiDelta={report.jarkiDelta}
                 note={report.note}
                 onAdvance={advancePhase}
               />

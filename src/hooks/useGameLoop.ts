@@ -13,8 +13,8 @@ type EndingState = {
 }
 
 type MorningReport = {
-  moneyDelta: number
-  sanityDelta: number
+  rahatDelta: number
+  jarkiDelta: number
   note: string
   day: number
 }
@@ -24,7 +24,7 @@ export type NetMonitorReading = {
   laiDelta: number
   band: 'calm' | 'odd' | 'rift'
   message: string
-  sanityDelta?: number
+  jarkiDelta?: number
   signalDbm: number
   pingMs: number
 }
@@ -59,28 +59,44 @@ type GameActions = {
   adjustLAI: (delta: number) => number
 }
 
+type LegacyStats = {
+  money: number
+  reputation: number
+  sanity: number
+  sisu: number
+  pimppaus: number
+  byroslavia: number
+}
+
 type PersistedStateBase = {
-  stats: Stats
+  stats: Stats | LegacyStats
   inventory: Item[]
   phase: Phase
   dayCount: number
-  dayStartStats: Stats
+  dayStartStats: Stats | LegacyStats
 }
 
 type PersistedStateV1 = PersistedStateBase & { version: 1 }
 
 type PersistedStateV2 = PersistedStateBase & { version: 2; lai: number }
 
-export type PersistedState = PersistedStateV1 | PersistedStateV2
+type PersistedStateV3 = Omit<PersistedStateBase, 'stats' | 'dayStartStats'> & {
+  version: 3
+  stats: Stats
+  dayStartStats: Stats
+  lai: number
+}
+
+export type PersistedState = PersistedStateV1 | PersistedStateV2 | PersistedStateV3
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
 const MAX_DAYS = 30
 
 const INITIAL_STATS: Stats = {
-  money: 0,
-  reputation: 10,
-  sanity: 100,
+  rahat: 0,
+  maine: 10,
+  jarki: 100,
   sisu: 50,
   pimppaus: 10,
   byroslavia: 10,
@@ -94,7 +110,7 @@ const hasPersistedShape = (data: unknown): data is PersistedState => {
   if (!data || typeof data !== 'object') return false
   const candidate = data as Record<string, unknown>
   return (
-    (candidate.version === 1 || candidate.version === 2) &&
+    (candidate.version === 1 || candidate.version === 2 || candidate.version === 3) &&
     'stats' in candidate &&
     'inventory' in candidate &&
     'phase' in candidate &&
@@ -103,7 +119,24 @@ const hasPersistedShape = (data: unknown): data is PersistedState => {
   )
 }
 
-const isPersistedV2 = (state: PersistedState | null): state is PersistedStateV2 => state?.version === 2
+const hasLai = (state: PersistedState | null): state is PersistedStateV2 | PersistedStateV3 =>
+  Boolean(state && 'lai' in state)
+
+const normalizeStats = (raw: Stats | LegacyStats | null | undefined): Stats => {
+  if (!raw) return INITIAL_STATS
+  if ('money' in raw) {
+    return {
+      rahat: raw.money,
+      maine: raw.reputation,
+      jarki: raw.sanity,
+      sisu: raw.sisu,
+      pimppaus: raw.pimppaus,
+      byroslavia: raw.byroslavia,
+    }
+  }
+
+  return raw
+}
 
 const loadPersistedState = (): PersistedState | null => {
   if (typeof localStorage === 'undefined') return null
@@ -122,7 +155,7 @@ const loadPersistedState = (): PersistedState | null => {
   return null
 }
 
-const savePersistedState = (state: PersistedStateV2): void => {
+const savePersistedState = (state: PersistedStateV3): void => {
   if (typeof localStorage === 'undefined') return
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
@@ -154,26 +187,32 @@ const pickEventForPhase = (phase: Phase, stats: Stats, lai: number): GameEvent |
 export const useGameLoop = (): GameState & GameActions => {
   const persistedState = loadPersistedState()
 
-  const [stats, setStats] = useState<Stats>(() => persistedState?.stats ?? INITIAL_STATS)
+  const [stats, setStats] = useState<Stats>(() => normalizeStats(persistedState?.stats))
   const [inventory, setInventory] = useState<Item[]>(() => persistedState?.inventory ?? [])
   const [phase, setPhase] = useState<Phase>(() => persistedState?.phase ?? 'DAY')
   const [dayCount, setDayCount] = useState<number>(() => persistedState?.dayCount ?? 1)
-  const [dayStartStats, setDayStartStats] = useState<Stats>(() => persistedState?.dayStartStats ?? INITIAL_STATS)
+  const [dayStartStats, setDayStartStats] = useState<Stats>(() => normalizeStats(persistedState?.dayStartStats))
   const [morningReport, setMorningReport] = useState<MorningReport | null>(null)
   const [wasRestored, setWasRestored] = useState(() => Boolean(persistedState))
-  const [lai, setLai] = useState<number>(() => (isPersistedV2(persistedState) ? persistedState.lai : 0))
+  const [lai, setLai] = useState<number>(() => (hasLai(persistedState) ? persistedState.lai : 0))
 
   const currentEvent = useMemo(() => pickEventForPhase(phase, stats, lai), [phase, stats, lai])
 
   const ending: EndingState | null = useMemo(() => {
-    if (stats.sanity <= 0) return { type: 'psychWard', dayCount, stats }
-    if (stats.money < -1000) return { type: 'bankruptcy', dayCount, stats }
-    if (stats.reputation > 95) return { type: 'taxRaid', dayCount, stats }
+    if (stats.jarki <= 0) return { type: 'psychWard', dayCount, stats }
+    if (stats.rahat < -1000) return { type: 'bankruptcy', dayCount, stats }
+    if (stats.maine > 95) return { type: 'taxRaid', dayCount, stats }
     if (dayCount >= MAX_DAYS && phase === 'MORNING') return { type: 'vappu', dayCount: MAX_DAYS, stats }
     return null
   }, [dayCount, stats, phase])
 
-  const isGlitching = stats.sanity < 20 || lai > 70
+  const isGlitching = stats.jarki < 20 || lai > 70
+
+  const adjustLAI = (delta: number) => {
+    const next = clamp(lai + delta, 0, 100)
+    setLai(next)
+    return next
+  }
 
   const adjustLAI = (delta: number) => {
     const next = clamp(lai + delta, 0, 100)
@@ -183,9 +222,9 @@ export const useGameLoop = (): GameState & GameActions => {
 
   const handleChoice = (effect: Partial<Stats>) => {
     setStats((prev) => ({
-      money: prev.money + (effect.money ?? 0),
-      reputation: clamp(prev.reputation + (effect.reputation ?? 0), 0, 100),
-      sanity: clamp(prev.sanity + (effect.sanity ?? 0), 0, 100),
+      rahat: prev.rahat + (effect.rahat ?? 0),
+      maine: clamp(prev.maine + (effect.maine ?? 0), 0, 100),
+      jarki: clamp(prev.jarki + (effect.jarki ?? 0), 0, 100),
       sisu: clamp(prev.sisu + (effect.sisu ?? 0), 0, 100),
       pimppaus: clamp(prev.pimppaus + (effect.pimppaus ?? 0), 0, 100),
       byroslavia: clamp(prev.byroslavia + (effect.byroslavia ?? 0), 0, 100),
@@ -202,10 +241,10 @@ export const useGameLoop = (): GameState & GameActions => {
       if (next === 'DAY') {
         setDayCount((count) => count + 1)
         setDayStartStats(() => ({ ...stats }))
-        handleChoice({ money: -50 })
-        if (lai > 85) handleChoice({ sanity: -2 })
-        if (lai < 10) handleChoice({ sanity: 1 })
-        const sanityTension = stats.sanity < 25 ? 3 : stats.sanity < 50 ? 1 : stats.sanity > 85 ? -1 : 0
+        handleChoice({ rahat: -50 })
+        if (lai > 85) handleChoice({ jarki: -2 })
+        if (lai < 10) handleChoice({ jarki: 1 })
+        const sanityTension = stats.jarki < 25 ? 3 : stats.jarki < 50 ? 1 : stats.jarki > 85 ? -1 : 0
         if (sanityTension !== 0) adjustLAI(sanityTension)
       }
 
@@ -233,10 +272,10 @@ export const useGameLoop = (): GameState & GameActions => {
   }
 
   const buyItem = (item: Item) => {
-    if (stats.money < item.price) return false
+    if (stats.rahat < item.price) return false
     if (item.req_stats?.byroslavia && stats.byroslavia < item.req_stats.byroslavia) return false
 
-    handleChoice({ money: -item.price })
+    handleChoice({ rahat: -item.price })
     setInventory((prev) => [...prev, item])
 
     if (item.type !== 'consumable' && item.effects.passive) {
@@ -300,9 +339,9 @@ export const useGameLoop = (): GameState & GameActions => {
   const pingNetMonitor = (): NetMonitorReading => {
     const signalDbm = Math.floor(-110 + Math.random() * 35)
     const basePing = Math.floor(40 + Math.random() * 180)
-    const sanityVolatility = stats.sanity < 50 ? 1.6 : 1
-    const randomSwing = Math.floor((Math.random() * 7 - 2) * sanityVolatility) // wider if low sanity
-    const sanityInfluence = stats.sanity < 35 ? 3 : stats.sanity > 80 ? -2 : 0
+    const sanityVolatility = stats.jarki < 50 ? 1.6 : 1
+    const randomSwing = Math.floor((Math.random() * 7 - 2) * sanityVolatility) // wider if low jarki
+    const sanityInfluence = stats.jarki < 35 ? 3 : stats.jarki > 80 ? -2 : 0
     const drift = Math.random() > 0.55 ? 2 : -1
     const delta = clamp(randomSwing + sanityInfluence + drift, -5, 9)
     const nextLai = adjustLAI(delta)
@@ -310,16 +349,16 @@ export const useGameLoop = (): GameState & GameActions => {
     const pingJitter = nextLai >= 80 ? Math.random() * 120 : nextLai >= 50 ? Math.random() * 60 : Math.random() * 20
     const pingMs = Math.max(12, Math.round(basePing + (band === 'rift' ? pingJitter * 1.5 : pingJitter)))
 
-    const sanityDelta = nextLai > 90 ? -2 : nextLai < 8 ? 1 : undefined
-    if (sanityDelta) {
-      handleChoice({ sanity: sanityDelta })
+    const jarkiDelta = nextLai > 90 ? -2 : nextLai < 8 ? 1 : undefined
+    if (jarkiDelta) {
+      handleChoice({ jarki: jarkiDelta })
     }
 
     return {
       newLai: nextLai,
       laiDelta: delta,
       band,
-      sanityDelta,
+      jarkiDelta,
       signalDbm,
       pingMs,
       message: buildLaiMessage(nextLai, band),
@@ -343,17 +382,17 @@ export const useGameLoop = (): GameState & GameActions => {
   const buildMorningNote = (state: Stats) => {
     const randomPick = (options: string[]) => options[Math.floor(Math.random() * options.length)]
 
-    if (state.sanity < 20)
+    if (state.jarki < 20)
       return randomPick([
         'Näytön takaa ilmestyy faksi: "Käy lepää, veli".',
         'Ruudun kulma vuotaa valoa. Kuulostat itseltäsi vastaantulevassa faksissa.',
       ])
-    if (state.reputation > 65)
+    if (state.maine > 65)
       return randomPick([
         'Huhu kiertää: olet Lapin virallinen neon-ikonoklasti.',
         'Posti tuo tuplakirjauksen: kansa odottaa uutta raporttia sinulta.',
       ])
-    if (state.money < -500)
+    if (state.rahat < -500)
       return randomPick([
         'Kirjanpitäjä kuiskaa, että markat pakenevat kuin revontulet.',
         'Pankin faksi kysyy: onko tää vielä harrastus vai performanssi?',
@@ -366,11 +405,11 @@ export const useGameLoop = (): GameState & GameActions => {
 
   useEffect(() => {
     if (phase === 'MORNING') {
-      const moneyDelta = stats.money - dayStartStats.money
-      const sanityDelta = stats.sanity - dayStartStats.sanity
+      const moneyDelta = stats.rahat - dayStartStats.rahat
+      const jarkiDelta = stats.jarki - dayStartStats.jarki
       setMorningReport({
-        moneyDelta,
-        sanityDelta,
+        rahatDelta: moneyDelta,
+        jarkiDelta,
         note: buildMorningNote(stats),
         day: dayCount,
       })
@@ -386,7 +425,7 @@ export const useGameLoop = (): GameState & GameActions => {
     }
 
     savePersistedState({
-      version: 2,
+      version: 3,
       stats,
       inventory,
       phase,

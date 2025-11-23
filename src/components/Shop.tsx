@@ -22,7 +22,7 @@ const ShopCard = ({
   onBuy: () => void
   onUse: () => void
 }) => {
-  const canAfford = stats.money >= item.price
+  const canAfford = stats.rahat >= item.price
   const meetsByroslavia = item.req_stats?.byroslavia ? stats.byroslavia >= item.req_stats.byroslavia : true
   const passiveHint = item.effects.passive ? 'Passiivinen bonus' : 'Kertakäyttö'
 
@@ -91,8 +91,8 @@ const Shop = ({
           <p className="text-sm text-slate-200">Salkku auki: neon-puhelin vastaanottaa tilauksia.</p>
         </div>
         <div className="text-right">
-          <p className="text-sm text-neon">{canonicalStats.money.label}: {formatPrice(stats.money)}</p>
-          <p className="text-[10px] text-slate-300 uppercase tracking-[0.2em]">{canonicalStats.money.short}</p>
+          <p className="text-sm text-neon">{canonicalStats.rahat.label}: {formatPrice(stats.rahat)}</p>
+          <p className="text-[10px] text-slate-300 uppercase tracking-[0.2em]">{canonicalStats.rahat.short}</p>
         </div>
       </div>
 

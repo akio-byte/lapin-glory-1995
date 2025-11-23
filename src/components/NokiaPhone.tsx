@@ -27,7 +27,7 @@ const stageMessages = {
 }
 
 type NokiaPhoneProps = {
-  sanity: number
+
   lai: number
   onPing?: () => NetMonitorReading | void
 }
@@ -41,7 +41,7 @@ const stageFromLai = (lai: number): Stage => {
   return 'calm'
 }
 
-const NokiaPhone = ({ sanity, lai, onPing }: NokiaPhoneProps) => {
+
   const [localLai, setLocalLai] = useState(lai)
   const [readout, setReadout] = useState('Verkko ok. Turistiystävällinen latenssi.')
   const [lastDelta, setLastDelta] = useState<number | null>(null)
@@ -53,7 +53,7 @@ const NokiaPhone = ({ sanity, lai, onPing }: NokiaPhoneProps) => {
   }, [lai])
 
   const stage = useMemo(() => stageFromLai(localLai), [localLai])
-  const isGlitch = sanity < 20 || stage === 'glitch' || stage === 'severe'
+
 
   const uiState: Record<Stage, { label: string; hint: string; color: string }> = {
     calm: { label: 'Kenttä tyyni', hint: 'Maahiset nukkuu', color: 'text-emerald-200' },
@@ -91,7 +91,7 @@ const NokiaPhone = ({ sanity, lai, onPing }: NokiaPhoneProps) => {
         <div className="flex items-center justify-between px-4 py-2 text-xs uppercase tracking-[0.25em] bg-lime-800/70 border-b border-lime-700">
           <span>Net Monitor</span>
           <span className={`font-bold ${isGlitch ? 'animate-[jitter_0.6s_infinite]' : ''}`}>
-            JÄRKI {sanity}
+<
           </span>
         </div>
         <div className="p-4 bg-lime-950/50 text-sm leading-tight space-y-2">

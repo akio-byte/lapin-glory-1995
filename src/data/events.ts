@@ -9,15 +9,15 @@ export type Event = {
   description: string
   triggerPhase: 'day' | 'night'
   vibe?: 'mundane' | 'occult'
-  condition?: { laiAbove?: number; sanityBelow?: number }
+
   media?: { type: 'image' | 'video'; src: string; alt: string }
   choices: {
     text: string
     dcCheck?: { stat: 'pimppaus' | 'byroslavia' | 'sisu'; dc: number }
     effect: {
-      money?: number
-      sanity?: number
-      reputation?: number
+      rahat?: number
+      jarki?: number
+      maine?: number
     }
     outcomeText: string
   }[]
@@ -40,12 +40,12 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Revi faksi ja sytytä tupakka',
-        effect: { sanity: 10, money: 0, reputation: 0 },
+        effect: { jarki: 10, rahat: 0, maine: 0 },
         outcomeText: 'Tunnet vapauden huumaa. ELY-keskus muistaa tämän.',
       },
       {
         text: 'Noudata direktiiviä (Osta himmentimet)',
-        effect: { money: -200, sanity: -5, reputation: 10 },
+        effect: { rahat: -200, jarki: -5, maine: 10 },
         outcomeText: 'Baari on pimeä. Virkamiehet hymyilevät.',
       },
     ],
@@ -60,12 +60,12 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Siirrä monitori baarin ikkunaan',
-        effect: { money: 80, reputation: 6, sanity: -3 },
+        effect: { rahat: 80, maine: 6, jarki: -3 },
         outcomeText: 'Katuvalo ja VHS-lumi tekevät taian. Kassakone kilahtaa.',
       },
       {
         text: 'Sulata jää ja myy monitori',
-        effect: { money: 150, reputation: -4, sanity: 2 },
+        effect: { rahat: 150, maine: -4, jarki: 2 },
         outcomeText: 'Kauppias kättelee, mutta kylmä katu menettää taikansa.',
       },
     ],
@@ -80,12 +80,12 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Esitä raportti ja nosta ääntä',
-        effect: { money: -50, reputation: 12, sanity: -6 },
+        effect: { rahat: -50, maine: 12, jarki: -6 },
         outcomeText: 'Byrokraatti nyökkää. Maine kasvaa, hermot kiristyvät.',
       },
       {
         text: 'Katkaise linja, vaihda kasetti',
-        effect: { money: 0, reputation: -10, sanity: 8 },
+        effect: { rahat: 0, maine: -10, jarki: 8 },
         outcomeText: 'VHS pysähtyy. Pää kevenee, mutta huhumylly alkaa.',
       },
     ],
@@ -102,17 +102,17 @@ export const INITIAL_EVENTS: Event[] = [
       {
         text: 'Leimaa poikkeuslupa Lapin valolla',
         dcCheck: { stat: 'byroslavia', dc: 13 },
-        effect: { reputation: 6, money: 40 },
+
         outcomeText: 'Poikkeuslupa menee läpi. RAHAT säästyvät ja MAINE kasvaa.',
       },
       {
         text: 'Osta laatikko standardikurkkuja',
-        effect: { money: -120, reputation: 4 },
+
         outcomeText: 'Kylmävarasto täyttyy, mutta EU on tyytyväinen.',
       },
       {
         text: 'Ignoraa ja tarjoa poron suolakurkkuja',
-        effect: { reputation: -6, sanity: 4 },
+
         outcomeText: 'Turisti ihmettelee, mutta pää rauhoittuu hetkeksi.',
       },
     ],
@@ -127,13 +127,13 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Tilaa lämpövastukset Brysselistä',
-        effect: { money: -90, sanity: 2, reputation: 5 },
+
         outcomeText: 'Putket pysyvät ehjinä, faksit kiittävät.',
       },
       {
         text: 'Kirjoita vastine: Lapissa on aina kylmä',
         dcCheck: { stat: 'pimppaus', dc: 11 },
-        effect: { reputation: 2, money: 30, sanity: -2 },
+
         outcomeText: 'Fax-operaattori naurahtaa ja lähettää sinulle pienen tuen.',
       },
     ],
@@ -149,18 +149,18 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Anna hänelle dj-slot ja savukone',
-        effect: { money: 160, reputation: 8, sanity: -3 },
+
         outcomeText: 'Rummut ja savut nostavat kassaa, mutta JÄRKI kipinöi.',
       },
       {
         text: 'Myy hänelle Lapin kristalli',
         dcCheck: { stat: 'pimppaus', dc: 12 },
-        effect: { money: 90, reputation: 3 },
+
         outcomeText: 'Shamaani maksaa hyvin ja kehuu baarin mainetta.',
       },
       {
         text: 'Sammuta valot ja pyydä hiljaisuutta',
-        effect: { sanity: 5, reputation: -4 },
+
         outcomeText: 'Hiljaisuus rauhoittaa, mutta turistit katoavat.',
       },
     ],
@@ -174,12 +174,12 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Mainosta paikallisradiossa',
-        effect: { money: 130, reputation: 7, sanity: -2 },
+        effect: { rahat: 130, maine: 7, jarki: -2 },
         outcomeText: 'Tangokansa valuu sisään ja kassa laulaa.',
       },
       {
         text: 'Pitkä soundcheck, pidä ovet kiinni',
-        effect: { sanity: 6, reputation: -5 },
+        effect: { jarki: 6, maine: -5 },
         outcomeText: 'Rauhoitut, mutta yleisö jää ulos ja huhut leviävät.',
       },
     ],
@@ -193,13 +193,13 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Maksa ja ota resepti',
-        effect: { money: -80, sanity: 2, reputation: 5 },
+
         outcomeText: 'Juoma myy kuin häkä, MAINE kasvaa.',
       },
       {
         text: 'Bluffaa, että resepti löytyy jo',
         dcCheck: { stat: 'byroslavia', dc: 14 },
-        effect: { reputation: -2, sanity: 3, money: 60 },
+        effect: { maine: -2, jarki: 3, rahat: 60 },
         outcomeText: 'Mestari mutisee, mutta kassaan ilmestyy seteleitä.',
       },
     ],
@@ -215,12 +215,12 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Sytytä valoketju ulos',
-        effect: { money: -30, reputation: 4 },
+        effect: { rahat: -30, maine: 4 },
         outcomeText: 'Valo leikkaa sumun ja asiakkaat uskaltautuvat sisään.',
       },
       {
         text: 'Pysy sisällä ja juo kahvia',
-        effect: { sanity: 6, reputation: -2 },
+        effect: { jarki: 6, maine: -2 },
         outcomeText: 'Mieli tasaantuu, mutta kylä luulee sinun pelkäävän.',
       },
     ],
@@ -235,12 +235,12 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Osta kasetti ja anna juomaraha',
-        effect: { money: -50, sanity: 3, reputation: 4 },
+        effect: { rahat: -50, jarki: 3, maine: 4 },
         outcomeText: 'Kasetti sisältää outoa mainosrahaa, LAI värähtää.',
       },
       {
         text: 'Torju ja sulje luukku',
-        effect: { reputation: -4, sanity: 2 },
+        effect: { maine: -4, jarki: 2 },
         outcomeText: 'Naputus hiljenee, mutta asiakas näkee kaiken.',
       },
     ],
@@ -257,12 +257,12 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Kirjoita häiriö raporttiin',
-        effect: { reputation: 3, sanity: -2 },
+        effect: { maine: 3, jarki: -2 },
         outcomeText: 'Raportti rauhoittaa vähän, mutta LAI kipinöi.',
       },
       {
         text: 'Vedä virta ja hengitä syvään',
-        effect: { sanity: 5, reputation: -1, money: -10 },
+        effect: { jarki: 5, maine: -1, rahat: -10 },
         outcomeText: 'Sähkölasku kasvaa, mutta pää selkenee hetkeksi.',
       },
     ],
