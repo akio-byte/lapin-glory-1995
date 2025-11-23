@@ -2,6 +2,7 @@ import faxMachine from '../assets/fax_machine.png.png'
 import snowyStreet from '../assets/Snowy_Finland_Street_VHS.mp4'
 import surrealVideo from '../assets/Surreal_Horror_Video_Generation.mp4'
 import fallbackImage from '../assets/react.svg'
+import { aiFaxEvents } from './aiFaxEvents'
 
 export type ItemType = 'consumable' | 'tool' | 'form' | 'relic'
 
@@ -157,7 +158,7 @@ const eventTierMap: Record<string, EventTier> = {
 
 export const resolveEventTier = (event: GameEvent): EventTier => event.tier ?? eventTierMap[event.id] ?? 1
 
-export const gameEvents: GameEvent[] = [
+const coreGameEvents: GameEvent[] = [
   {
     id: 'Net Monitor: Maahis-piikki',
     triggerPhase: 'day',
@@ -2029,4 +2030,5 @@ export const gameEvents: GameEvent[] = [
   },
 ]
 
+export const gameEvents: GameEvent[] = [...coreGameEvents, ...aiFaxEvents]
 export const fallbackEventMedia = fallbackMedia
