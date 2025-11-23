@@ -197,6 +197,19 @@ const GameShell = () => {
     setLocked(false)
   }, [phase])
 
+  useEffect(() => {
+    setOutcome(null)
+    setLocked(false)
+  }, [activeEvent?.id])
+
+  useEffect(() => {
+    if (locked && !outcome) {
+      // Fallback: avoid getting stuck in a locked state without a visible outcome
+      console.warn('Locked without outcome – unlocking for safety')
+      setLocked(false)
+    }
+  }, [locked, outcome])
+
   const activeEvent = useMemo(() => currentEvent, [currentEvent])
   const isPaperWar = activeEvent?.paperWar
 
