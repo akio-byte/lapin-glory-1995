@@ -1,4 +1,4 @@
-import { MediaRegistry } from './mediaRegistry'
+import { MediaRegistry, PLACEHOLDER_MEDIA_URL } from './mediaRegistry'
 import { aiFaxEvents } from './aiFaxEvents'
 
 export type ItemType = 'consumable' | 'tool' | 'form' | 'relic'
@@ -131,7 +131,7 @@ export const items: Item[] = [
 
 const fallbackMedia: NonNullable<GameEvent['media']> = {
   type: 'image',
-  src: MediaRegistry.fallback,
+  src: MediaRegistry.fallback ?? PLACEHOLDER_MEDIA_URL,
   alt: 'Neon siluetti Lapista',
 }
 

@@ -1,4 +1,4 @@
-import { MediaRegistry } from './mediaRegistry'
+import { MediaRegistry, PLACEHOLDER_MEDIA_URL } from './mediaRegistry'
 
 export type Event = {
   id: string
@@ -23,7 +23,7 @@ export type Event = {
 
 export const FALLBACK_MEDIA: NonNullable<Event['media']> = {
   type: 'image',
-  src: MediaRegistry.fallback,
+  src: MediaRegistry.fallback ?? PLACEHOLDER_MEDIA_URL,
   alt: 'Neoninen toimistotausta',
 }
 

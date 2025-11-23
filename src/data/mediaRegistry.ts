@@ -3,12 +3,20 @@ export const PLACEHOLDER_MEDIA_URL = 'https://placehold.co/600x400/1b1f2d/FF00FF
 
 const mediaFiles = import.meta.glob('../assets/**/*', { eager: true, query: '?url', import: 'default' })
 
-const safeMediaImport = (fileName: string): string => {
-  const relativePath = fileName.startsWith('../assets/') ? fileName : `../assets/${fileName}`
-  const resolved = mediaFiles[relativePath]
+const normalizeFileName = (fileName: string) => fileName.replace(/(\.png|\.mp4|\.jpg|\.jpeg)\1$/i, '$1')
 
-  if (typeof resolved === 'string') {
-    return resolved
+const safeMediaImport = (fileName: string): string => {
+  const normalized = normalizeFileName(fileName)
+  const relativePath = normalized.startsWith('../assets/') ? normalized : `../assets/${normalized}`
+
+  try {
+    const resolved = mediaFiles[relativePath]
+
+    if (typeof resolved === 'string') {
+      return resolved
+    }
+  } catch (error) {
+    console.warn(`[MediaRegistry] Error while loading asset: ${relativePath}`, error)
   }
 
   console.warn(`[MediaRegistry] Failed to load asset: ${relativePath}. Using placeholder instead.`)
