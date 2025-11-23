@@ -101,8 +101,9 @@ const endingCopy: Record<EndingType, { title: string; description: (params: { st
   vappu: {
     title: 'Vappu – Laajennettu todellisuus',
     description: ({ stats }) => {
-
+      if (stats.jarki > 60) {
         return 'Vappu sumenee. Torin punssin seasta kuuluu maahisen nauru ja LAI kipinöi otsasuonissa.'
+      }
       return 'Vappu saapuu hiljaa. Olet pystyssä, mutta juhlinta jää sivummalle neonvalojen taakse.'
     },
   },

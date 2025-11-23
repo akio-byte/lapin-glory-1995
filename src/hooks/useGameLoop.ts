@@ -206,19 +206,13 @@ export const useGameLoop = (): GameState & GameActions => {
     return null
   }, [dayCount, stats, phase])
 
-  const isGlitching = stats.jarki < 20 || lai > 70
+const isGlitching = stats.jarki < 20 || lai > 70
 
-  const adjustLAI = (delta: number) => {
-    const next = clamp(lai + delta, 0, 100)
-    setLai(next)
-    return next
-  }
-
-  const adjustLAI = (delta: number) => {
-    const next = clamp(lai + delta, 0, 100)
-    setLai(next)
-    return next
-  }
+const adjustLAI = (delta: number) => {
+  const next = clamp(lai + delta, 0, 100)
+  setLai(next)
+  return next
+}
 
   const handleChoice = (effect: Partial<Stats>) => {
     setStats((prev) => ({
