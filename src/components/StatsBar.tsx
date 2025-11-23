@@ -34,8 +34,24 @@ const getLaiMood = (lai: number) => {
   return { label: 'LAI: tyyni kenttä', accent: 'text-emerald-200' }
 }
 
-const StatsBar = ({ stats, phase, dayCount, lai }: { stats: Stats; phase: Phase; dayCount: number; lai: number }) => {
+const StatsBar = ({
+  stats,
+  phase,
+  dayCount,
+  lai,
+  labelOverrides,
+}: {
+  stats: Stats
+  phase: Phase
+  dayCount: number
+  lai: number
+  labelOverrides?: Partial<Record<'rahat' | 'maine' | 'jarki', string>>
+}) => {
   const laiMood = getLaiMood(lai)
+
+  const rahatLabel = labelOverrides?.rahat ?? canonicalStats.rahat.label
+  const maineLabel = labelOverrides?.maine ?? canonicalStats.maine.label
+  const jarkiLabel = labelOverrides?.jarki ?? canonicalStats.jarki.label
 
   return (
     <div className="grid md:grid-cols-4 gap-3 items-center">

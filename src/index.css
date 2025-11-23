@@ -177,6 +177,27 @@ body {
   pointer-events: none;
 }
 
+.hcr-noise {
+  position: absolute;
+  inset: -8%;
+  background-image:
+    repeating-radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.05), transparent 18%),
+    repeating-radial-gradient(circle at 70% 40%, rgba(255, 0, 255, 0.04), transparent 16%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 3px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.2) 2px, transparent 3px);
+  mix-blend-mode: screen;
+  opacity: 0.28;
+  filter: contrast(1.4) saturate(1.1);
+  pointer-events: none;
+  animation: hcrNoiseDrift 14s linear infinite;
+  z-index: 2;
+}
+
+.low-sanity {
+  animation: hueSpiral 18s linear infinite;
+  filter: hue-rotate(var(--sanity-hue, 0deg)) saturate(1.1);
+}
+
 @keyframes crtScan {
   0% {
     opacity: 0.6;
@@ -254,5 +275,32 @@ body {
   }
   100% {
     filter: hue-rotate(0deg);
+  }
+}
+
+@keyframes hcrNoiseDrift {
+  0% {
+    transform: translate(0, 0) scale(1.02) rotate(0deg);
+    opacity: 0.18;
+  }
+  50% {
+    transform: translate(-8px, 6px) scale(1.03) rotate(1deg);
+    opacity: 0.32;
+  }
+  100% {
+    transform: translate(5px, -4px) scale(1.02) rotate(-1deg);
+    opacity: 0.18;
+  }
+}
+
+@keyframes hueSpiral {
+  0% {
+    filter: hue-rotate(0deg) saturate(1.1);
+  }
+  50% {
+    filter: hue-rotate(180deg) saturate(1.25);
+  }
+  100% {
+    filter: hue-rotate(360deg) saturate(1.1);
   }
 }
