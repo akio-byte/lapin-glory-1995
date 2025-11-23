@@ -41,7 +41,7 @@ const stageFromLai = (lai: number): Stage => {
   return 'calm'
 }
 
-const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint }: NokiaPhoneProps) => {
+
   const [localLai, setLocalLai] = useState(lai)
   const [readout, setReadout] = useState('Verkko ok. Turistiystävällinen latenssi.')
   const [lastDelta, setLastDelta] = useState<number | null>(null)
