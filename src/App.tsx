@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import './App.css'
 import GameShell from './components/GameShell'
 import { theme } from './theme'
@@ -7,14 +7,20 @@ function App() {
   const [started, setStarted] = useState(false)
   const gameRef = useRef<HTMLDivElement | null>(null)
 
-  const startSimulation = () => {
-    if (!started) {
-      setStarted(true)
-    }
-    window.requestAnimationFrame(() => {
-      gameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
+  const startSimulation = (event?: MouseEvent<HTMLButtonElement>) => {
+    event?.preventDefault()
+    setStarted(true)
   }
+
+  useEffect(() => {
+    if (!started) return
+
+    const timer = window.setTimeout(() => {
+      gameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+
+    return () => window.clearTimeout(timer)
+  }, [started])
 
   return (
     <div className="min-h-screen bg-[#050912] text-white">
