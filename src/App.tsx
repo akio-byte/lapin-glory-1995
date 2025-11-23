@@ -101,8 +101,9 @@ const endingCopy: Record<EndingType, { title: string; description: (params: { st
   vappu: {
     title: 'Vappu – Laajennettu todellisuus',
     description: ({ stats }) => {
-
+      if (stats.jarki > 60) {
         return 'Vappu sumenee. Torin punssin seasta kuuluu maahisen nauru ja LAI kipinöi otsasuonissa.'
+      }
       return 'Vappu saapuu hiljaa. Olet pystyssä, mutta juhlinta jää sivummalle neonvalojen taakse.'
     },
   },
@@ -389,8 +390,8 @@ function App() {
             <div className="panel text-sm text-slate-200 bg-coal/70">
               <p className="text-xs uppercase tracking-[0.3em] text-neon">Ohje</p>
               <p className="mt-2">
-                Päivä: Leimaa faksit ja uhraa markkoja. Yö: kohtaa bussit tai tarkastajat. Aamu: maksa vuokra (-50 mk) ja jatka,
-                jos mielenterveys sallii.
+                Päivä: Leimaa faksit ja uhraa markkoja. Yö: kohtaa bussit tai tarkastajat. Aamu: maksa indeksikorotettu vuokra ja
+                jatka, jos mielenterveys sallii.
               </p>
             </div>
           </aside>
