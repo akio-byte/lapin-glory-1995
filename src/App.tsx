@@ -1,26 +1,16 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useRef } from 'react'
 import './App.css'
 import GameShell from './components/GameShell'
 import { theme } from './theme'
 
 function App() {
-  const [started, setStarted] = useState(false)
   const gameRef = useRef<HTMLDivElement | null>(null)
 
-  const startSimulation = (event?: MouseEvent<HTMLButtonElement>) => {
-    event?.preventDefault()
-    setStarted(true)
-  }
-
-  useEffect(() => {
-    if (!started) return
-
-    const timer = window.setTimeout(() => {
+  const scrollToGame = () => {
+    window.requestAnimationFrame(() => {
       gameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 50)
-
-    return () => window.clearTimeout(timer)
-  }, [started])
+    })
+  }
 
   return (
     <div className="min-h-screen bg-[#050912] text-white">
@@ -40,12 +30,8 @@ function App() {
                 AI-työkaluilla (ChatGPT, Codex ym.) ja johdattaa OS/95-simulaation sydämeen.
               </p>
             </div>
-            <button
-              className="button-raw px-5 py-3 shadow-xl"
-              style={{ borderColor: theme.brandColor, color: theme.brandColor }}
-              onClick={startSimulation}
-            >
-              Käynnistä OS/95-simulaatio
+            <button className="button-primary" onClick={scrollToGame}>
+              KÄYNNISTÄ OS/95-SIMULAATIO
             </button>
           </div>
         </section>
@@ -83,29 +69,12 @@ function App() {
             </span>
             <span style={{ color: theme.brandColor }}>OS/95 Simulation Console</span>
           </div>
-          {!started && (
-            <button className="button-raw px-3 py-1" onClick={startSimulation}>
-              Aloita
-            </button>
-          )}
+          <button className="button-raw px-3 py-1" onClick={scrollToGame}>
+            Aloita
+          </button>
         </div>
         <div className="mt-6 border-2" style={{ borderColor: `${theme.brandColor}4d` }}>
-          {started ? (
-            <GameShell />
-          ) : (
-            <div className="bg-[#0f1118] text-slate-300 p-10 text-center space-y-3">
-              <p className="text-lg font-semibold" style={{ color: theme.accentColor }}>
-                OS/95 on valmiina käynnistykseen.
-              </p>
-              <p className="text-sm max-w-2xl mx-auto">
-                Paina käynnistystä ja hyppää suoraan Lapin Gloryn neon-hämärään. Simulaatio pyörii täyden ruudun tilassa, mutta
-                palaa tähän näkymään kunnes aloitat.
-              </p>
-              <button className="button-raw" onClick={startSimulation}>
-                Käynnistä simulaatio
-              </button>
-            </div>
-          )}
+          <GameShell />
         </div>
       </section>
     </div>
