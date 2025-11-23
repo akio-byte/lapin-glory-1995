@@ -32,15 +32,15 @@ const formatDelta = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(0
 const MorningReport = ({
   stats,
   dayCount,
-  moneyDelta,
-  sanityDelta,
+  rahatDelta,
+  jarkiDelta,
   note,
   onAdvance,
 }: {
   stats: Stats
   dayCount: number
-  moneyDelta: number
-  sanityDelta: number
+  rahatDelta: number
+  jarkiDelta: number
   note: string
   onAdvance: () => void
 }) => (
@@ -57,18 +57,18 @@ const MorningReport = ({
     </p>
     <div className="grid grid-cols-2 gap-3 text-sm">
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.money.label}</p>
-        <p className="text-lg font-semibold">{canonicalStats.money.format(stats.money)}</p>
-        <p className="text-xs text-slate-300">Eilen: {formatDelta(moneyDelta)} mk</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.rahat.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.rahat.format(stats.rahat)}</p>
+        <p className="text-xs text-slate-300">Eilen: {formatDelta(rahatDelta)} mk</p>
       </div>
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.sanity.label}</p>
-        <p className="text-lg font-semibold">{canonicalStats.sanity.format(stats.sanity)}</p>
-        <p className="text-xs text-slate-300">Eilen: {formatDelta(sanityDelta)}</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.jarki.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.jarki.format(stats.jarki)}</p>
+        <p className="text-xs text-slate-300">Eilen: {formatDelta(jarkiDelta)}</p>
       </div>
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.reputation.label}</p>
-        <p className="text-lg font-semibold">{canonicalStats.reputation.format(stats.reputation)}</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.maine.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.maine.format(stats.maine)}</p>
       </div>
       <div className="border border-neon/30 p-3 bg-coal/60 rounded">
         <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Sisu</p>
@@ -86,24 +86,29 @@ const MorningReport = ({
 
 const endingCopy: Record<EndingType, { title: string; description: (params: { stats: Stats }) => string }> = {
   psychWard: {
-    title: 'Suljettu osasto',
-    description: () => 'Mielenterveys romahti. Neonvalot himmenivät ja OS/95 palautui tehdasasetuksiin.',
+    title: 'Game Over: Suljettu osasto',
+    description: () => 'JÄRKI putosi nollaan. Neonvalot himmenivät ja OS/95 palautui tehdasasetuksiin.',
   },
   taxRaid: {
-    title: 'Veropetos-ratsia',
+    title: 'Game Over: Veropetos-ratsia',
     description: () =>
-      'Maine paisui yli 95 pisteen. Verottajan valokuitu syöksyy sisään ja klubin ovet sinetöidään.',
+      'MAINE ylitti 95. Verottajan valokuitu syöksyy sisään, faksit piipittävät ja ovet sinetöidään.',
   },
   bankruptcy: {
-    title: 'Voudin Huutokauppa',
-    description: () => 'Markat katosivat kuin revontulet. Faksi laulaa ulosmittaus-iskelmiä.',
+    title: 'Game Over: Voudin huutokauppa',
+    description: () => 'RAHAT vajosi alle -1000 mk. Vouti vie neonkyltit ja kassalipas myydään pakkohuutokaupassa.',
   },
   vappu: {
-    title: 'Vappu vapauttaa',
-    description: ({ stats }) =>
-      stats.sanity > 60 && stats.reputation > 40
-        ? 'Selvisit 30 päivää. Torilla soi humina ja velhot nostavat sinut juhlapöytään.'
-        : 'Vappu saapuu sumuisena. Olet yhä pystyssä, mutta hörpit simaa yksin neonvalossa.',
+    title: 'Vappu – Laajennettu todellisuus',
+    description: ({ stats }) => {
+      if (stats.maine > 80 && stats.jarki > 60)
+        return 'Vappu vapauttaa. Kansa kantaa sinut lavalle, LAI hiljenee ja markat virtaavat neon-simana.'
+      if (stats.rahat > 400 && stats.jarki > 40)
+        return 'Selvisit 30 päivää. Rahaa riittää simaan, mutta revontulikanava pysyy varuillaan.'
+      if (stats.jarki < 35)
+        return 'Vappu sumenee. Torin punssin seasta kuuluu maahisen nauru ja LAI kipinöi otsasuonissa.'
+      return 'Vappu saapuu hiljaa. Olet pystyssä, mutta juhlinta jää sivummalle neonvalojen taakse.'
+    },
   },
 }
 
@@ -119,7 +124,7 @@ const RunOverScreen = ({
   return (
     <div className="min-h-screen bg-[#0f1118] text-white flex items-center justify-center px-6 py-10">
       <div className="panel max-w-xl w-full space-y-4 bg-coal/80 border-2 border-neon/50">
-        <p className="text-[10px] uppercase tracking-[0.35em] text-neon/70 text-center">Run over</p>
+        <p className="text-[10px] uppercase tracking-[0.35em] text-neon/70 text-center">Game Over</p>
         <h2 className="text-3xl font-bold glitch-text text-center" data-text={copy.title}>
           {copy.title}
         </h2>
@@ -130,16 +135,16 @@ const RunOverScreen = ({
             <p className="text-lg font-semibold">{ending.dayCount}</p>
           </div>
           <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.money.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.money.format(ending.stats.money)}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.rahat.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.rahat.format(ending.stats.rahat)}</p>
           </div>
           <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.sanity.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.sanity.format(ending.stats.sanity)}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.jarki.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.jarki.format(ending.stats.jarki)}</p>
           </div>
           <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.reputation.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.reputation.format(ending.stats.reputation)}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.maine.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.maine.format(ending.stats.maine)}</p>
           </div>
         </div>
         <div className="text-center pt-2">
@@ -237,7 +242,7 @@ function App() {
   const wrapperGlitchClass = isGlitching ? 'glitch-wrapper invert' : ''
 
   const report =
-    morningReport ?? ({ moneyDelta: 0, sanityDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
+    morningReport ?? ({ rahatDelta: 0, jarkiDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
 
   return (
     <div
@@ -248,7 +253,7 @@ function App() {
       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
 
       <NokiaPhone
-        sanity={stats.sanity}
+        jarki={stats.jarki}
         lai={lai}
         onPing={() => {
           const reading = pingNetMonitor()
@@ -322,8 +327,8 @@ function App() {
               <MorningReport
                 stats={stats}
                 dayCount={report.day}
-                moneyDelta={report.moneyDelta}
-                sanityDelta={report.sanityDelta}
+                rahatDelta={report.rahatDelta}
+                jarkiDelta={report.jarkiDelta}
                 note={report.note}
                 onAdvance={advancePhase}
               />

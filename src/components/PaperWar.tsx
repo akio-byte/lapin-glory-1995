@@ -23,7 +23,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 const mergeEffects = (prev: Partial<Stats>, delta: Partial<Stats>) => {
   const next: Partial<Stats> = { ...prev }
-  ;['money', 'sanity', 'reputation'].forEach((key) => {
+  ;['rahat', 'jarki', 'maine'].forEach((key) => {
     const typedKey = key as keyof Stats
     if (delta[typedKey] !== undefined) {
       next[typedKey] = (next[typedKey] ?? 0) + (delta[typedKey] ?? 0)
@@ -33,19 +33,19 @@ const mergeEffects = (prev: Partial<Stats>, delta: Partial<Stats>) => {
 }
 
 const formatEffectSummary = (effects: Partial<Stats>) => {
-  const statLabels: Record<'money' | 'sanity' | 'reputation', string> = {
-    money: 'Rahat',
-    sanity: 'Järki',
-    reputation: 'Maine',
+  const statLabels: Record<'rahat' | 'jarki' | 'maine', string> = {
+    rahat: 'Rahat',
+    jarki: 'Järki',
+    maine: 'Maine',
   }
 
-  const statKeys = ['money', 'sanity', 'reputation'] as const
+  const statKeys = ['rahat', 'jarki', 'maine'] as const
 
   const chunks = statKeys
     .map((typedKey) => {
       const value = effects[typedKey]
       if (value === undefined) return null
-      const label = typedKey === 'money' ? `${statLabels.money} (mk)` : statLabels[typedKey]
+      const label = typedKey === 'rahat' ? `${statLabels.rahat} (mk)` : statLabels[typedKey]
       const prefix = value > 0 ? '+' : ''
       return `${label}: ${prefix}${value}`
     })
@@ -85,8 +85,8 @@ const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onN
   const media = useMemo(() => event.media ?? fallbackMedia, [event.media, fallbackMedia])
   const [rounds, setRounds] = useState<RoundLog[]>([])
   const [pendingEffects, setPendingEffects] = useState<Partial<Stats>>({})
-  const [localSanity, setLocalSanity] = useState(stats.sanity)
-  const [localMoney, setLocalMoney] = useState(stats.money)
+  const [localSanity, setLocalSanity] = useState(stats.jarki)
+  const [localMoney, setLocalMoney] = useState(stats.rahat)
   const [finished, setFinished] = useState(false)
 
   const playRound = (playerMove: PaperWarMove) => {
@@ -102,10 +102,10 @@ const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onN
 
     const roundEffect: Partial<Stats> =
       result === 'win'
-        ? { reputation: 5, money: 40, sanity: -2 }
+        ? { maine: 5, rahat: 40, jarki: -2 }
         : result === 'loss'
-          ? { sanity: -12, money: -50, reputation: -3 }
-          : { sanity: -6, money: -10 }
+          ? { jarki: -12, rahat: -50, maine: -3 }
+          : { jarki: -6, rahat: -10 }
 
     const note =
       result === 'win'
@@ -122,8 +122,8 @@ const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onN
 
     setPendingEffects(nextEffects)
     setRounds(nextRounds)
-    setLocalSanity((prev) => clamp(prev + (roundEffect.sanity ?? 0), 0, 100))
-    setLocalMoney((prev) => prev + (roundEffect.money ?? 0))
+    setLocalSanity((prev) => clamp(prev + (roundEffect.jarki ?? 0), 0, 100))
+    setLocalMoney((prev) => prev + (roundEffect.rahat ?? 0))
 
     if (nextRounds.length >= TOTAL_ROUNDS) {
       const wins = nextRounds.filter((entry) => entry.result === 'win').length
@@ -180,13 +180,13 @@ const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onN
 
         <div className="grid md:grid-cols-3 gap-3 text-sm">
           <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.sanity.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.sanity.format(localSanity)}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.jarki.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.jarki.format(localSanity)}</p>
             <p className="text-[11px] text-slate-300">Kestääkö järki vai viekö suljettu osasto.</p>
           </div>
           <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.money.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.money.format(localMoney)}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.rahat.label}</p>
+            <p className="text-lg font-semibold">{canonicalStats.rahat.format(localMoney)}</p>
             <p className="text-[11px] text-slate-300">Älä anna velan upota alle -1000 mk.</p>
           </div>
           <div className="border border-neon/30 p-3 bg-coal/60 rounded">
