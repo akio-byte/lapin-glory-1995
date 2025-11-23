@@ -101,8 +101,9 @@ const endingCopy: Record<EndingType, { title: string; description: (params: { st
   vappu: {
     title: 'Vappu – Laajennettu todellisuus',
     description: ({ stats }) => {
-
+      if (stats.jarki > 60) {
         return 'Vappu sumenee. Torin punssin seasta kuuluu maahisen nauru ja LAI kipinöi otsasuonissa.'
+      }
       return 'Vappu saapuu hiljaa. Olet pystyssä, mutta juhlinta jää sivummalle neonvalojen taakse.'
     },
   },
@@ -173,15 +174,23 @@ function App() {
     resetGame,
     wasRestored,
     pingNetMonitor,
+    nextNightEventHint,
   } = useGameLoop()
 
-  const { muted, toggleMute, backgroundPlaying, toggleBackground, playSfx } = useAudio()
+  const { muted, toggleMute, backgroundPlaying, toggleBackground, playSfx, setBackgroundMode } = useAudio()
 
   const [outcome, setOutcome] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
   const [journal, setJournal] = useState<string[]>([])
   const [textSpeed, setTextSpeed] = useState(3)
+  const [corruptedLabels, setCorruptedLabels] = useState({
+    rahat: canonicalStats.rahat.label,
+    maine: canonicalStats.maine.label,
+    jarki: canonicalStats.jarki.label,
+  })
   const bossIntroRef = useRef<string | null>(null)
+  const sanityPrevRef = useRef(stats)
+  const [sanityHueShift, setSanityHueShift] = useState(0)
 
   useEffect(() => {
     setOutcome(null)
@@ -191,7 +200,10 @@ function App() {
   const activeEvent = useMemo(() => currentEvent, [currentEvent])
   const isPaperWar = activeEvent?.paperWar
 
-  const rootStyle = useMemo(() => ({ '--glitch-duration': `${textSpeed}s` } as CSSProperties), [textSpeed])
+  const rootStyle = useMemo(
+    () => ({ '--glitch-duration': `${textSpeed}s`, '--sanity-hue': `${sanityHueShift}deg` } as CSSProperties),
+    [sanityHueShift, textSpeed],
+  )
 
   useEffect(() => {
     if (activeEvent && (activeEvent.paperWar || activeEvent.id.toLowerCase().includes('verottaja'))) {
@@ -205,6 +217,53 @@ function App() {
       bossIntroRef.current = null
     }
   }, [activeEvent, playSfx])
+
+  useEffect(() => {
+    const prevStats = sanityPrevRef.current
+    if (stats.rahat - prevStats.rahat > 100) {
+      playSfx('cash')
+    }
+    if (stats.jarki < prevStats.jarki) {
+      playSfx('static')
+    }
+    sanityPrevRef.current = stats
+  }, [playSfx, stats])
+
+  useEffect(() => {
+    if (!isPaperWar) {
+      setBackgroundMode('normal')
+      return
+    }
+    setBackgroundMode('intense')
+    playSfx('boss')
+  }, [isPaperWar, playSfx, setBackgroundMode])
+
+  useEffect(() => {
+    const baseLabels = {
+      rahat: canonicalStats.rahat.label,
+      maine: canonicalStats.maine.label,
+      jarki: canonicalStats.jarki.label,
+    }
+    if (stats.jarki < 50) {
+      const options = {
+        rahat: ['VELAT', 'MIINUS', 'KASSA?'],
+        maine: ['TUHO', 'SKANDAALI', 'PALJASTUS'],
+        jarki: ['SIRPALE', 'VÄÄRTYNYT', '???'],
+      }
+      const tick = () => {
+        setCorruptedLabels({
+          rahat: Math.random() > 0.5 ? options.rahat[Math.floor(Math.random() * options.rahat.length)] : baseLabels.rahat,
+          maine: Math.random() > 0.5 ? options.maine[Math.floor(Math.random() * options.maine.length)] : baseLabels.maine,
+          jarki: Math.random() > 0.5 ? options.jarki[Math.floor(Math.random() * options.jarki.length)] : baseLabels.jarki,
+        })
+        setSanityHueShift((prev) => (prev + 8) % 360)
+      }
+      tick()
+      const interval = window.setInterval(tick, 3800)
+      return () => window.clearInterval(interval)
+    }
+    setCorruptedLabels(baseLabels)
+  }, [stats.jarki])
 
   const handleRestart = () => {
     setJournal([])
@@ -236,16 +295,18 @@ function App() {
   }
 
   const wrapperGlitchClass = isGlitching ? 'glitch-wrapper invert' : ''
+  const lowSanity = stats.jarki < 50
 
   const report =
     morningReport ?? ({ rahatDelta: 0, jarkiDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
 
   return (
     <div
-      className={`min-h-screen bg-[#0f1118] text-white relative overflow-hidden ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''}`}
+      className={`min-h-screen bg-[#0f1118] text-white relative overflow-hidden ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''}`}
       style={rootStyle}
     >
       <style>{shakeStyles}</style>
+      {lowSanity && <div className="hcr-noise" aria-hidden />}
       <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
 
       <NokiaPhone
@@ -256,6 +317,7 @@ function App() {
           playSfx('nokia')
           return reading
         }}
+        nextNightEventHint={nextNightEventHint}
       />
 
       <main className="relative max-w-6xl mx-auto px-6 py-10 space-y-8">
@@ -279,7 +341,7 @@ function App() {
           </div>
         </header>
 
-        <StatsBar stats={stats} phase={phase} dayCount={dayCount} lai={lai} />
+        <StatsBar stats={stats} phase={phase} dayCount={dayCount} lai={lai} labelOverrides={corruptedLabels} />
 
         <section className="grid md:grid-cols-3 gap-6 items-start">
           <div className="md:col-span-2 space-y-4">
@@ -288,6 +350,7 @@ function App() {
                 <PaperWar
                   event={activeEvent}
                   stats={stats}
+                  inventory={inventory}
                   locked={locked}
                   outcome={outcome}
                   fallbackMedia={fallbackMedia}
@@ -389,8 +452,8 @@ function App() {
             <div className="panel text-sm text-slate-200 bg-coal/70">
               <p className="text-xs uppercase tracking-[0.3em] text-neon">Ohje</p>
               <p className="mt-2">
-                Päivä: Leimaa faksit ja uhraa markkoja. Yö: kohtaa bussit tai tarkastajat. Aamu: maksa vuokra (-50 mk) ja jatka,
-                jos mielenterveys sallii.
+                Päivä: Leimaa faksit ja uhraa markkoja. Yö: kohtaa bussit tai tarkastajat. Aamu: maksa indeksikorotettu vuokra ja
+                jatka, jos mielenterveys sallii.
               </p>
             </div>
           </aside>

@@ -34,10 +34,64 @@ const getLaiMood = (lai: number) => {
   return { label: 'LAI: tyyni kenttä', accent: 'text-emerald-200' }
 }
 
-const StatsBar = ({ stats, phase, dayCount, lai }: { stats: Stats; phase: Phase; dayCount: number; lai: number }) => {
+const StatsBar = ({
+  stats,
+  phase,
+  dayCount,
+  lai,
+  labelOverrides,
+}: {
+  stats: Stats
+  phase: Phase
+  dayCount: number
+  lai: number
+  labelOverrides?: Partial<Record<'rahat' | 'maine' | 'jarki', string>>
+}) => {
   const laiMood = getLaiMood(lai)
+
+  const rahatLabel = labelOverrides?.rahat ?? canonicalStats.rahat.label
+  const maineLabel = labelOverrides?.maine ?? canonicalStats.maine.label
+  const jarkiLabel = labelOverrides?.jarki ?? canonicalStats.jarki.label
 
   return (
     <div className="grid md:grid-cols-4 gap-3 items-center">
       <div className="md:col-span-3 grid md:grid-cols-3 gap-3">
         <StatChip
+          label={rahatLabel}
+          value={canonicalStats.rahat.format(stats.rahat)}
+          icon={<Coins size={20} />}
+          subtitle="Vuokra -50 mk joka aamu"
+        />
+        <StatChip
+          label={maineLabel}
+          value={canonicalStats.maine.format(stats.maine)}
+          icon={<Sparkles size={20} />}
+          subtitle="Yli 95 → Veropetos-ratsia"
+        />
+        <StatChip
+          label={jarkiLabel}
+          value={canonicalStats.jarki.format(stats.jarki)}
+          icon={<Brain size={20} />}
+          subtitle="0 → Suljettu osasto"
+        />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
+        <StatChip
+          label={`Päivä ${dayCount}`}
+          value={phase}
+          icon={<Sparkles size={18} />}
+          subtitle="Sykli: Päivä → Yö → Aamu"
+        />
+        <StatChip
+          label={laiMood.label}
+          value={`${lai.toFixed(0)} / 100`}
+          icon={<Antenna size={18} />}
+          accent={laiMood.accent}
+          subtitle="Lapin Anomalia Indeksi"
+        />
+      </div>
+    </div>
+  )
+}
+
+export default StatsBar
