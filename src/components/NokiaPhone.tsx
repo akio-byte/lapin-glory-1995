@@ -14,8 +14,7 @@ const pixelVibes = `
   0% { opacity: 0.8; }
   50% { opacity: 1; }
   100% { opacity: 0.8; }
-}
-`
+}`
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -27,9 +26,10 @@ const stageMessages = {
 }
 
 type NokiaPhoneProps = {
-
   lai: number
+  jarki?: number
   onPing?: () => NetMonitorReading | void
+  nextNightEventHint?: string | null
 }
 
 type Stage = 'calm' | 'weird' | 'glitch' | 'severe'
@@ -41,19 +41,24 @@ const stageFromLai = (lai: number): Stage => {
   return 'calm'
 }
 
-
+const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint }: NokiaPhoneProps) => {
   const [localLai, setLocalLai] = useState(lai)
   const [readout, setReadout] = useState('Verkko ok. Turistiystävällinen latenssi.')
   const [lastDelta, setLastDelta] = useState<number | null>(null)
   const [signalDbm, setSignalDbm] = useState(-92)
   const [pingMs, setPingMs] = useState(120)
+  const [prophecy, setProphecy] = useState<string | null>(nextNightEventHint ?? null)
 
   useEffect(() => {
     setLocalLai(lai)
   }, [lai])
 
-  const stage = useMemo(() => stageFromLai(localLai), [localLai])
+  useEffect(() => {
+    setProphecy(nextNightEventHint ?? null)
+  }, [nextNightEventHint])
 
+  const stage = useMemo(() => stageFromLai(localLai), [localLai])
+  const isGlitch = stage === 'glitch' || stage === 'severe' || jarki < 20
 
   const uiState: Record<Stage, { label: string; hint: string; color: string }> = {
     calm: { label: 'Kenttä tyyni', hint: 'Maahiset nukkuu', color: 'text-emerald-200' },
@@ -63,9 +68,7 @@ const stageFromLai = (lai: number): Stage => {
   }
 
   const glitchify = (message: string) =>
-    stage === 'glitch' || stage === 'severe'
-      ? `${message} // ${Math.round(Math.random() * 999)}Hz`
-      : message
+    isGlitch ? `${message} // ${Math.round(Math.random() * 999)}Hz` : message
 
   const handlePing = () => {
     const result = onPing?.()
@@ -76,7 +79,10 @@ const stageFromLai = (lai: number): Stage => {
     setLocalLai(nextLai)
     setSignalDbm(result && 'signalDbm' in result ? result.signalDbm : Math.floor(-108 + Math.random() * 24))
     setPingMs(result && 'pingMs' in result ? result.pingMs : Math.round(40 + Math.random() * 200))
-    setLastDelta(result && 'laiDelta' in result ? result.laiDelta : null)
+    setLastDelta(result && 'laiDelta' in result ? result.laiDelta : Math.round(nextLai - localLai))
+    if (result && 'hint' in result && result.hint) {
+      setProphecy(result.hint)
+    }
 
     const pool = stageMessages[nextStage]
     const baseMessage = (result && 'message' in result ? result.message : pool[Math.floor(Math.random() * pool.length)]) ??
@@ -91,18 +97,21 @@ const stageFromLai = (lai: number): Stage => {
         <div className="flex items-center justify-between px-4 py-2 text-xs uppercase tracking-[0.25em] bg-lime-800/70 border-b border-lime-700">
           <span>Net Monitor</span>
           <span className={`font-bold ${isGlitch ? 'animate-[jitter_0.6s_infinite]' : ''}`}>
-<
+            LAI {localLai.toFixed(0)}
           </span>
         </div>
         <div className="p-4 bg-lime-950/50 text-sm leading-tight space-y-2">
           <div className={`${isGlitch ? 'animate-[jitter_0.5s_infinite] text-lime-200' : 'text-lime-100'}`}>
             <p>{readout}</p>
             <p className={`text-xs uppercase tracking-[0.2em] ${uiState[stage].color}`}>
-              LAI {localLai} — {uiState[stage].label}
+              LAI {localLai.toFixed(0)} — {uiState[stage].label}
             </p>
             <p className="text-[11px] text-lime-300/80">{uiState[stage].hint}</p>
             {lastDelta !== null && (
               <p className="text-[11px] text-lime-300/70">Δ LAI: {lastDelta > 0 ? '+' : ''}{lastDelta.toFixed(0)}</p>
+            )}
+            {prophecy && (
+              <p className="text-[11px] text-lime-200 font-semibold">{glitchify(prophecy)}</p>
             )}
           </div>
           <div className={`grid grid-cols-2 gap-2 text-xs ${stage === 'glitch' || stage === 'severe' ? 'animate-[pulse_1.4s_infinite]' : ''}`}>

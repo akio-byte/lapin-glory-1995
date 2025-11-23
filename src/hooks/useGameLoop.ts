@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { GameEvent, GameEventChoice, Item, Stats } from '../data/gameData'
-import { fallbackEventMedia, gameEvents, items as availableItems } from '../data/gameData'
+import {
+  fallbackEventMedia,
+  gameEvents,
+  getRentForDay,
+  getTierForDay,
+  items as availableItems,
+  resolveEventTier,
+} from '../data/gameData'
 
 export type Phase = 'DAY' | 'NIGHT' | 'MORNING'
 
@@ -27,6 +34,7 @@ export type NetMonitorReading = {
   jarkiDelta?: number
   signalDbm: number
   pingMs: number
+  hint?: string | null
 }
 
 type ChoiceResolution = {
@@ -46,6 +54,7 @@ type GameState = {
   morningReport: MorningReport | null
   wasRestored: boolean
   lai: number
+  nextNightEventHint: string | null
 }
 
 type GameActions = {
@@ -57,6 +66,7 @@ type GameActions = {
   resetGame: () => void
   pingNetMonitor: () => NetMonitorReading
   adjustLAI: (delta: number) => number
+  setNextNightEventHint: (hint: string | null) => void
 }
 
 type LegacyStats = {
@@ -160,9 +170,17 @@ const savePersistedState = (state: PersistedStateV3): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
 
-const pickEventForPhase = (phase: Phase, stats: Stats, lai: number): GameEvent | null => {
+const pickEventForPhase = (
+  phase: Phase,
+  stats: Stats,
+  lai: number,
+  dayCount: number,
+): GameEvent | null => {
   const pool = gameEvents.filter((event) => event.triggerPhase === phase.toLowerCase())
-  const conditioned = pool.filter((event) => (event.condition ? event.condition(stats) : true))
+  const tier = getTierForDay(dayCount)
+  const conditioned = pool.filter(
+    (event) => (event.condition ? event.condition(stats) : true) && resolveEventTier(event) <= tier,
+  )
   if (conditioned.length === 0) return null
   const occultPool = conditioned.filter((event) => event.vibe === 'occult')
   const mundanePool = conditioned.filter((event) => event.vibe !== 'occult')
@@ -195,8 +213,9 @@ export const useGameLoop = (): GameState & GameActions => {
   const [morningReport, setMorningReport] = useState<MorningReport | null>(null)
   const [wasRestored, setWasRestored] = useState(() => Boolean(persistedState))
   const [lai, setLai] = useState<number>(() => (hasLai(persistedState) ? persistedState.lai : 0))
+  const [nextNightEventHint, setNextNightEventHint] = useState<string | null>(null)
 
-  const currentEvent = useMemo(() => pickEventForPhase(phase, stats, lai), [phase, stats, lai])
+  const currentEvent = useMemo(() => pickEventForPhase(phase, stats, lai, dayCount), [phase, stats, lai, dayCount])
 
   const ending: EndingState | null = useMemo(() => {
     if (stats.jarki <= 0) return { type: 'psychWard', dayCount, stats }
@@ -206,19 +225,13 @@ export const useGameLoop = (): GameState & GameActions => {
     return null
   }, [dayCount, stats, phase])
 
-  const isGlitching = stats.jarki < 20 || lai > 70
+const isGlitching = stats.jarki < 20 || lai > 70
 
-  const adjustLAI = (delta: number) => {
-    const next = clamp(lai + delta, 0, 100)
-    setLai(next)
-    return next
-  }
-
-  const adjustLAI = (delta: number) => {
-    const next = clamp(lai + delta, 0, 100)
-    setLai(next)
-    return next
-  }
+const adjustLAI = (delta: number) => {
+  const next = clamp(lai + delta, 0, 100)
+  setLai(next)
+  return next
+}
 
   const handleChoice = (effect: Partial<Stats>) => {
     setStats((prev) => ({
@@ -239,13 +252,21 @@ export const useGameLoop = (): GameState & GameActions => {
       const next = PHASE_ORDER[(currentIndex + 1) % PHASE_ORDER.length]
 
       if (next === 'DAY') {
+        const upcomingDay = dayCount + 1
+        const rent = getRentForDay(upcomingDay)
+
         setDayCount((count) => count + 1)
         setDayStartStats(() => ({ ...stats }))
-        handleChoice({ rahat: -50 })
+        handleChoice({ rahat: -rent })
         if (lai > 85) handleChoice({ jarki: -2 })
         if (lai < 10) handleChoice({ jarki: 1 })
         const sanityTension = stats.jarki < 25 ? 3 : stats.jarki < 50 ? 1 : stats.jarki > 85 ? -1 : 0
         if (sanityTension !== 0) adjustLAI(sanityTension)
+        setNextNightEventHint(null)
+      }
+
+      if (next === 'NIGHT') {
+        setNextNightEventHint(null)
       }
 
       return next
@@ -336,6 +357,17 @@ export const useGameLoop = (): GameState & GameActions => {
       : 'Staalo syöttää outoa puhetta. GSM-kanava välkkyy verenpunaisena.'
   }
 
+  const describeEventHint = (event: GameEvent | null): string | null => {
+    if (!event) return null
+    const id = event.id.toLowerCase()
+    if (id.includes('verottaja')) return 'VEROTTAJA'
+    if (id.includes('turisti') || id.includes('bussi')) return 'TURISTIBUSSI'
+    if (id.includes('staalo')) return 'STAALO'
+    if (id.includes('kultti') || event.vibe === 'occult') return 'KULTTI/OKKULT'
+    if (id.includes('eu') || id.includes('tarkast')) return 'EU-TARKASTUS'
+    return event.vibe === 'mundane' ? 'ARKI-HASSLE' : 'VERKKOVIIVE'
+  }
+
   const pingNetMonitor = (): NetMonitorReading => {
     const signalDbm = Math.floor(-110 + Math.random() * 35)
     const basePing = Math.floor(40 + Math.random() * 180)
@@ -354,6 +386,15 @@ export const useGameLoop = (): GameState & GameActions => {
       handleChoice({ jarki: jarkiDelta })
     }
 
+    const pingLuck = Math.random()
+    const skillFactor = stats.byroslavia / 120
+    const successfulProphecy = pingLuck + skillFactor > 0.65
+    const hintedEvent = successfulProphecy ? pickEventForPhase('NIGHT', stats, nextLai, dayCount) : null
+    const hintText = hintedEvent ? `Signaali varoittaa: ${describeEventHint(hintedEvent)}` : null
+    if (hintText) {
+      setNextNightEventHint(hintText)
+    }
+
     return {
       newLai: nextLai,
       laiDelta: delta,
@@ -362,6 +403,7 @@ export const useGameLoop = (): GameState & GameActions => {
       signalDbm,
       pingMs,
       message: buildLaiMessage(nextLai, band),
+      hint: hintText,
     }
   }
 
@@ -373,6 +415,7 @@ export const useGameLoop = (): GameState & GameActions => {
     setDayStartStats(INITIAL_STATS)
     setMorningReport(null)
     setLai(0)
+    setNextNightEventHint(null)
     setWasRestored(false)
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY)
@@ -447,6 +490,7 @@ export const useGameLoop = (): GameState & GameActions => {
     morningReport,
     wasRestored,
     lai,
+    nextNightEventHint,
     advancePhase,
     handleChoice,
     buyItem,
@@ -455,6 +499,7 @@ export const useGameLoop = (): GameState & GameActions => {
     resetGame,
     pingNetMonitor,
     adjustLAI,
+    setNextNightEventHint,
   }
 }
 

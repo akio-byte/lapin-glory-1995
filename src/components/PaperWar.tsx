@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { GameEvent, Stats } from '../data/gameData'
+import type { GameEvent, Item, Stats } from '../data/gameData'
 import CRTVisual from './CRTVisual'
 import { canonicalStats } from '../data/statMeta'
 
@@ -73,6 +73,7 @@ export type PaperWarResolution = {
 type PaperWarProps = {
   event: GameEvent
   stats: Stats
+  inventory: Item[]
   fallbackMedia: NonNullable<GameEvent['media']>
   locked: boolean
   outcome: string | null
@@ -81,40 +82,59 @@ type PaperWarProps = {
   isGlitching?: boolean
 }
 
-const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onNextPhase, isGlitching }: PaperWarProps) => {
+const PaperWar = ({
+  event,
+  stats,
+  inventory,
+  fallbackMedia,
+  locked,
+  outcome,
+  onResolve,
+  onNextPhase,
+  isGlitching,
+}: PaperWarProps) => {
   const media = useMemo(() => event.media ?? fallbackMedia, [event.media, fallbackMedia])
   const [rounds, setRounds] = useState<RoundLog[]>([])
   const [pendingEffects, setPendingEffects] = useState<Partial<Stats>>({})
   const [localSanity, setLocalSanity] = useState(stats.jarki)
   const [localMoney, setLocalMoney] = useState(stats.rahat)
   const [finished, setFinished] = useState(false)
+  const [sanityShield, setSanityShield] = useState(0)
+  const [usedSpecials, setUsedSpecials] = useState<Record<string, boolean>>({})
 
-  const playRound = (playerMove: PaperWarMove) => {
+  type SpecialMove = {
+    id: string
+    label: string
+    detail: string
+    icon: string
+    onUse: () => void
+  }
+
+  const applyRound = (
+    playerMove: PaperWarMove,
+    inspectorMove: PaperWarMove,
+    result: RoundOutcome,
+    note: string,
+    effectOverride?: Partial<Stats>,
+  ) => {
     if (locked || finished) return
 
-    const inspectorMove = (Object.keys(PAPER_WAR_BEATS) as PaperWarMove[])[
-      Math.floor(Math.random() * Object.keys(PAPER_WAR_BEATS).length)
-    ]
-
-    let result: RoundOutcome = 'draw'
-    if (PAPER_WAR_BEATS[playerMove] === inspectorMove) result = 'win'
-    else if (PAPER_WAR_BEATS[inspectorMove] === playerMove) result = 'loss'
-
     const roundEffect: Partial<Stats> =
-      result === 'win'
+      effectOverride ??
+      (result === 'win'
         ? { maine: 5, rahat: 40, jarki: -2 }
         : result === 'loss'
           ? { jarki: -12, rahat: -50, maine: -3 }
-          : { jarki: -6, rahat: -10 }
+          : { jarki: -6, rahat: -10 })
 
-    const note =
-      result === 'win'
-        ? 'Krok siristää silmää ja merkitsee kohdan: "hyväksytty hermoromahdus".'
-        : result === 'loss'
-          ? 'Lomake muljahtaa väärinpäin. Kuulokkeissa kuuluu lisäselvityspyyntö.'
-          : 'Paperit törmäävät ilmaan. Molemmat selaatte hiljaa.'
+    let adjustedEffect = { ...roundEffect }
+    if (adjustedEffect.jarki !== undefined && adjustedEffect.jarki < 0 && sanityShield > 0) {
+      const mitigation = Math.min(sanityShield, Math.abs(adjustedEffect.jarki))
+      adjustedEffect = { ...adjustedEffect, jarki: adjustedEffect.jarki + mitigation }
+      setSanityShield((prev) => Math.max(prev - mitigation, 0))
+    }
 
-    const nextEffects = mergeEffects(pendingEffects, roundEffect)
+    const nextEffects = mergeEffects(pendingEffects, adjustedEffect)
     const nextRounds = [
       ...rounds,
       { round: rounds.length + 1, playerMove, inspectorMove, result, note },
@@ -122,8 +142,8 @@ const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onN
 
     setPendingEffects(nextEffects)
     setRounds(nextRounds)
-    setLocalSanity((prev) => clamp(prev + (roundEffect.jarki ?? 0), 0, 100))
-    setLocalMoney((prev) => prev + (roundEffect.rahat ?? 0))
+    setLocalSanity((prev) => clamp(prev + (adjustedEffect.jarki ?? 0), 0, 100))
+    setLocalMoney((prev) => prev + (adjustedEffect.rahat ?? 0))
 
     if (nextRounds.length >= TOTAL_ROUNDS) {
       const wins = nextRounds.filter((entry) => entry.result === 'win').length
@@ -136,6 +156,94 @@ const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onN
       onResolve({ summary, appliedEffects: nextEffects, rounds: nextRounds })
     }
   }
+
+  const playRound = (playerMove: PaperWarMove) => {
+    const inspectorMove = (Object.keys(PAPER_WAR_BEATS) as PaperWarMove[])[
+      Math.floor(Math.random() * Object.keys(PAPER_WAR_BEATS).length)
+    ]
+
+    let result: RoundOutcome = 'draw'
+    if (PAPER_WAR_BEATS[playerMove] === inspectorMove) result = 'win'
+    else if (PAPER_WAR_BEATS[inspectorMove] === playerMove) result = 'loss'
+
+    const note =
+      result === 'win'
+        ? 'Krok siristää silmää ja merkitsee kohdan: "hyväksytty hermoromahdus".'
+        : result === 'loss'
+          ? 'Lomake muljahtaa väärinpäin. Kuulokkeissa kuuluu lisäselvityspyyntö.'
+          : 'Paperit törmäävät ilmaan. Molemmat selaatte hiljaa.'
+
+    applyRound(playerMove, inspectorMove, result, note)
+  }
+
+  const hasItem = (id: string) => inventory.some((item) => item.id === id)
+
+  const specialMoves: SpecialMove[] = useMemo(() => {
+    const moves: SpecialMove[] = []
+
+    if (hasItem('jaloviina')) {
+      moves.push({
+        id: 'bribe',
+        label: 'Lahjo',
+        detail: 'Tarjoat jaloviinaa tarkastajalle. Voitto, mutta markat katoavat.',
+        icon: '🥃',
+        onUse: () => {
+          if (locked || finished || usedSpecials.bribe) return
+          setUsedSpecials((prev) => ({ ...prev, bribe: true }))
+          applyRound(
+            'BLUFF',
+            'BLUFF',
+            'win',
+            'Jaloviina vaihtaa omistajaa. Tarkastaja hymyilee läpi viiksien.',
+            { maine: 5, rahat: -40, jarki: -2 },
+          )
+        },
+      })
+    }
+
+    if (hasItem('nokia-2110')) {
+      moves.push({
+        id: 'lawyer',
+        label: 'Soita lakimiehelle',
+        detail: 'GSM piippaa: lakimies kiillottaa hermoasi. Järki-vahinko pehmenee.',
+        icon: '📞',
+        onUse: () => {
+          if (locked || finished || usedSpecials.lawyer) return
+          setUsedSpecials((prev) => ({ ...prev, lawyer: true }))
+          setSanityShield((prev) => prev + 8)
+          applyRound(
+            'DEFEND_RECEIPT',
+            'DEFEND_RECEIPT',
+            'draw',
+            'Lakimies lähettää faksin: "Pidä pää kylmänä, lasken vahingot puolestasi."',
+            { jarki: -1, rahat: -10, maine: 2 },
+          )
+        },
+      })
+    }
+
+    if (hasItem('lomake-5057e')) {
+      moves.push({
+        id: 'form-override',
+        label: 'Lisäliite 5057e',
+        detail: 'Kumarrat byrokratian henkeä. Kierros kääntyy eduksesi.',
+        icon: '📑',
+        onUse: () => {
+          if (locked || finished || usedSpecials['form-override']) return
+          setUsedSpecials((prev) => ({ ...prev, 'form-override': true }))
+          applyRound(
+            'ATTACK_FORM',
+            'DEFEND_RECEIPT',
+            'win',
+            'Salainen liite kolahtaa pöytään. Krok nyökkää väsyneesti.',
+            { maine: 4, rahat: 25, jarki: -1 },
+          )
+        },
+      })
+    }
+
+    return moves
+  }, [applyRound, finished, inventory, locked, usedSpecials])
 
   return (
     <div className={`panel relative space-y-4 bg-asphalt/60 ${isGlitching ? 'glitch-veil' : ''}`}>
@@ -177,6 +285,37 @@ const PaperWar = ({ event, stats, fallbackMedia, locked, outcome, onResolve, onN
             )
           })}
         </div>
+
+        {specialMoves.length > 0 && (
+          <div className="border border-neon/30 bg-coal/70 p-3 rounded space-y-2">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-neon/70">Special moves</p>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {specialMoves.map((move) => (
+                <button
+                  key={move.id}
+                  className={`text-left border border-neon/50 px-3 py-2 bg-black/40 hover:bg-neon/10 transition ${
+                    locked || finished || usedSpecials[move.id]
+                      ? 'opacity-40 cursor-not-allowed'
+                      : 'shadow-neon'
+                  }`}
+                  onClick={move.onUse}
+                  disabled={locked || finished || usedSpecials[move.id]}
+                  type="button"
+                >
+                  <div className="flex items-center gap-2 text-neon font-semibold">
+                    <span>{move.icon}</span>
+                    <span>{move.label}</span>
+                  </div>
+                  <p className="text-xs text-slate-200 leading-snug">{move.detail}</p>
+                  {usedSpecials[move.id] && <p className="text-[10px] text-amber-200">Käytetty</p>}
+                  {sanityShield > 0 && move.id === 'lawyer' && (
+                    <p className="text-[10px] text-lime-200">Järki-suoja: {sanityShield.toFixed(0)}</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-3 text-sm">
           <div className="border border-neon/30 p-3 bg-coal/60 rounded">

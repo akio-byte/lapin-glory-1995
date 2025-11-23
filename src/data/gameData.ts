@@ -41,11 +41,14 @@ export interface GameEventChoice {
   outcomeFail: { text: string; effects: Partial<Stats> }
 }
 
+export type EventTier = 1 | 2 | 3
+
 export interface GameEvent {
   id: string
   triggerPhase: 'day' | 'night'
   condition?: (stats: Stats) => boolean
   vibe?: 'occult' | 'mundane'
+  tier?: EventTier
   media?: {
     type: 'image' | 'video'
     src: string
@@ -54,6 +57,20 @@ export interface GameEvent {
   text: string
   paperWar?: boolean
   choices: GameEventChoice[]
+}
+
+export const baseRent = 50
+export const rentIndexRate = 0.1
+
+export const getRentForDay = (day: number): number => {
+  const weeksPassed = Math.floor((day - 1) / 7)
+  return Math.round(baseRent * Math.pow(1 + rentIndexRate, weeksPassed))
+}
+
+export const getTierForDay = (day: number): EventTier => {
+  if (day >= 21) return 3
+  if (day >= 11) return 2
+  return 1
 }
 
 export const items: Item[] = [
@@ -94,6 +111,24 @@ export const items: Item[] = [
     icon: '🥃',
     effects: { immediate: { jarki: 8, maine: -2, sisu: 10 } },
   },
+  {
+    id: 'neon-kyltti-v2',
+    name: 'Neon-kyltti V2',
+    price: 1500,
+    description: 'Uusi kirkas kehä, joka näkyy napapiirin yli. Pitää maineen hengissä kun Staalo kurkkii.',
+    type: 'tool',
+    icon: '💡',
+    effects: { passive: { maine: 12, pimppaus: 6 } },
+  },
+  {
+    id: 'lahjusrahasto',
+    name: 'Lahjusrahasto',
+    price: 500,
+    description: 'Ruskea kirjekuori -setti. Rahasto, jota ruokit jotta tarkastajat pysyvät pehmeinä.',
+    type: 'tool',
+    icon: '💼',
+    effects: { passive: { byroslavia: 10, maine: 4 } },
+  },
 ]
 
 const fallbackMedia: NonNullable<GameEvent['media']> = {
@@ -101,6 +136,26 @@ const fallbackMedia: NonNullable<GameEvent['media']> = {
   src: fallbackImage,
   alt: 'Neon siluetti Lapista',
 }
+
+const eventTierMap: Record<string, EventTier> = {
+  'Prologi: Paluu Lappiin': 1,
+  'Prologi: Ensimmäinen EU-faksi': 1,
+  'Prologi: Krok esittäytyy': 1,
+  'Net Monitor: Maahis-piikki': 1,
+  'EU Faksi': 2,
+  'EU tarkastaja': 2,
+  'Kurkkudirektiivi iskee': 1,
+  'Metsänpeitto': 2,
+  'Staalo yössä': 3,
+  'Staalo varjosta': 3,
+  'Veropako': 2,
+  'Verkoissa kaikuu': 2,
+  'Lentävä renki': 3,
+  'Henkinen velka': 2,
+  'Sattuuko vuokra': 1,
+}
+
+export const resolveEventTier = (event: GameEvent): EventTier => event.tier ?? eventTierMap[event.id] ?? 1
 
 export const gameEvents: GameEvent[] = [
   {
@@ -1767,6 +1822,207 @@ export const gameEvents: GameEvent[] = [
         outcomeFail: {
           text: 'Kahvi oli kylmää. Saat merkinnän ja mieltä kiristää.',
           effects: { maine: -10, jarki: -12, rahat: -50 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Hiljainen tiistai',
+    triggerPhase: 'day',
+    tier: 1,
+    media: fallbackMedia,
+    text: 'Lumi narskuu hiljaa. Asiakkaat puuttuvat, mutta kahvi lämmittää.',
+    choices: [
+      {
+        label: 'Tee paperisota kuntoon',
+        outcomeSuccess: {
+          text: 'Pöytä selkeytyy, mieli kirkastuu.',
+          effects: { jarki: 6, byroslavia: 2 },
+        },
+        outcomeFail: {
+          text: 'Arkistokaappi kaatuu. Parit markat menee teippiin.',
+          effects: { rahat: -20, jarki: -2 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Posti hukkasi kirjeen',
+    triggerPhase: 'day',
+    tier: 1,
+    media: fallbackMedia,
+    text: 'Postileima on väärässä maassa. EU-kuori ei koskaan tullut perille.',
+    choices: [
+      {
+        label: 'Soita lajittelukeskukseen',
+        outcomeSuccess: {
+          text: 'Saat kopion faksilla. Maine pysyy nipussa.',
+          effects: { maine: 2, jarki: 3 },
+        },
+        outcomeFail: {
+          text: 'Jonotus maksaa. Hermo palaa.',
+          effects: { rahat: -30, jarki: -4 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Hiljainen humina',
+    triggerPhase: 'night',
+    tier: 1,
+    media: fallbackMedia,
+    text: 'Venttiilit humisevat. Asiakkaat tuijottavat neonia rauhallisesti.',
+    choices: [
+      {
+        label: 'Pienennä valoja ja säästä',
+        outcomeSuccess: {
+          text: 'Sähkölasku kevenee ja mieli lepää.',
+          effects: { rahat: 30, jarki: 4 },
+        },
+        outcomeFail: {
+          text: 'Hämärä tekee poroista levottomia.',
+          effects: { maine: -3, jarki: -2 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Hilpeä puhelinkoppi',
+    triggerPhase: 'night',
+    tier: 2,
+    media: fallbackMedia,
+    text: 'Puhelinkoppi vilkkuu. Turisti pitää linjaa varattuna.',
+    choices: [
+      {
+        label: 'Tarjoa kolikko ja juoru',
+        outcomeSuccess: {
+          text: 'Juoru kiertää kylällä. Saat yllättävän nosteen.',
+          effects: { maine: 4, rahat: 40 },
+        },
+        outcomeFail: {
+          text: 'Turisti haukkuu palvelun. Saat ylenpalttista palautetta.',
+          effects: { maine: -4, jarki: -3 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Hiljainen tiistaiaamu',
+    triggerPhase: 'day',
+    tier: 2,
+    media: fallbackMedia,
+    text: 'Kahvin tuoksu leijailee, mutta kirjanpito huutaa.',
+    choices: [
+      {
+        label: 'Tee inventaario',
+        outcomeSuccess: {
+          text: 'Löydät ylimääräisen laatikon salmiakkikossua.',
+          effects: { rahat: 60, jarki: 2 },
+        },
+        outcomeFail: {
+          text: 'Löydät vain pölyä ja muistoja.',
+          effects: { jarki: -4 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Posti toi väärän laatikon',
+    triggerPhase: 'day',
+    tier: 2,
+    media: fallbackMedia,
+    text: 'Laatikossa on mystisiä kuponkeja ja yksi rikkinäinen lamppu.',
+    choices: [
+      {
+        label: 'Hyödynnä kupongit',
+        outcomeSuccess: {
+          text: 'Kupongit käyvät yllättäen. Asiakkaat ilahtuvat.',
+          effects: { maine: 3, rahat: 70 },
+        },
+        outcomeFail: {
+          text: 'Kupongit ovat vanhentuneet. Joudut maksamaan palautuksen.',
+          effects: { rahat: -40, jarki: -3 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Sähkökatkon varoitus',
+    triggerPhase: 'night',
+    tier: 2,
+    media: fallbackMedia,
+    text: 'Sähköyhtiö faksaa myrskystä. Pitääkö generaattori virittää?',
+    choices: [
+      {
+        label: 'Käynnistä generaattori',
+        cost: { rahat: 50 },
+        outcomeSuccess: {
+          text: 'Valot pysyvät. Asiakkaat kiittävät.',
+          effects: { maine: 5, rahat: 80 },
+        },
+        outcomeFail: {
+          text: 'Bensiini haisee ja pää särkee.',
+          effects: { jarki: -6 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Hiljainen torstai',
+    triggerPhase: 'day',
+    tier: 3,
+    media: fallbackMedia,
+    text: 'Taivas on violetti. Kukaan ei soita. LAI värähtää.',
+    choices: [
+      {
+        label: 'Meditoi neonin alla',
+        outcomeSuccess: {
+          text: 'Hallitset pelon. Järki vahvistuu.',
+          effects: { jarki: 7, maine: 2 },
+        },
+        outcomeFail: {
+          text: 'Katse eksyy kaukaiseen horisonttiin. Pää humisee.',
+          effects: { jarki: -8 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Postin myöhästynyt paketti',
+    triggerPhase: 'day',
+    tier: 3,
+    media: fallbackMedia,
+    text: 'Paketti saapuu klo 23, väärästä ovesta. Sisällä on vain neonputkia.',
+    choices: [
+      {
+        label: 'Vaihtoehtoinen valaistus',
+        outcomeSuccess: {
+          text: 'Putket laulavat kosmista säveltä. Asiakkaat viihtyvät.',
+          effects: { maine: 6, rahat: 90 },
+        },
+        outcomeFail: {
+          text: 'Putki särkyy ja kipinät pelästyttävät.',
+          effects: { jarki: -7, rahat: -60 },
+        },
+      },
+    ],
+  },
+  {
+    id: 'Hiljainen keskiviikkoyö',
+    triggerPhase: 'night',
+    tier: 3,
+    media: fallbackMedia,
+    text: 'Pihan neonit värisevät. Staalo ei näy, mutta tunnet katseen.',
+    choices: [
+      {
+        label: 'Soita huminaa vastameluksi',
+        outcomeSuccess: {
+          text: 'Ääniseinä torjuu varjon. Mieli pysyy koossa.',
+          effects: { jarki: 5, sisu: 4 },
+        },
+        outcomeFail: {
+          text: 'Ääni vääristyy. LAI kipuaa.',
+          effects: { jarki: -6, maine: -2 },
         },
       },
     ],

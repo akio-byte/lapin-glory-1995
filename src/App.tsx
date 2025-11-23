@@ -101,8 +101,9 @@ const endingCopy: Record<EndingType, { title: string; description: (params: { st
   vappu: {
     title: 'Vappu – Laajennettu todellisuus',
     description: ({ stats }) => {
-
+      if (stats.jarki > 60) {
         return 'Vappu sumenee. Torin punssin seasta kuuluu maahisen nauru ja LAI kipinöi otsasuonissa.'
+      }
       return 'Vappu saapuu hiljaa. Olet pystyssä, mutta juhlinta jää sivummalle neonvalojen taakse.'
     },
   },
@@ -173,6 +174,7 @@ function App() {
     resetGame,
     wasRestored,
     pingNetMonitor,
+    nextNightEventHint,
   } = useGameLoop()
 
   const { muted, toggleMute, backgroundPlaying, toggleBackground, playSfx } = useAudio()
@@ -256,6 +258,7 @@ function App() {
           playSfx('nokia')
           return reading
         }}
+        nextNightEventHint={nextNightEventHint}
       />
 
       <main className="relative max-w-6xl mx-auto px-6 py-10 space-y-8">
@@ -288,6 +291,7 @@ function App() {
                 <PaperWar
                   event={activeEvent}
                   stats={stats}
+                  inventory={inventory}
                   locked={locked}
                   outcome={outcome}
                   fallbackMedia={fallbackMedia}
@@ -389,8 +393,8 @@ function App() {
             <div className="panel text-sm text-slate-200 bg-coal/70">
               <p className="text-xs uppercase tracking-[0.3em] text-neon">Ohje</p>
               <p className="mt-2">
-                Päivä: Leimaa faksit ja uhraa markkoja. Yö: kohtaa bussit tai tarkastajat. Aamu: maksa vuokra (-50 mk) ja jatka,
-                jos mielenterveys sallii.
+                Päivä: Leimaa faksit ja uhraa markkoja. Yö: kohtaa bussit tai tarkastajat. Aamu: maksa indeksikorotettu vuokra ja
+                jatka, jos mielenterveys sallii.
               </p>
             </div>
           </aside>

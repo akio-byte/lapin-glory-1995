@@ -4,23 +4,44 @@ import type { Phase } from '../hooks/useGameLoop'
 import { canonicalStats } from '../data/statMeta'
 import CRTVisual from './CRTVisual'
 
-const formatEffect = (choice: GameEventChoice) => {
-  const deltas = choice.outcomeSuccess.effects
+const formatLabel = (key: string) => canonicalStats[key as keyof typeof canonicalStats]?.label ?? key.toUpperCase()
 
-    .map((key) => {
-      const value = deltas[key]
-      if (value === undefined) return null
-      const prefix = value > 0 ? '+' : ''
-      const displayLabel = canonicalStats[key]?.label ?? key
-      const formatted =
+const formatValue = (key: string, value: number) => {
+  const stat = canonicalStats[key as keyof typeof canonicalStats]
+  if (stat) return stat.format(value)
+  const prefix = value > 0 ? '+' : ''
+  return `${prefix}${value}`
+}
 
-          ? `${prefix}${value.toFixed(0)} mk`
-          : `${prefix}${value}`
-      return `${displayLabel}: ${formatted}`
+const summarizeEffects = (effects: Partial<Record<keyof GameEventChoice['outcomeSuccess']['effects'] | 'rahat' | 'jarki', number>>) => {
+  const entries = Object.entries(effects).filter(([, value]) => value !== undefined && value !== 0)
+  if (entries.length === 0) return 'Ei vaikutuksia'
+
+  return entries
+    .map(([key, value]) => {
+      const numeric = value ?? 0
+      const prefix = numeric > 0 ? '+' : ''
+      const displayValue = canonicalStats[key as keyof typeof canonicalStats]
+        ? formatValue(key, numeric)
+        : `${prefix}${numeric}`
+      return `${formatLabel(key)}: ${displayValue}`
     })
-    .filter(Boolean)
+    .join(' | ')
+}
 
-  return summary.join(' | ')
+const applyCosts = (effects: GameEventChoice['outcomeSuccess']['effects'], cost?: GameEventChoice['cost']) => {
+  const merged: Partial<typeof effects & { rahat: number; jarki: number }> = { ...effects }
+  if (cost?.rahat) merged.rahat = (merged.rahat ?? 0) - cost.rahat
+  if (cost?.jarki) merged.jarki = (merged.jarki ?? 0) - cost.jarki
+  return merged
+}
+
+const formatEffect = (choice: GameEventChoice) => {
+  const success = summarizeEffects(applyCosts(choice.outcomeSuccess.effects, choice.cost))
+  const failure = summarizeEffects(applyCosts(choice.outcomeFail.effects, choice.cost))
+
+  if (success === failure) return success
+  return `Onnistuu: ${success} | Epäonnistuu: ${failure}`
 }
 
 type EventCardProps = {
