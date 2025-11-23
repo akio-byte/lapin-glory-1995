@@ -103,7 +103,7 @@ const endingCopy: Record<EndingType, { title: string; description: (params: { st
     description: ({ stats }) => {
       if (stats.maine > 80 && stats.jarki > 60)
         return 'Vappu vapauttaa. Kansa kantaa sinut lavalle, LAI hiljenee ja markat virtaavat neon-simana.'
-      if (stats.rahat > 400 && stats.jarki > 40)
+      if (stats.rahat > 400 && stats.jarki > 60)
         return 'Selvisit 30 päivää. Rahaa riittää simaan, mutta revontulikanava pysyy varuillaan.'
       if (stats.jarki < 35)
         return 'Vappu sumenee. Torin punssin seasta kuuluu maahisen nauru ja LAI kipinöi otsasuonissa.'
