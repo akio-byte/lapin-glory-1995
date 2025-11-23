@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { GameEvent, GameEventChoice, Item, Stats } from '../data/gameData'
-import { fallbackEventMedia, gameEvents, items as availableItems } from '../data/gameData'
+import {
+  fallbackEventMedia,
+  gameEvents,
+  getRentForDay,
+  getTierForDay,
+  items as availableItems,
+  resolveEventTier,
+} from '../data/gameData'
 
 export type Phase = 'DAY' | 'NIGHT' | 'MORNING'
 
@@ -160,9 +167,17 @@ const savePersistedState = (state: PersistedStateV3): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
 
-const pickEventForPhase = (phase: Phase, stats: Stats, lai: number): GameEvent | null => {
+const pickEventForPhase = (
+  phase: Phase,
+  stats: Stats,
+  lai: number,
+  dayCount: number,
+): GameEvent | null => {
   const pool = gameEvents.filter((event) => event.triggerPhase === phase.toLowerCase())
-  const conditioned = pool.filter((event) => (event.condition ? event.condition(stats) : true))
+  const tier = getTierForDay(dayCount)
+  const conditioned = pool.filter(
+    (event) => (event.condition ? event.condition(stats) : true) && resolveEventTier(event) <= tier,
+  )
   if (conditioned.length === 0) return null
   const occultPool = conditioned.filter((event) => event.vibe === 'occult')
   const mundanePool = conditioned.filter((event) => event.vibe !== 'occult')
@@ -196,7 +211,7 @@ export const useGameLoop = (): GameState & GameActions => {
   const [wasRestored, setWasRestored] = useState(() => Boolean(persistedState))
   const [lai, setLai] = useState<number>(() => (hasLai(persistedState) ? persistedState.lai : 0))
 
-  const currentEvent = useMemo(() => pickEventForPhase(phase, stats, lai), [phase, stats, lai])
+  const currentEvent = useMemo(() => pickEventForPhase(phase, stats, lai, dayCount), [phase, stats, lai, dayCount])
 
   const ending: EndingState | null = useMemo(() => {
     if (stats.jarki <= 0) return { type: 'psychWard', dayCount, stats }
@@ -233,9 +248,12 @@ const adjustLAI = (delta: number) => {
       const next = PHASE_ORDER[(currentIndex + 1) % PHASE_ORDER.length]
 
       if (next === 'DAY') {
+        const upcomingDay = dayCount + 1
+        const rent = getRentForDay(upcomingDay)
+
         setDayCount((count) => count + 1)
         setDayStartStats(() => ({ ...stats }))
-        handleChoice({ rahat: -50 })
+        handleChoice({ rahat: -rent })
         if (lai > 85) handleChoice({ jarki: -2 })
         if (lai < 10) handleChoice({ jarki: 1 })
         const sanityTension = stats.jarki < 25 ? 3 : stats.jarki < 50 ? 1 : stats.jarki > 85 ? -1 : 0
