@@ -9,6 +9,7 @@ export type Event = {
   description: string
   triggerPhase: 'day' | 'night'
   vibe?: 'mundane' | 'occult'
+  condition?: { laiAbove?: number }
 
   media?: { type: 'image' | 'video'; src: string; alt: string }
   choices: {
@@ -102,17 +103,17 @@ export const INITIAL_EVENTS: Event[] = [
       {
         text: 'Leimaa poikkeuslupa Lapin valolla',
         dcCheck: { stat: 'byroslavia', dc: 13 },
-
+        effect: { rahat: 60, maine: 4 },
         outcomeText: 'Poikkeuslupa menee läpi. RAHAT säästyvät ja MAINE kasvaa.',
       },
       {
         text: 'Osta laatikko standardikurkkuja',
-
+        effect: { rahat: -70, maine: 2 },
         outcomeText: 'Kylmävarasto täyttyy, mutta EU on tyytyväinen.',
       },
       {
         text: 'Ignoraa ja tarjoa poron suolakurkkuja',
-
+        effect: { jarki: 4, maine: -3 },
         outcomeText: 'Turisti ihmettelee, mutta pää rauhoittuu hetkeksi.',
       },
     ],
@@ -127,13 +128,13 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Tilaa lämpövastukset Brysselistä',
-
+        effect: { rahat: -60, maine: 2 },
         outcomeText: 'Putket pysyvät ehjinä, faksit kiittävät.',
       },
       {
         text: 'Kirjoita vastine: Lapissa on aina kylmä',
         dcCheck: { stat: 'pimppaus', dc: 11 },
-
+        effect: { rahat: 40, maine: 1, jarki: 1 },
         outcomeText: 'Fax-operaattori naurahtaa ja lähettää sinulle pienen tuen.',
       },
     ],
@@ -149,18 +150,18 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Anna hänelle dj-slot ja savukone',
-
+        effect: { rahat: 120, maine: 5, jarki: -5 },
         outcomeText: 'Rummut ja savut nostavat kassaa, mutta JÄRKI kipinöi.',
       },
       {
         text: 'Myy hänelle Lapin kristalli',
         dcCheck: { stat: 'pimppaus', dc: 12 },
-
+        effect: { rahat: 180, maine: 3 },
         outcomeText: 'Shamaani maksaa hyvin ja kehuu baarin mainetta.',
       },
       {
         text: 'Sammuta valot ja pyydä hiljaisuutta',
-
+        effect: { jarki: 5, maine: -4 },
         outcomeText: 'Hiljaisuus rauhoittaa, mutta turistit katoavat.',
       },
     ],
@@ -193,7 +194,7 @@ export const INITIAL_EVENTS: Event[] = [
     choices: [
       {
         text: 'Maksa ja ota resepti',
-
+        effect: { rahat: 90, maine: 4, jarki: -1 },
         outcomeText: 'Juoma myy kuin häkä, MAINE kasvaa.',
       },
       {
