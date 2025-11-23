@@ -34,6 +34,7 @@ export type NetMonitorReading = {
   jarkiDelta?: number
   signalDbm: number
   pingMs: number
+  hint?: string | null
 }
 
 type ChoiceResolution = {
@@ -53,6 +54,7 @@ type GameState = {
   morningReport: MorningReport | null
   wasRestored: boolean
   lai: number
+  nextNightEventHint: string | null
 }
 
 type GameActions = {
@@ -64,6 +66,7 @@ type GameActions = {
   resetGame: () => void
   pingNetMonitor: () => NetMonitorReading
   adjustLAI: (delta: number) => number
+  setNextNightEventHint: (hint: string | null) => void
 }
 
 type LegacyStats = {
@@ -210,6 +213,7 @@ export const useGameLoop = (): GameState & GameActions => {
   const [morningReport, setMorningReport] = useState<MorningReport | null>(null)
   const [wasRestored, setWasRestored] = useState(() => Boolean(persistedState))
   const [lai, setLai] = useState<number>(() => (hasLai(persistedState) ? persistedState.lai : 0))
+  const [nextNightEventHint, setNextNightEventHint] = useState<string | null>(null)
 
   const currentEvent = useMemo(() => pickEventForPhase(phase, stats, lai, dayCount), [phase, stats, lai, dayCount])
 
@@ -258,6 +262,11 @@ const adjustLAI = (delta: number) => {
         if (lai < 10) handleChoice({ jarki: 1 })
         const sanityTension = stats.jarki < 25 ? 3 : stats.jarki < 50 ? 1 : stats.jarki > 85 ? -1 : 0
         if (sanityTension !== 0) adjustLAI(sanityTension)
+        setNextNightEventHint(null)
+      }
+
+      if (next === 'NIGHT') {
+        setNextNightEventHint(null)
       }
 
       return next
@@ -348,6 +357,17 @@ const adjustLAI = (delta: number) => {
       : 'Staalo syöttää outoa puhetta. GSM-kanava välkkyy verenpunaisena.'
   }
 
+  const describeEventHint = (event: GameEvent | null): string | null => {
+    if (!event) return null
+    const id = event.id.toLowerCase()
+    if (id.includes('verottaja')) return 'VEROTTAJA'
+    if (id.includes('turisti') || id.includes('bussi')) return 'TURISTIBUSSI'
+    if (id.includes('staalo')) return 'STAALO'
+    if (id.includes('kultti') || event.vibe === 'occult') return 'KULTTI/OKKULT'
+    if (id.includes('eu') || id.includes('tarkast')) return 'EU-TARKASTUS'
+    return event.vibe === 'mundane' ? 'ARKI-HASSLE' : 'VERKKOVIIVE'
+  }
+
   const pingNetMonitor = (): NetMonitorReading => {
     const signalDbm = Math.floor(-110 + Math.random() * 35)
     const basePing = Math.floor(40 + Math.random() * 180)
@@ -366,6 +386,15 @@ const adjustLAI = (delta: number) => {
       handleChoice({ jarki: jarkiDelta })
     }
 
+    const pingLuck = Math.random()
+    const skillFactor = stats.byroslavia / 120
+    const successfulProphecy = pingLuck + skillFactor > 0.65
+    const hintedEvent = successfulProphecy ? pickEventForPhase('NIGHT', stats, nextLai, dayCount) : null
+    const hintText = hintedEvent ? `Signaali varoittaa: ${describeEventHint(hintedEvent)}` : null
+    if (hintText) {
+      setNextNightEventHint(hintText)
+    }
+
     return {
       newLai: nextLai,
       laiDelta: delta,
@@ -374,6 +403,7 @@ const adjustLAI = (delta: number) => {
       signalDbm,
       pingMs,
       message: buildLaiMessage(nextLai, band),
+      hint: hintText,
     }
   }
 
@@ -385,6 +415,7 @@ const adjustLAI = (delta: number) => {
     setDayStartStats(INITIAL_STATS)
     setMorningReport(null)
     setLai(0)
+    setNextNightEventHint(null)
     setWasRestored(false)
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY)
@@ -459,6 +490,7 @@ const adjustLAI = (delta: number) => {
     morningReport,
     wasRestored,
     lai,
+    nextNightEventHint,
     advancePhase,
     handleChoice,
     buyItem,
@@ -467,6 +499,7 @@ const adjustLAI = (delta: number) => {
     resetGame,
     pingNetMonitor,
     adjustLAI,
+    setNextNightEventHint,
   }
 }
 

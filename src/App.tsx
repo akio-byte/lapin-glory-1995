@@ -174,6 +174,7 @@ function App() {
     resetGame,
     wasRestored,
     pingNetMonitor,
+    nextNightEventHint,
   } = useGameLoop()
 
   const { muted, toggleMute, backgroundPlaying, toggleBackground, playSfx } = useAudio()
@@ -257,6 +258,7 @@ function App() {
           playSfx('nokia')
           return reading
         }}
+        nextNightEventHint={nextNightEventHint}
       />
 
       <main className="relative max-w-6xl mx-auto px-6 py-10 space-y-8">
@@ -289,6 +291,7 @@ function App() {
                 <PaperWar
                   event={activeEvent}
                   stats={stats}
+                  inventory={inventory}
                   locked={locked}
                   outcome={outcome}
                   fallbackMedia={fallbackMedia}

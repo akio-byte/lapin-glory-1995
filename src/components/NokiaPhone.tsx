@@ -29,6 +29,7 @@ type NokiaPhoneProps = {
   lai: number
   jarki?: number
   onPing?: () => NetMonitorReading | void
+  nextNightEventHint?: string | null
 }
 
 type Stage = 'calm' | 'weird' | 'glitch' | 'severe'
@@ -40,16 +41,21 @@ const stageFromLai = (lai: number): Stage => {
   return 'calm'
 }
 
-const NokiaPhone = ({ lai, jarki = 100, onPing }: NokiaPhoneProps) => {
+
   const [localLai, setLocalLai] = useState(lai)
   const [readout, setReadout] = useState('Verkko ok. Turistiystävällinen latenssi.')
   const [lastDelta, setLastDelta] = useState<number | null>(null)
   const [signalDbm, setSignalDbm] = useState(-92)
   const [pingMs, setPingMs] = useState(120)
+  const [prophecy, setProphecy] = useState<string | null>(nextNightEventHint ?? null)
 
   useEffect(() => {
     setLocalLai(lai)
   }, [lai])
+
+  useEffect(() => {
+    setProphecy(nextNightEventHint ?? null)
+  }, [nextNightEventHint])
 
   const stage = useMemo(() => stageFromLai(localLai), [localLai])
   const isGlitch = stage === 'glitch' || stage === 'severe' || jarki < 20
@@ -74,6 +80,9 @@ const NokiaPhone = ({ lai, jarki = 100, onPing }: NokiaPhoneProps) => {
     setSignalDbm(result && 'signalDbm' in result ? result.signalDbm : Math.floor(-108 + Math.random() * 24))
     setPingMs(result && 'pingMs' in result ? result.pingMs : Math.round(40 + Math.random() * 200))
     setLastDelta(result && 'laiDelta' in result ? result.laiDelta : Math.round(nextLai - localLai))
+    if (result && 'hint' in result && result.hint) {
+      setProphecy(result.hint)
+    }
 
     const pool = stageMessages[nextStage]
     const baseMessage = (result && 'message' in result ? result.message : pool[Math.floor(Math.random() * pool.length)]) ??
@@ -100,6 +109,9 @@ const NokiaPhone = ({ lai, jarki = 100, onPing }: NokiaPhoneProps) => {
             <p className="text-[11px] text-lime-300/80">{uiState[stage].hint}</p>
             {lastDelta !== null && (
               <p className="text-[11px] text-lime-300/70">Δ LAI: {lastDelta > 0 ? '+' : ''}{lastDelta.toFixed(0)}</p>
+            )}
+            {prophecy && (
+              <p className="text-[11px] text-lime-200 font-semibold">{glitchify(prophecy)}</p>
             )}
           </div>
           <div className={`grid grid-cols-2 gap-2 text-xs ${stage === 'glitch' || stage === 'severe' ? 'animate-[pulse_1.4s_infinite]' : ''}`}>
