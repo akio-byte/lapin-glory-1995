@@ -6,14 +6,14 @@ import CRTVisual from './CRTVisual'
 
 const formatEffect = (choice: GameEventChoice) => {
   const deltas = choice.outcomeSuccess.effects
-  const summary = (['rahat', 'jarki', 'maine'] as const)
+
     .map((key) => {
       const value = deltas[key]
       if (value === undefined) return null
       const prefix = value > 0 ? '+' : ''
       const displayLabel = canonicalStats[key]?.label ?? key
       const formatted =
-        key === 'rahat'
+
           ? `${prefix}${value.toFixed(0)} mk`
           : `${prefix}${value}`
       return `${displayLabel}: ${formatted}`

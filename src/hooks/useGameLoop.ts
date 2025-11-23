@@ -214,6 +214,12 @@ export const useGameLoop = (): GameState & GameActions => {
     return next
   }
 
+  const adjustLAI = (delta: number) => {
+    const next = clamp(lai + delta, 0, 100)
+    setLai(next)
+    return next
+  }
+
   const handleChoice = (effect: Partial<Stats>) => {
     setStats((prev) => ({
       rahat: prev.rahat + (effect.rahat ?? 0),

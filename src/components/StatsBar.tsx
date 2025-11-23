@@ -41,33 +41,3 @@ const StatsBar = ({ stats, phase, dayCount, lai }: { stats: Stats; phase: Phase;
     <div className="grid md:grid-cols-4 gap-3 items-center">
       <div className="md:col-span-3 grid md:grid-cols-3 gap-3">
         <StatChip
-          label={canonicalStats.rahat.label}
-          subtitle={canonicalStats.rahat.short}
-          value={canonicalStats.rahat.format(stats.rahat)}
-          icon={<Coins />}
-        />
-        <StatChip
-          label={canonicalStats.jarki.label}
-          subtitle={canonicalStats.jarki.short}
-          value={canonicalStats.jarki.format(stats.jarki)}
-          icon={<Brain />}
-        />
-        <StatChip
-          label={canonicalStats.maine.label}
-          subtitle={canonicalStats.maine.short}
-          value={canonicalStats.maine.format(stats.maine)}
-          icon={<Sparkles />}
-        />
-      </div>
-      <div className="text-right text-xs uppercase tracking-[0.2em] bg-coal border border-neon text-neon px-4 py-3 shadow-neon">
-        <p>Phase: {phase}</p>
-        <p>Päivä: {dayCount} / 30</p>
-        <p className={`flex items-center justify-end gap-1 ${laiMood.accent}`}>
-          <Antenna size={14} /> {laiMood.label} ({lai})
-        </p>
-      </div>
-    </div>
-  )
-}
-
-export default StatsBar
