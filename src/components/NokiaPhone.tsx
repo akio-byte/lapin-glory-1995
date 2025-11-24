@@ -93,7 +93,7 @@ const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint, className }:
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-50 ${className ?? ''}`}
+      className={`fixed z-50 ${className ?? 'bottom-6 right-6'}`}
       style={{ fontFamily: '"VT323", "IBM Plex Mono", monospace' }}
     >
       <style>{pixelVibes}</style>

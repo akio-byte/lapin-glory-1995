@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { GameEvent, GameEventChoice } from '../data/gameData'
+import { buildPathMeta, type BuildPath, type GameEvent, type GameEventChoice } from '../data/gameData'
 import type { Phase } from '../hooks/useGameLoop'
 import { canonicalStats } from '../data/statMeta'
 import CRTVisual from './CRTVisual'
@@ -44,6 +44,28 @@ const formatEffect = (choice: GameEventChoice) => {
   return `Onnistuu: ${success} | Epäonnistuu: ${failure}`
 }
 
+const renderPathXp = (pathXp?: GameEventChoice['pathXp']) => {
+  if (!pathXp) return null
+  return (
+    <div className="flex flex-wrap gap-2 mt-2">
+      {(Object.keys(pathXp) as BuildPath[]).map((path) => {
+        const xp = pathXp[path]
+        if (!xp) return null
+        const meta = buildPathMeta[path]
+        return (
+          <span
+            key={path}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] uppercase tracking-[0.2em] bg-white/5 border border-neon/30"
+          >
+            <span className={`h-2 w-2 rounded-full bg-gradient-to-r ${meta.color}`} />
+            {meta.label} +{xp} XP
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 type EventCardProps = {
   event: GameEvent
   locked: boolean
@@ -86,7 +108,7 @@ const EventCard = ({ event, locked, outcome, onChoice, onNextPhase, fallbackMedi
           {event.choices.map((choice) => (
             <button
               key={choice.label}
-              className={`text-left border-2 border-neon px-4 py-3 uppercase tracking-[0.2em] bg-coal/60 hover:bg-neon/10 transition shadow-neon ${locked ? 'opacity-40 cursor-not-allowed' : ''}`}
+              className={`text-left border-2 border-neon px-4 py-3 uppercase tracking-[0.2em] bg-coal/60 hover:bg-neon/10 transition shadow-neon focus:outline-none focus-visible:ring-2 focus-visible:ring-neon/80 focus-visible:ring-offset-2 focus-visible:ring-offset-coal/80 rounded-md leading-relaxed ${locked ? 'opacity-40 cursor-not-allowed' : ''}`}
               onClick={() => onChoice(choice)}
               disabled={locked}
             >
@@ -99,6 +121,7 @@ const EventCard = ({ event, locked, outcome, onChoice, onNextPhase, fallbackMedi
                 )}
               </div>
               <p className="text-xs text-slate-200 mt-1">{formatEffect(choice)}</p>
+              {renderPathXp(choice.pathXp)}
             </button>
           ))}
         </div>

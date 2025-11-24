@@ -2,6 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type SfxKey = 'choice' | 'nokia' | 'boss' | 'cash' | 'static'
 
+const SFX_BASE_VOLUME: Record<SfxKey, number> = {
+  boss: 0.4,
+  cash: 0.3,
+  choice: 0.3,
+  nokia: 0.3,
+  static: 0.3,
+}
+
 type UseAudioConfig = {
   backgroundSrc?: string
   intenseBackgroundSrc?: string
@@ -20,20 +28,53 @@ const DEFAULT_SOURCES: Required<UseAudioConfig> = {
   },
 }
 
+const AUDIO_PREFS_KEY = 'lapin-audio-prefs'
+
+type AudioPrefs = {
+  muted: boolean
+  backgroundVolume: number
+  sfxVolume: number
+}
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
+const loadPrefs = (): AudioPrefs => {
+  if (typeof window === 'undefined') {
+    return { muted: false, backgroundVolume: 0.25, sfxVolume: 0.3 }
+  }
+
+  try {
+    const stored = window.localStorage.getItem(AUDIO_PREFS_KEY)
+    if (!stored) return { muted: false, backgroundVolume: 0.25, sfxVolume: 0.3 }
+    const parsed = JSON.parse(stored) as Partial<AudioPrefs>
+    return {
+      muted: parsed.muted ?? false,
+      backgroundVolume: clamp(parsed.backgroundVolume ?? 0.25, 0, 1),
+      sfxVolume: clamp(parsed.sfxVolume ?? 0.3, 0, 1),
+    }
+  } catch (error) {
+    console.warn('Failed to parse audio prefs', error)
+    return { muted: false, backgroundVolume: 0.25, sfxVolume: 0.3 }
+  }
+}
+
 export const useAudio = (config: UseAudioConfig = {}) => {
   const sources: Required<UseAudioConfig> = {
     backgroundSrc: config.backgroundSrc ?? DEFAULT_SOURCES.backgroundSrc,
     intenseBackgroundSrc: config.intenseBackgroundSrc ?? DEFAULT_SOURCES.intenseBackgroundSrc,
     sfxMap: { ...DEFAULT_SOURCES.sfxMap, ...config.sfxMap },
   }
-  const [muted, setMuted] = useState(true)
+  const prefs = useMemo(loadPrefs, [])
+  const [muted, setMuted] = useState(prefs.muted)
+  const [backgroundVolume, setBackgroundVolume] = useState(prefs.backgroundVolume)
+  const [sfxVolume, setSfxVolume] = useState(prefs.sfxVolume)
   const [backgroundPlaying, setBackgroundPlaying] = useState(false)
   const [backgroundMode, setBackgroundMode] = useState<'normal' | 'intense'>('normal')
 
   const backgroundAudio = useMemo(() => {
     const audio = new Audio(sources.backgroundSrc)
     audio.loop = true
-    audio.volume = 0.25
+    audio.volume = backgroundVolume
     audio.preload = 'auto'
     return audio
   }, [sources.backgroundSrc])
@@ -41,7 +82,7 @@ export const useAudio = (config: UseAudioConfig = {}) => {
   const intenseBackgroundAudio = useMemo(() => {
     const audio = new Audio(sources.intenseBackgroundSrc)
     audio.loop = true
-    audio.volume = 0.28
+    audio.volume = clamp(backgroundVolume + 0.03, 0, 1)
     audio.preload = 'auto'
     return audio
   }, [sources.intenseBackgroundSrc])
@@ -53,12 +94,13 @@ export const useAudio = (config: UseAudioConfig = {}) => {
       const src = sources.sfxMap[typedKey]
       if (!src) return
       const audio = new Audio(src)
-      audio.volume = typedKey === 'boss' ? 0.4 : 0.3
+      const baseVolume = SFX_BASE_VOLUME[typedKey]
+      audio.volume = clamp(baseVolume * (sfxVolume / 0.3), 0, 1)
       audio.preload = 'auto'
       entries[typedKey] = audio
     })
     return entries
-  }, [sources.sfxMap])
+  }, [sfxVolume, sources.sfxMap])
 
   useEffect(
     () => () => {
@@ -67,6 +109,16 @@ export const useAudio = (config: UseAudioConfig = {}) => {
     },
     [backgroundAudio, intenseBackgroundAudio],
   )
+
+  useEffect(() => {
+    backgroundAudio.volume = backgroundVolume
+    intenseBackgroundAudio.volume = clamp(backgroundVolume + 0.03, 0, 1)
+    Object.entries(sfxAudio).forEach(([key, audio]) => {
+      if (!audio) return
+      const typedKey = key as SfxKey
+      audio.volume = clamp(SFX_BASE_VOLUME[typedKey] * (sfxVolume / 0.3), 0, 1)
+    })
+  }, [backgroundAudio, backgroundVolume, intenseBackgroundAudio, sfxAudio, sfxVolume])
 
   useEffect(() => {
     backgroundAudio.muted = muted
@@ -85,8 +137,23 @@ export const useAudio = (config: UseAudioConfig = {}) => {
     })
   }, [backgroundAudio, backgroundMode, backgroundPlaying, intenseBackgroundAudio, muted, sfxAudio])
 
+  useEffect(() => {
+    const payload: AudioPrefs = { muted, backgroundVolume, sfxVolume }
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(AUDIO_PREFS_KEY, JSON.stringify(payload))
+    }
+  }, [backgroundVolume, muted, sfxVolume])
+
   const toggleMute = useCallback(() => {
     setMuted((prev) => !prev)
+  }, [])
+
+  const setBackgroundVolumeSafe = useCallback((value: number) => {
+    setBackgroundVolume(clamp(value, 0, 1))
+  }, [])
+
+  const setSfxVolumeSafe = useCallback((value: number) => {
+    setSfxVolume(clamp(value, 0, 1))
   }, [])
 
   const toggleBackground = useCallback(() => {
@@ -140,6 +207,10 @@ export const useAudio = (config: UseAudioConfig = {}) => {
     playSfx,
     backgroundMode,
     setBackgroundMode: setBackgroundModeSafe,
+    backgroundVolume,
+    setBackgroundVolume: setBackgroundVolumeSafe,
+    sfxVolume,
+    setSfxVolume: setSfxVolumeSafe,
   }
 }
 
