@@ -81,9 +81,7 @@ const EventCard = ({ event, locked, outcome, onChoice, onNextPhase, fallbackMedi
   const media = useMemo(() => event.media ?? fallbackMedia, [event.media, fallbackMedia])
 
   return (
-    <div
-      className={`panel relative space-y-4 bg-asphalt/60 max-h-[60vh] overflow-y-auto ${isGlitching ? 'glitch-veil' : ''}`}
-    >
+    <div className={`panel relative space-y-4 bg-asphalt/60 event-card ${isGlitching ? 'glitch-veil' : ''}`}>
       <div className="absolute inset-0 bg-repeat bg-[linear-gradient(90deg,rgba(255,0,255,0.06)_1px,transparent_1px),linear-gradient(rgba(255,0,255,0.05)_1px,transparent_1px)] bg-[length:22px_22px] opacity-10" />
       <div className="relative space-y-3">
         <div className="flex items-center justify-between border-b border-neon/30 pb-2">
@@ -99,10 +97,10 @@ const EventCard = ({ event, locked, outcome, onChoice, onNextPhase, fallbackMedi
           <div className="text-xs text-neon uppercase tracking-[0.2em]">{phase}</div>
         </div>
 
-        <div className="rounded-lg overflow-hidden border border-neon/20 shadow-inner max-h-[260px]">
+        <div className="rounded-lg overflow-hidden border border-neon/20 shadow-inner event-card__media">
           <CRTVisual media={media} isGlitching={isGlitching} />
         </div>
-        <p className="text-sm leading-relaxed bg-coal/70 border border-neon/40 p-3 max-h-48 overflow-y-auto">
+        <p className="text-sm leading-relaxed bg-coal/70 border border-neon/40 p-3 overflow-y-auto event-card__text">
           {event.text}
         </p>
 
