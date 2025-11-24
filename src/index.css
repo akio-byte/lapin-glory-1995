@@ -35,6 +35,16 @@ body {
   font-family: 'DM Mono', 'VT323', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+@media (max-height: 820px) {
+  html,
+  body,
+  #root {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+}
+
 .crt-overlay::after {
   content: '';
   position: absolute;
