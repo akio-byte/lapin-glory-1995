@@ -1,6 +1,35 @@
 import { MediaRegistry, PLACEHOLDER_MEDIA_URL } from './mediaRegistry'
 import { aiFaxEvents } from './aiFaxEvents'
 
+export type BuildPath = 'tourist' | 'tax' | 'occult' | 'network'
+
+export const buildPathMeta: Record<BuildPath, { label: string; color: string; description: string; milestones: number[] }> = {
+  tourist: {
+    label: 'Tourist',
+    color: 'from-amber-300 to-rose-400',
+    description: 'Neon-rahan haistajat, nopea maineen kasvu ja rohkeat kassakikat.',
+    milestones: [6, 14, 26],
+  },
+  tax: {
+    label: 'Tax',
+    color: 'from-emerald-200 to-cyan-300',
+    description: 'Verottajan kesyttäjät, lomakekikkoilut ja byrokratia-suojat.',
+    milestones: [6, 14, 24],
+  },
+  occult: {
+    label: 'Occult',
+    color: 'from-fuchsia-200 to-violet-300',
+    description: 'Staalo-sympatia, LAI:n käsittely ja mielen suojaus.',
+    milestones: [5, 12, 22],
+  },
+  network: {
+    label: 'Network',
+    color: 'from-sky-200 to-indigo-300',
+    description: 'Net Monitorin profetiat, signaalin hallinta ja ennakoivat faxit.',
+    milestones: [6, 12, 20],
+  },
+}
+
 export type ItemType = 'consumable' | 'tool' | 'form' | 'relic'
 
 export interface Stats {
@@ -39,6 +68,7 @@ export interface GameEventChoice {
   cost?: { rahat?: number; jarki?: number }
   outcomeSuccess: { text: string; effects: Partial<Stats> }
   outcomeFail: { text: string; effects: Partial<Stats> }
+  pathXp?: Partial<Record<BuildPath, number>>
 }
 
 export type EventTier = 1 | 2 | 3
@@ -57,6 +87,7 @@ export interface GameEvent {
   text: string
   paperWar?: boolean
   tags?: string[]
+  paths?: BuildPath[]
   choices: GameEventChoice[]
 }
 
@@ -250,6 +281,7 @@ const coreGameEvents: GameEvent[] = [
     id: 'Net Monitor: Maahis-piikki',
     triggerPhase: 'day',
     vibe: 'occult',
+    paths: ['network', 'occult'],
     media: fallbackMedia,
     text: 'Net Monitor välähtää. Maahisten GSM-paketti soi kuin noitarumpu ja LAI kohoaa.',
     choices: [
@@ -263,6 +295,7 @@ const coreGameEvents: GameEvent[] = [
           text: 'Piikki särähtää hermoihin. Maine kasvaa, mutta uni häiriintyy.',
           effects: { jarki: -4, maine: 3 },
         },
+        pathXp: { network: 2, occult: 1 },
       },
     ],
   },
@@ -270,6 +303,7 @@ const coreGameEvents: GameEvent[] = [
     id: 'Staalo yössä',
     triggerPhase: 'night',
     vibe: 'occult',
+    paths: ['occult'],
     text: 'Pimeys tihkuu. Staalo kolistelee tukiasemaa ja yrittää soittaa sinulle suoraan.',
     choices: [
       {
@@ -282,6 +316,7 @@ const coreGameEvents: GameEvent[] = [
           text: 'Puhelu katkeaa, mutta korvissa soi. Järki rätisee.',
           effects: { jarki: -6 },
         },
+        pathXp: { occult: 3 },
       },
       {
         label: 'Katkaise virta',
@@ -293,6 +328,7 @@ const coreGameEvents: GameEvent[] = [
           text: 'Virta palaa itsekseen. Staalo nauraa jossain kaukana.',
           effects: { jarki: -2, rahat: -10 },
         },
+        pathXp: { occult: 1, network: 1 },
       },
     ],
   },
@@ -720,6 +756,8 @@ const coreGameEvents: GameEvent[] = [
     triggerPhase: 'day',
     condition: (stats) => stats.maine > 12,
     paperWar: true,
+    paths: ['tax'],
+    tags: ['tax', 'form'],
     media: { type: 'video', src: media.surrealVideo, alt: 'Krok-tarkastajan hologrammi' },
     text: 'Hannele Krok ilmestyy faksista neon-silmä välkkyen. Hän kaataa pöydälle nipun lomakkeita ja kuiskuttaa: "Paper War, kolmesta kierroksesta paras".',
     choices: [],
@@ -1843,6 +1881,7 @@ const coreGameEvents: GameEvent[] = [
   {
     id: 'Turistibussi',
     triggerPhase: 'night',
+    paths: ['tourist', 'network'],
     media: {
       type: 'video',
       src: media.snowyStreet,
@@ -1861,6 +1900,7 @@ const coreGameEvents: GameEvent[] = [
           text: 'Bussi huomaa verottajan lapun ovessa. Kääntyy pois, maine ratisemaan.',
           effects: { rahat: -40, maine: -8, jarki: -4 },
         },
+        pathXp: { tourist: 3 },
       },
       {
         label: 'Salaa Net Monitoriin revontulikanava',
@@ -1873,6 +1913,7 @@ const coreGameEvents: GameEvent[] = [
           text: 'Signaali säröilee ja kuulet kuiskauksen: "RUN: DIE". Turistit hermostuvat.',
           effects: { jarki: -10, maine: -3 },
         },
+        pathXp: { network: 2, tourist: 1 },
       },
     ],
   },
@@ -1880,6 +1921,7 @@ const coreGameEvents: GameEvent[] = [
     id: 'Verotarkastus',
     triggerPhase: 'night',
     condition: (stats) => stats.maine > 25,
+    paths: ['tax'],
     media: {
       type: 'video',
       src: media.surrealVideo,
@@ -1899,6 +1941,7 @@ const coreGameEvents: GameEvent[] = [
           text: 'Lisäselvityspyyntö. Kirjekuori alkaa savuamaan.',
           effects: { jarki: -20, rahat: -150 },
         },
+        pathXp: { tax: 3 },
       },
       {
         label: 'Bluffaa pimppauksella ja tarjoa kahvit',
@@ -1911,6 +1954,7 @@ const coreGameEvents: GameEvent[] = [
           text: 'Kahvi oli kylmää. Saat merkinnän ja mieltä kiristää.',
           effects: { maine: -10, jarki: -12, rahat: -50 },
         },
+        pathXp: { tax: 2 },
       },
     ],
   },
