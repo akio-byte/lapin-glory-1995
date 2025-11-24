@@ -56,7 +56,37 @@ export interface GameEvent {
   }
   text: string
   paperWar?: boolean
+  tags?: string[]
   choices: GameEventChoice[]
+}
+
+export const isGameEvent = (candidate: unknown): candidate is GameEvent => {
+  if (!candidate || typeof candidate !== 'object') return false
+  const obj = candidate as Record<string, unknown>
+  const hasId = typeof obj.id === 'string'
+  const triggerPhase = obj.triggerPhase === 'day' || obj.triggerPhase === 'night'
+  const textOk = typeof obj.text === 'string'
+  const choices = Array.isArray(obj.choices)
+  if (!(hasId && triggerPhase && textOk && choices)) return false
+
+  return obj.choices.every((choice) => {
+    if (!choice || typeof choice !== 'object') return false
+    const c = choice as Record<string, unknown>
+    const labelOk = typeof c.label === 'string'
+    const outcomeSuccessOk = c.outcomeSuccess && typeof c.outcomeSuccess === 'object'
+    const outcomeFailOk = c.outcomeFail && typeof c.outcomeFail === 'object'
+    return labelOk && outcomeSuccessOk && outcomeFailOk
+  })
+}
+
+export const tagMeta: Record<string, { label: string; blurb: string }> = {
+  tourist: { label: 'Tourist', blurb: 'Showy neon, razzmatazz ja pikavoitot. Usein riskipitoista mainetta.' },
+  tax: { label: 'Tax', blurb: 'Verohallinnon henkinen ote, lomakkeet ja tarkastajat.' },
+  occult: { label: 'Occult', blurb: 'Staalo, maahiset ja neon-noituus. Vaikuttaa LAI:hin.' },
+  network: { label: 'Network', blurb: 'Net Monitor, mastot, GSM ja sähköiset kytkökset.' },
+  form: { label: 'Form', blurb: 'Paperisodan erikoisvaikutus, antaa turvaa PaperWarissa.' },
+  relic: { label: 'Relic', blurb: 'Harvinaiset esineet, jotka antavat syvempiä occult- tai stats-buffeja.' },
+  shop: { label: 'Salkkukauppa', blurb: 'Yleinen tarraleima kaupalle ja hyllyille.' },
 }
 
 export const baseRent = 50
@@ -140,6 +170,50 @@ export const items: Item[] = [
     type: 'tool',
     icon: '💼',
     effects: { passive: { byroslavia: 10, maine: 4 } },
+  },
+  {
+    id: 'arktinen-modemi',
+    name: 'Arktinen 14.4k-mysteeri-modemi',
+    price: 420,
+    description: 'Lumisuojattu Net Monitor -lisäosa, joka kuulee signaalit ennen kuin ne ovat signaaleja.',
+    summary: 'Passiivinen verkkoetu: Byroslavia ja pimppaus kasvavat, LAI pysyy kurissa.',
+    tags: ['network'],
+    type: 'tool',
+    icon: '📡',
+    effects: { passive: { byroslavia: 6, pimppaus: 4, jarki: 2 } },
+  },
+  {
+    id: 'staalo-amulet',
+    name: 'Staalo-amuletin siru',
+    price: 680,
+    description: 'Pimeässä hohkaava koru, joka muuntaa rätinän rauhaksi. Kirottu mutta lempeä.',
+    summary: 'Occult-relic: suojaa järkeä, vahvistaa sisu ja antaa LAI-herkkyyttä.',
+    tags: ['occult', 'relic'],
+    type: 'relic',
+    icon: '🧿',
+    effects: { passive: { jarki: 6, sisu: 4, pimppaus: 2 } },
+  },
+  {
+    id: 'turistibussi-kuponki',
+    name: 'Turistibussi-kuponki',
+    price: 160,
+    description: 'Ulkomaalaisille myytävä "Aito Napapiirin paperisota" -retki. Sisältää neon-tarrat.',
+    summary: 'Kertakäyttö: kassavirtaa ja mainetta, mutta hermot riekaleiksi.',
+    tags: ['tourist'],
+    type: 'consumable',
+    icon: '🚌',
+    effects: { immediate: { rahat: 160, maine: 6, jarki: -6 } },
+  },
+  {
+    id: 'verolupakirja',
+    name: 'Verolupakirja 90-luvun painoksena',
+    price: 320,
+    description: 'Harvinainen opas, jossa on käsin alleviivattuja kiertoteitä. Joku tarkastaja kaipaa sitä edelleen.',
+    summary: 'Form/tool-hybridi: Byroslavia ja maine ylös, paperisodassa pieni suojakerroin.',
+    tags: ['tax', 'form'],
+    type: 'form',
+    icon: '📘',
+    effects: { passive: { byroslavia: 12, maine: 3, jarki: -1 } },
   },
 ]
 
@@ -2043,5 +2117,5 @@ const coreGameEvents: GameEvent[] = [
   },
 ]
 
-export const gameEvents: GameEvent[] = [...coreGameEvents, ...aiFaxEvents]
+export const gameEvents: GameEvent[] = [...coreGameEvents, ...aiFaxEvents.filter((event) => isGameEvent(event))]
 export const fallbackEventMedia = fallbackMedia
