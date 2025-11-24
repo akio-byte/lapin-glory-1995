@@ -1,4 +1,14 @@
-import { Component, type ErrorInfo, type ReactNode, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import '../App.css'
 import EventCard from './EventCard'
 import NokiaPhone from './NokiaPhone'
