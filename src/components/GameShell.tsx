@@ -7,8 +7,8 @@ import Shop from './Shop'
 import DebugPanel from './DebugPanel'
 import { buildPathMeta, type BuildPath, type Item, type Stats } from '../data/gameData'
 import { canonicalStats } from '../data/statMeta'
-import type { EndingType } from '../hooks/useGameLoop'
-import { useGameLoop } from '../hooks/useGameLoop'
+import { endingEpilogues, type EndingType } from '../data/endingData'
+import { useGameLoop, type DaySnapshot } from '../hooks/useGameLoop'
 import { useAudio } from '../hooks/useAudio'
 import Desktop from './Desktop'
 import OSWindow from './OSWindow'
@@ -31,6 +31,18 @@ const shakeStyles = `
   100% { transform: translate(1px, -2px) rotate(-1deg); }
 }
 `
+
+const RUN_HISTORY_KEY = 'lapin-glory-runs'
+
+type RunSummary = {
+  id: string
+  endedAt: number
+  ending: EndingType
+  dayCount: number
+  stats: Stats
+  lai: number
+  focusPath: BuildPath | null
+}
 
 const formatDelta = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(0)}`
 
@@ -113,14 +125,18 @@ const MorningReport = ({
   dayCount,
   rahatDelta,
   jarkiDelta,
+  laiDelta,
   note,
+  history,
   onAdvance,
 }: {
   stats: Stats
   dayCount: number
   rahatDelta: number
   jarkiDelta: number
+  laiDelta: number
   note: string
+  history: DaySnapshot[]
   onAdvance: () => void
 }) => (
   <div className="glass-panel space-y-4">
@@ -154,48 +170,59 @@ const MorningReport = ({
         <p className="text-lg font-semibold">{stats.sisu} / 100</p>
       </div>
     </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="p-3 bg-black/40 border border-neon/30 rounded text-sm space-y-2">
+        <div className="flex items-center justify-between text-xs text-neon/70 uppercase tracking-[0.2em]">
+          <span>Raha / LAI trendi</span>
+          <span>Päivät -3 → -1</span>
+        </div>
+        <div className="space-y-1">
+          {[...history]
+            .filter((entry) => entry.day < dayCount)
+            .slice(-3)
+            .map((entry) => {
+              const prev = history.find((h) => h.day === entry.day - 1)
+              const profit = prev ? entry.rahat - prev.rahat : 0
+              const deltaLai = prev ? entry.lai - prev.lai : 0
+              return (
+                <div key={entry.day} className="flex items-center justify-between text-[13px]">
+                  <span className="text-slate-200">D{entry.day}</span>
+                  <span className="text-emerald-200">{formatDelta(profit)} mk</span>
+                  <span className="text-sky-200">LAI {formatDelta(deltaLai)}</span>
+                </div>
+              )
+            })}
+          {history.filter((entry) => entry.day < dayCount).length === 0 && (
+            <p className="text-slate-300">Ei vielä aiempia päiviä.</p>
+          )}
+        </div>
+      </div>
+      <div className="p-3 bg-black/40 border border-neon/30 rounded text-sm space-y-2">
+        <div className="flex items-center justify-between text-xs text-neon/70 uppercase tracking-[0.2em]">
+          <span>LAI muutos</span>
+          <span>Tämän aamun lukema</span>
+        </div>
+        <p className="text-slate-100">LAI {formatDelta(laiDelta)} → {stats.jarki < 30 ? 'Ole varovainen' : 'Hallinnassa'}</p>
+        <p className="text-xs text-slate-300">Raportti huomioi eilisillan päätöksen ja tämän aamun tilan.</p>
+      </div>
+    </div>
     <div className="p-3 bg-black/40 border border-neon/30 text-sm rounded italic text-slate-100">{note}</div>
     <div className="text-right">
       <button className="button-raw" onClick={onAdvance}>
         Hyväksy raportti →
-      </button>
+        </button>
     </div>
   </div>
 )
-
-const endingCopy: Record<EndingType, { title: string; description: (params: { stats: Stats }) => string }> = {
-  psychWard: {
-    title: 'Game Over: Suljettu osasto',
-    description: () => 'JÄRKI putosi nollaan. Neonvalot himmenivät ja OS/95 palautui tehdasasetuksiin.',
-  },
-  taxRaid: {
-    title: 'Game Over: Veropetos-ratsia',
-    description: () =>
-      'MAINE ylitti 95. Verottajan valokuitu syöksyy sisään, faksit piipittävät ja ovet sinetöidään.',
-  },
-  bankruptcy: {
-    title: 'Game Over: Voudin huutokauppa',
-    description: () => 'RAHAT vajosi alle -1000 mk. Vouti vie neonkyltit ja kassalipas myydään pakkohuutokaupassa.',
-  },
-  vappu: {
-    title: 'Vappu – Laajennettu todellisuus',
-    description: ({ stats }) => {
-      if (stats.jarki > 60) {
-        return 'Vappu sumenee. Torin punssin seasta kuuluu maahisen nauru ja LAI kipinöi otsasuonissa.'
-      }
-      return 'Vappu saapuu hiljaa. Olet pystyssä, mutta juhlinta jää sivummalle neonvalojen taakse.'
-    },
-  },
-}
 
 const RunOverScreen = ({
   ending,
   onRestart,
 }: {
-  ending: { type: EndingType; stats: Stats; dayCount: number }
+  ending: { type: EndingType; stats: Stats; dayCount: number; lai: number }
   onRestart: () => void
 }) => {
-  const copy = endingCopy[ending.type]
+  const copy = endingEpilogues[ending.type]
 
   return (
     <div className="min-h-screen bg-[#0f1118] text-white flex items-center justify-center px-6 py-10">
@@ -204,7 +231,17 @@ const RunOverScreen = ({
         <h2 className="text-3xl font-bold glitch-text text-center" data-text={copy.title}>
           {copy.title}
         </h2>
-        <p className="text-sm text-slate-200 text-center">{copy.description({ stats: ending.stats })}</p>
+        <p className="text-sm text-slate-200 text-center">{copy.description({ stats: ending.stats, lai: ending.lai })}</p>
+        {copy.flavor && <p className="text-[12px] text-neon/80 text-center">{copy.flavor}</p>}
+        {copy.media && (
+          <div className="rounded overflow-hidden border border-neon/30">
+            {copy.media.type === 'image' ? (
+              <img src={copy.media.src} alt={copy.media.alt} className="w-full h-40 object-cover" />
+            ) : (
+              <video src={copy.media.src} autoPlay loop muted className="w-full h-48 object-cover" />
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="border border-neon/30 p-3 bg-black/40 rounded">
             <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Päiviä selvittiin</p>
@@ -295,6 +332,7 @@ const GameShell = () => {
     fallbackMedia,
     lai,
     pathProgress,
+    dayHistory,
     handleChoice: applyChoiceEffects,
     advancePhase,
     resolveChoice,
@@ -324,6 +362,7 @@ const GameShell = () => {
   const [outcome, setOutcome] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
   const [journal, setJournal] = useState<string[]>([])
+  const [runHistory, setRunHistory] = useState<RunSummary[]>([])
   const [textSpeed, setTextSpeed] = useState(3)
   const [isShopOpen, setIsShopOpen] = useState(false)
   const [isLogOpen, setIsLogOpen] = useState(false)
@@ -336,6 +375,7 @@ const GameShell = () => {
   const bossIntroRef = useRef<string | null>(null)
   const sanityPrevRef = useRef(stats)
   const laiPrevRef = useRef(lai)
+  const endingLoggedRef = useRef(false)
   const [sanityHueShift, setSanityHueShift] = useState(0)
 
   const activeEvent = useMemo(() => currentEvent, [currentEvent])
@@ -351,6 +391,18 @@ const GameShell = () => {
       }),
     [activeModifiers, activeEvent],
   )
+  const runHistoryLines = useMemo(
+    () =>
+      runHistory.map((entry) => {
+        const time = new Date(entry.endedAt)
+        const focus = entry.focusPath ? ` • ${buildPathMeta[entry.focusPath].label}` : ''
+        const laiText = `LAI ${entry.lai.toFixed(0)}`
+        return `${time.toLocaleDateString()} ${time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — ${
+          entry.ending
+        } D${entry.dayCount} ${canonicalStats.rahat.format(entry.stats.rahat)} ${laiText}${focus}`
+      }),
+    [runHistory],
+  )
 
   useEffect(() => {
     setOutcome(null)
@@ -361,6 +413,18 @@ const GameShell = () => {
     setOutcome(null)
     setLocked(false)
   }, [activeEvent?.id])
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return
+    const raw = localStorage.getItem(RUN_HISTORY_KEY)
+    if (!raw) return
+    try {
+      const parsed = JSON.parse(raw) as RunSummary[]
+      setRunHistory(parsed)
+    } catch (error) {
+      console.warn('Failed to load run history', error)
+    }
+  }, [])
 
   useEffect(() => {
     if (locked && !outcome) {
@@ -462,6 +526,38 @@ const GameShell = () => {
     )
   }, [morningReport])
 
+  useEffect(() => {
+    if (!ending) {
+      endingLoggedRef.current = false
+      return
+    }
+    if (endingLoggedRef.current) return
+
+    const focusPath = (Object.keys(pathProgress) as BuildPath[])
+      .map((path) => ({ path, xp: pathProgress[path]?.xp ?? 0 }))
+      .sort((a, b) => b.xp - a.xp)[0]?.path
+
+    const entry: RunSummary = {
+      id: `${ending.type}-${Date.now()}`,
+      endedAt: Date.now(),
+      ending: ending.type,
+      dayCount: ending.dayCount,
+      stats: ending.stats,
+      lai,
+      focusPath: focusPath ?? null,
+    }
+
+    setRunHistory((prev) => {
+      const next = [entry, ...prev].slice(0, 8)
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(RUN_HISTORY_KEY, JSON.stringify(next))
+      }
+      return next
+    })
+
+    endingLoggedRef.current = true
+  }, [ending, lai, pathProgress])
+
   if (ending) {
     return <RunOverScreen ending={ending} onRestart={handleRestart} />
   }
@@ -504,7 +600,7 @@ const GameShell = () => {
   const lowSanity = stats.jarki < 50
 
   const report =
-    morningReport ?? ({ rahatDelta: 0, jarkiDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
+    morningReport ?? ({ rahatDelta: 0, jarkiDelta: 0, laiDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
 
   return (
     <ErrorBoundary>
@@ -560,6 +656,8 @@ const GameShell = () => {
                       dayCount={report.day}
                       rahatDelta={report.rahatDelta}
                       jarkiDelta={report.jarkiDelta}
+                      laiDelta={report.laiDelta}
+                      history={dayHistory}
                       note={report.note}
                       onAdvance={advancePhase}
                     />
@@ -634,7 +732,7 @@ const GameShell = () => {
                   size="sm"
                   onClose={() => setIsLogOpen(false)}
                 >
-                  <JournalWindow entries={journal} />
+                  <JournalWindow entries={journal} runHistory={runHistoryLines} />
                 </OSWindow>
               )}
 
