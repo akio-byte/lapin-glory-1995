@@ -242,6 +242,9 @@ const GameShell = () => {
   const sanityPrevRef = useRef(stats)
   const [sanityHueShift, setSanityHueShift] = useState(0)
 
+  const activeEvent = useMemo(() => currentEvent, [currentEvent])
+  const isPaperWar = activeEvent?.paperWar
+
   useEffect(() => {
     setOutcome(null)
     setLocked(false)
@@ -259,9 +262,6 @@ const GameShell = () => {
       setLocked(false)
     }
   }, [locked, outcome])
-
-  const activeEvent = useMemo(() => currentEvent, [currentEvent])
-  const isPaperWar = activeEvent?.paperWar
 
   const rootStyle = useMemo(
     () => ({ '--glitch-duration': `${textSpeed}s`, '--sanity-hue': `${sanityHueShift}deg` } as CSSProperties),
