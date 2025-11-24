@@ -42,7 +42,7 @@ const Taskbar = ({
         </button>
       </div>
 
-      <div className="flex items-center gap-3 overflow-x-auto">
+      <div className="taskbar__stats">
         <StatBadge label="Rahat" value={canonicalStats.rahat.format(stats.rahat)} />
         <StatBadge label="Järki" value={canonicalStats.jarki.format(stats.jarki)} />
         <StatBadge label="Maine" value={canonicalStats.maine.format(stats.maine)} />
@@ -58,10 +58,12 @@ const Taskbar = ({
         </span>
       </div>
 
-      <button className="button-raw flex items-center gap-2" onClick={onToggleSettings}>
-        <Cog size={16} />
-        Asetukset
-      </button>
+      <div className="taskbar__settings">
+        <button className="button-raw flex items-center gap-2" onClick={onToggleSettings}>
+          <Cog size={16} />
+          Asetukset
+        </button>
+      </div>
     </div>
   )
 }

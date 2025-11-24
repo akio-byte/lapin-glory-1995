@@ -256,7 +256,18 @@ const GameShell = () => {
     nextNightEventHint,
   } = useGameLoop()
 
-  const { muted, toggleMute, backgroundPlaying, toggleBackground, playSfx, setBackgroundMode } = useAudio()
+  const {
+    muted,
+    toggleMute,
+    backgroundPlaying,
+    toggleBackground,
+    backgroundVolume,
+    setBackgroundVolume,
+    sfxVolume,
+    setSfxVolume,
+    playSfx,
+    setBackgroundMode,
+  } = useAudio()
 
   const [outcome, setOutcome] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
@@ -531,7 +542,7 @@ const GameShell = () => {
               </OSWindow>
 
               <NokiaPhone
-                className="absolute bottom-24 right-4"
+                className="nokia-shell"
                 jarki={stats.jarki}
                 lai={lai}
                 onPing={() => {
@@ -576,6 +587,10 @@ const GameShell = () => {
                     toggleMute={toggleMute}
                     backgroundPlaying={backgroundPlaying}
                     toggleBackground={toggleBackground}
+                    backgroundVolume={backgroundVolume}
+                    sfxVolume={sfxVolume}
+                    onBackgroundVolumeChange={setBackgroundVolume}
+                    onSfxVolumeChange={setSfxVolume}
                     textSpeed={textSpeed}
                     onTextSpeedChange={setTextSpeed}
                   />
@@ -585,7 +600,7 @@ const GameShell = () => {
           </div>
 
           {import.meta.env.DEV && (
-            <div className="fixed bottom-24 right-4 text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
+            <div className="fixed dev-panel text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
               <p className="text-[10px] uppercase tracking-[0.25em] text-neon">Active Mods</p>
               <p className="text-[10px] text-slate-300">Työkalut ja lomakkeet, jotka vaikuttavat tämänhetkiseen event-mathiin.</p>
               <ul className="space-y-1">

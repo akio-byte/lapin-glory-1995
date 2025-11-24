@@ -86,7 +86,7 @@ const EventCard = ({ event, locked, outcome, onChoice, onNextPhase, fallbackMedi
           {event.choices.map((choice) => (
             <button
               key={choice.label}
-              className={`text-left border-2 border-neon px-4 py-3 uppercase tracking-[0.2em] bg-coal/60 hover:bg-neon/10 transition shadow-neon ${locked ? 'opacity-40 cursor-not-allowed' : ''}`}
+              className={`text-left border-2 border-neon px-4 py-3 uppercase tracking-[0.2em] bg-coal/60 hover:bg-neon/10 transition shadow-neon focus:outline-none focus-visible:ring-2 focus-visible:ring-neon/80 focus-visible:ring-offset-2 focus-visible:ring-offset-coal/80 rounded-md leading-relaxed ${locked ? 'opacity-40 cursor-not-allowed' : ''}`}
               onClick={() => onChoice(choice)}
               disabled={locked}
             >

@@ -5,6 +5,10 @@ const SettingsWindow = ({
   toggleMute,
   backgroundPlaying,
   toggleBackground,
+  backgroundVolume,
+  sfxVolume,
+  onBackgroundVolumeChange,
+  onSfxVolumeChange,
   textSpeed,
   onTextSpeedChange,
 }: {
@@ -12,6 +16,10 @@ const SettingsWindow = ({
   toggleMute: () => void
   backgroundPlaying: boolean
   toggleBackground: () => void
+  backgroundVolume: number
+  sfxVolume: number
+  onBackgroundVolumeChange: (value: number) => void
+  onSfxVolumeChange: (value: number) => void
   textSpeed: number
   onTextSpeedChange: (value: number) => void
 }) => {
@@ -30,6 +38,40 @@ const SettingsWindow = ({
           <button className="button-raw" onClick={toggleBackground} disabled={muted}>
             {backgroundPlaying ? 'Tauko' : 'Soita hiljaa'}
           </button>
+        </div>
+        <div className="bg-black/30 border border-neon/30 rounded p-3 space-y-3">
+          <div className="space-y-1">
+            <label className="flex items-center justify-between gap-3" htmlFor="bgVolume">
+              <span>Taustaäänen voimakkuus</span>
+              <span className="text-xs text-neon">{Math.round(backgroundVolume * 100)}%</span>
+            </label>
+            <input
+              id="bgVolume"
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={backgroundVolume}
+              onChange={(event) => onBackgroundVolumeChange(parseFloat(event.target.value))}
+              className="w-full accent-neon"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="flex items-center justify-between gap-3" htmlFor="sfxVolume">
+              <span>Efektien voimakkuus</span>
+              <span className="text-xs text-neon">{Math.round(sfxVolume * 100)}%</span>
+            </label>
+            <input
+              id="sfxVolume"
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={sfxVolume}
+              onChange={(event) => onSfxVolumeChange(parseFloat(event.target.value))}
+              className="w-full accent-neon"
+            />
+          </div>
         </div>
         <div className="bg-black/30 border border-neon/30 rounded p-3 space-y-2">
           <label className="flex items-center justify-between gap-3" htmlFor="textSpeed">
