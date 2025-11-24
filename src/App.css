@@ -1,6 +1,32 @@
 @tailwind components;
 
 @layer components {
+  .app-root {
+    position: relative;
+    min-height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background: radial-gradient(circle at 20% 20%, rgba(255, 0, 255, 0.08), transparent 30%),
+      radial-gradient(circle at 80% 0%, rgba(124, 140, 222, 0.08), transparent 35%),
+      #0f1118;
+  }
+
+  .desktop-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .desktop-stage {
+    flex: 1;
+    position: relative;
+    padding: 20px 20px 96px;
+    overflow: hidden;
+  }
+
   .glass-panel,
   .panel {
     background: radial-gradient(circle at 30% 30%, rgba(255, 0, 255, 0.05), transparent 45%),
@@ -33,5 +59,110 @@
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-radius: 10px;
+  }
+
+  .os-window {
+    position: relative;
+    width: min(960px, 95vw);
+    margin: 0 auto;
+    background: rgba(20, 35, 50, 0.58);
+    border: 1px solid rgba(255, 0, 255, 0.35);
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), 0 0 30px rgba(255, 0, 255, 0.2);
+    color: #e2e8f0;
+    overflow: hidden;
+  }
+
+  .os-window.sm {
+    max-width: 520px;
+  }
+
+  .os-window.md {
+    max-width: 720px;
+  }
+
+  .os-window.lg {
+    max-width: 1024px;
+  }
+
+  .os-window__titlebar {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    background: linear-gradient(90deg, #ff00ff44, transparent);
+    border-bottom: 1px solid rgba(255, 0, 255, 0.35);
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #f0f4ff;
+  }
+
+  .os-window__content {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 16px;
+    backdrop-filter: blur(4px);
+  }
+
+  .taskbar {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: rgba(10, 12, 24, 0.7);
+    border-top: 1px solid #ff00ff;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    gap: 12px;
+    z-index: 20;
+  }
+
+  .taskbar .start-btn {
+    height: 42px;
+    min-width: 96px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(255, 0, 255, 0.18), rgba(0, 0, 0, 0.35));
+    color: #fefefe;
+    border: 1px solid rgba(255, 0, 255, 0.6);
+    box-shadow: 0 0 14px rgba(255, 0, 255, 0.25);
+  }
+
+  .taskbar .taskbar-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .taskbar .taskbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .taskbar .taskbar-actions button {
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
   }
 }
