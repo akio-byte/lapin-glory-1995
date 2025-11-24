@@ -6,7 +6,7 @@ import '../App.css'
 const StatBadge = ({ label, value }: { label: string; value: string }) => (
   <span className="taskbar-chip">
     <Sparkles size={14} className="text-neon" />
-    <span className="text-[11px] uppercase tracking-[0.2em] text-neon/80">{label}</span>
+    <span className="text-[11px] uppercase tracking-[0.2em] text-neon/80 taskbar__label">{label}</span>
     <span className="font-semibold">{value}</span>
   </span>
 )
@@ -41,16 +41,17 @@ const Taskbar = ({
   return (
     <div className="taskbar">
       <div className="taskbar-actions">
-        <button className="start-btn button-raw" onClick={onToggleSettings}>
-          START
+        <button className="start-btn button-raw" onClick={onToggleSettings} aria-label="Avaa asetukset">
+          <Sparkles size={16} />
+          <span className="taskbar__label">START</span>
         </button>
-        <button className="button-raw flex items-center gap-2" onClick={onToggleShop}>
+        <button className="button-raw flex items-center gap-2" onClick={onToggleShop} aria-label="Avaa kauppa">
           <ShoppingBag size={16} />
-          Kauppa
+          <span className="taskbar__label">Kauppa</span>
         </button>
-        <button className="button-raw flex items-center gap-2" onClick={onToggleLog}>
+        <button className="button-raw flex items-center gap-2" onClick={onToggleLog} aria-label="Avaa loki">
           <BookOpen size={16} />
-          Loki
+          <span className="taskbar__label">Loki</span>
         </button>
       </div>
 
@@ -60,18 +61,18 @@ const Taskbar = ({
         <StatBadge label="Maine" value={canonicalStats.maine.format(stats.maine)} />
         <span className="taskbar-chip">
           <Wallet size={14} className="text-neon" />
-          <span className="text-[11px] uppercase tracking-[0.2em] text-neon/80">Päivä</span>
+          <span className="text-[11px] uppercase tracking-[0.2em] text-neon/80 taskbar__label">Päivä</span>
           <span className="font-semibold">{dayCount}</span>
         </span>
         <span className="taskbar-chip">
           <Sparkles size={14} className="text-neon" />
-          <span className="text-[11px] uppercase tracking-[0.2em] text-neon/80">LAI</span>
+          <span className="text-[11px] uppercase tracking-[0.2em] text-neon/80 taskbar__label">LAI</span>
           <span className="font-semibold">{lai.toFixed(0)}</span>
         </span>
         {focusMeta && (
           <span className="taskbar-chip min-w-[140px]">
             <Sparkles size={14} className="text-neon" />
-            <span className="text-[11px] uppercase tracking-[0.2em] text-neon/80">{focusMeta.label}</span>
+            <span className="text-[11px] uppercase tracking-[0.2em] text-neon/80 taskbar__label">{focusMeta.label}</span>
             <span className="font-semibold">{focusXp.toFixed(0)} XP</span>
             <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
               <div
@@ -84,9 +85,9 @@ const Taskbar = ({
       </div>
 
       <div className="taskbar__settings">
-        <button className="button-raw flex items-center gap-2" onClick={onToggleSettings}>
+        <button className="button-raw flex items-center gap-2" onClick={onToggleSettings} aria-label="Asetukset">
           <Cog size={16} />
-          Asetukset
+          <span className="taskbar__label">Asetukset</span>
         </button>
       </div>
     </div>
