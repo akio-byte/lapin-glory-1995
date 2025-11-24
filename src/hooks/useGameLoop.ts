@@ -44,11 +44,11 @@ type ChoiceResolution = {
   appliedEffects: Partial<Stats>
 }
 
-type PathProgress = Record<BuildPath, { xp: number; milestoneIndex: number }>
+export type PathProgress = Record<BuildPath, { xp: number; milestoneIndex: number }>
 
 export type DaySnapshot = { day: number; rahat: number; lai: number; jarki: number; maine: number }
 
-const createInitialPathProgress = (): PathProgress => ({
+export const createInitialPathProgress = (): PathProgress => ({
   tourist: { xp: 0, milestoneIndex: 0 },
   tax: { xp: 0, milestoneIndex: 0 },
   occult: { xp: 0, milestoneIndex: 0 },
@@ -144,7 +144,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 const MAX_DAYS = 30
 
-const INITIAL_STATS: Stats = {
+export const INITIAL_STATS: Stats = {
   rahat: 0,
   maine: 10,
   jarki: 100,
@@ -246,11 +246,12 @@ const savePersistedState = (state: PersistedStateV5): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
 
-const pickEventForPhase = (
+export const pickEventForPhase = (
   phase: Phase,
   stats: Stats,
   lai: number,
   dayCount: number,
+  random: () => number = Math.random,
 ): GameEvent | null => {
   const pool = gameEvents.filter((event) => event.triggerPhase === phase.toLowerCase())
   const tier = getTierForDay(dayCount)
@@ -264,18 +265,59 @@ const pickEventForPhase = (
   const occultBias = Math.min(Math.max(lai - 40, 0) / 60, 1)
   const mundaneBias = Math.min(Math.max(20 - lai, 0) / 30, 1)
 
-  if (occultPool.length > 0 && Math.random() < occultBias) {
-    const roll = Math.floor(Math.random() * occultPool.length)
+  if (occultPool.length > 0 && random() < occultBias) {
+    const roll = Math.floor(random() * occultPool.length)
     return occultPool[roll]
   }
 
-  if (mundanePool.length > 0 && Math.random() < mundaneBias) {
-    const roll = Math.floor(Math.random() * mundanePool.length)
+  if (mundanePool.length > 0 && random() < mundaneBias) {
+    const roll = Math.floor(random() * mundanePool.length)
     return mundanePool[roll]
   }
 
-  const roll = Math.floor(Math.random() * conditioned.length)
+  const roll = Math.floor(random() * conditioned.length)
   return conditioned[roll]
+}
+
+export const evaluateEndingForState = ({
+  stats,
+  dayCount,
+  phase,
+  pathProgress,
+  lai,
+}: {
+  stats: Stats
+  dayCount: number
+  phase: Phase
+  pathProgress: PathProgress
+  lai: number
+}): EndingState | null => {
+  if (stats.jarki <= 0) return { type: 'psychWard', dayCount, stats, lai }
+  if (stats.rahat < -1000) return { type: 'bankruptcy', dayCount, stats, lai }
+  if (stats.maine > 95) return { type: 'taxRaid', dayCount, stats, lai }
+  if (dayCount >= MAX_DAYS && phase === 'MORNING') {
+    const pathScores = (Object.keys(pathProgress) as BuildPath[]).map((path) => ({
+      path,
+      level: pathProgress[path]?.milestoneIndex ?? 0,
+      xp: pathProgress[path]?.xp ?? 0,
+    }))
+    const highestPath = pathScores.sort((a, b) => b.level - a.level || b.xp - a.xp)[0]
+
+    if (lai > 90 && (highestPath?.path === 'occult' || highestPath?.path === 'network')) {
+      return { type: highestPath.path === 'occult' ? 'occultAscension' : 'networkProphet', dayCount, stats, lai }
+    }
+    if (highestPath?.path === 'tourist' && stats.rahat > 1500 && stats.maine > 55) {
+      return { type: 'touristMogul', dayCount, stats, lai }
+    }
+    if (highestPath?.path === 'tax' && stats.maine < 70 && stats.byroslavia > 40) {
+      return { type: 'taxLegend', dayCount, stats, lai }
+    }
+    if (lai > 96) {
+      return { type: 'riftCollapse', dayCount, stats, lai }
+    }
+    return { type: 'vappu', dayCount: MAX_DAYS, stats, lai }
+  }
+  return null
 }
 
 export const useGameLoop = (): GameState & GameActions => {
@@ -316,34 +358,10 @@ export const useGameLoop = (): GameState & GameActions => {
   )
   const prevPhaseRef = useRef<Phase>(phase)
 
-  const ending: EndingState | null = useMemo(() => {
-    if (stats.jarki <= 0) return { type: 'psychWard', dayCount, stats, lai }
-    if (stats.rahat < -1000) return { type: 'bankruptcy', dayCount, stats, lai }
-    if (stats.maine > 95) return { type: 'taxRaid', dayCount, stats, lai }
-    if (dayCount >= MAX_DAYS && phase === 'MORNING') {
-      const pathScores = (Object.keys(pathProgress) as BuildPath[]).map((path) => ({
-        path,
-        level: pathProgress[path]?.milestoneIndex ?? 0,
-        xp: pathProgress[path]?.xp ?? 0,
-      }))
-      const highestPath = pathScores.sort((a, b) => b.level - a.level || b.xp - a.xp)[0]
-
-      if (lai > 90 && (highestPath?.path === 'occult' || highestPath?.path === 'network')) {
-        return { type: highestPath.path === 'occult' ? 'occultAscension' : 'networkProphet', dayCount, stats, lai }
-      }
-      if (highestPath?.path === 'tourist' && stats.rahat > 1500 && stats.maine > 55) {
-        return { type: 'touristMogul', dayCount, stats, lai }
-      }
-      if (highestPath?.path === 'tax' && stats.maine < 70 && stats.byroslavia > 40) {
-        return { type: 'taxLegend', dayCount, stats, lai }
-      }
-      if (lai > 96) {
-        return { type: 'riftCollapse', dayCount, stats, lai }
-      }
-      return { type: 'vappu', dayCount: MAX_DAYS, stats, lai }
-    }
-    return null
-  }, [dayCount, lai, pathProgress, phase, stats])
+  const ending: EndingState | null = useMemo(
+    () => evaluateEndingForState({ stats, dayCount, phase, pathProgress, lai }),
+    [dayCount, lai, pathProgress, phase, stats],
+  )
 
   const isGlitching = stats.jarki < 20 || lai > 70
 
@@ -742,3 +760,247 @@ export const useGameLoop = (): GameState & GameActions => {
 }
 
 export const shopInventory = availableItems
+
+type SimulationState = {
+  baseStats: Stats
+  inventory: Item[]
+  lai: number
+  phase: Phase
+  dayCount: number
+  pathProgress: PathProgress
+  dayHistory: DaySnapshot[]
+}
+
+const applyPathXpSimulation = (
+  currentProgress: PathProgress,
+  xp: Partial<Record<BuildPath, number>>,
+): { rewards: Partial<Stats>; updatedProgress: PathProgress } => {
+  const updates: PathProgress = { ...currentProgress }
+  const rewards: Partial<Stats> = {}
+
+  ;(Object.keys(xp) as BuildPath[]).forEach((path) => {
+    const gain = xp[path]
+    if (!gain) return
+    const current = updates[path]?.xp ?? 0
+    const nextXp = current + gain
+    const milestones = buildPathMeta[path].milestones
+    const currentMilestoneIndex = updates[path]?.milestoneIndex ?? 0
+    let milestoneIndex = currentMilestoneIndex
+    while (milestoneIndex < milestones.length && nextXp >= milestones[milestoneIndex]) {
+      milestoneIndex += 1
+      if (path === 'tourist') {
+        rewards.maine = (rewards.maine ?? 0) + 3
+        rewards.rahat = (rewards.rahat ?? 0) + 40
+      }
+      if (path === 'tax') {
+        rewards.byroslavia = (rewards.byroslavia ?? 0) + 4
+        rewards.jarki = (rewards.jarki ?? 0) + 1
+      }
+      if (path === 'occult') {
+        rewards.jarki = (rewards.jarki ?? 0) + 2
+        rewards.sisu = (rewards.sisu ?? 0) + 2
+      }
+      if (path === 'network') {
+        rewards.byroslavia = (rewards.byroslavia ?? 0) + 2
+        rewards.pimppaus = (rewards.pimppaus ?? 0) + 2
+      }
+    }
+
+    updates[path] = { xp: nextXp, milestoneIndex }
+  })
+
+  return { rewards, updatedProgress: updates }
+}
+
+const resolveChoiceForSimulation = (
+  choice: GameEventChoice,
+  currentEvent: GameEvent | null,
+  stats: Stats,
+  inventory: Item[],
+  pathProgress: PathProgress,
+  random: () => number,
+): { appliedEffects: Partial<Stats>; outcomeText: string; updatedPathProgress: PathProgress } => {
+  const baseEffect = { ...choice.cost } as Partial<Stats>
+  let success = true
+  const activeTags = new Set(inventory.flatMap((item) => item.tags ?? []))
+  const tagBonus = (() => {
+    if (!currentEvent) return 0
+
+    const eventTags = currentEvent.tags ?? []
+    const tagWeights: Record<string, number> = {
+      tax: 2,
+      form: 2,
+      occult: currentEvent.vibe === 'occult' ? 3 : 1,
+      tourist: 2,
+      network: 2,
+    }
+
+    let bonus = 0
+    if (currentEvent.paperWar && (activeTags.has('tax') || activeTags.has('form'))) bonus += 3
+    if (currentEvent.vibe === 'occult' && activeTags.has('occult')) bonus += 3
+    if (/turisti|bussi/i.test(currentEvent.id) && activeTags.has('tourist')) bonus += 2
+
+    eventTags.forEach((tag) => {
+      if (activeTags.has(tag)) {
+        bonus += tagWeights[tag] ?? 1
+      }
+    })
+
+    return bonus
+  })()
+  const formSupport = currentEvent?.paperWar && inventory.some((item) => item.type === 'form')
+
+  if (choice.skillCheck) {
+    const statValue = stats[choice.skillCheck.stat]
+    const roll = Math.floor(random() * 20)
+    success = statValue + roll + tagBonus >= choice.skillCheck.dc
+    if (!success && formSupport) {
+      success = statValue + roll + tagBonus + 3 >= choice.skillCheck.dc
+    }
+  }
+
+  const outcome = success ? choice.outcomeSuccess : choice.outcomeFail
+  const combinedEffects: Partial<Stats> = { ...baseEffect }
+  let outcomeText = outcome.text
+
+  if (formSupport && currentEvent?.paperWar) {
+    const paperworkBoost = success ? 2 : 0
+    if (paperworkBoost > 0) {
+      combinedEffects.byroslavia = (combinedEffects.byroslavia ?? 0) + paperworkBoost
+      outcomeText = `${outcomeText} (Lomakkeet voimistavat paperisotaa.)`
+    }
+  }
+
+  Object.entries(outcome.effects).forEach(([key, value]) => {
+    const typedKey = key as keyof Stats
+    combinedEffects[typedKey] = (combinedEffects[typedKey] ?? 0) + (value ?? 0)
+  })
+
+  let updatedPathProgress = pathProgress
+  if (choice.pathXp) {
+    const pathRewards = applyPathXpSimulation(pathProgress, choice.pathXp)
+    updatedPathProgress = pathRewards.updatedProgress
+    Object.entries(pathRewards.rewards).forEach(([key, value]) => {
+      const typedKey = key as keyof Stats
+      combinedEffects[typedKey] = (combinedEffects[typedKey] ?? 0) + (value ?? 0)
+    })
+  }
+
+  return { appliedEffects: combinedEffects, outcomeText, updatedPathProgress }
+}
+
+const advancePhaseInSimulation = (state: SimulationState) => {
+  const currentIndex = PHASE_ORDER.indexOf(state.phase)
+  const next = PHASE_ORDER[(currentIndex + 1) % PHASE_ORDER.length]
+  const stats = applyPassiveModifiers(state.baseStats, sumPassiveModifiers(state.inventory, ['tool', 'form', 'relic']))
+
+  if (next === 'DAY') {
+    const upcomingDay = state.dayCount + 1
+    const rent = getRentForDay(upcomingDay)
+    const withoutDupes = state.dayHistory.filter((entry) => entry.day !== state.dayCount)
+    state.dayHistory = [...withoutDupes, { day: state.dayCount, rahat: stats.rahat, lai: state.lai, jarki: stats.jarki, maine: stats.maine }]
+    state.dayCount += 1
+    state.baseStats = mergeStatDeltas(state.baseStats, { rahat: -rent })
+    if (state.lai > 85) {
+      state.baseStats = mergeStatDeltas(state.baseStats, { jarki: -2 })
+    }
+    if (state.lai < 10) {
+      state.baseStats = mergeStatDeltas(state.baseStats, { jarki: 1 })
+    }
+    const sanityTension = stats.jarki < 25 ? 3 : stats.jarki < 50 ? 1 : stats.jarki > 85 ? -1 : 0
+    if (sanityTension !== 0) {
+      state.lai = clamp(state.lai + sanityTension, 0, 100)
+    }
+  }
+
+  state.phase = next
+}
+
+export type SimulationLogEntry = {
+  step: number
+  phase: Phase
+  day: number
+  lai: number
+  stats: Stats
+  eventId: string | null
+  choiceLabel?: string
+}
+
+export type SimulationResult = {
+  ending: EndingState | null
+  log: SimulationLogEntry[]
+  finalStats: Stats
+  pathProgress: PathProgress
+  dayHistory: DaySnapshot[]
+}
+
+export const __test_simulateRun = (options?: { maxSteps?: number; random?: () => number }): SimulationResult => {
+  const random = options?.random ?? Math.random
+  const state: SimulationState = {
+    baseStats: { ...INITIAL_STATS },
+    inventory: [],
+    lai: 0,
+    phase: 'DAY',
+    dayCount: 1,
+    pathProgress: createInitialPathProgress(),
+    dayHistory: [
+      { day: 1, rahat: INITIAL_STATS.rahat, lai: 0, jarki: INITIAL_STATS.jarki, maine: INITIAL_STATS.maine },
+    ],
+  }
+
+  const maxSteps = options?.maxSteps ?? 240
+  const log: SimulationLogEntry[] = []
+  let ending: EndingState | null = null
+
+  for (let step = 0; step < maxSteps; step += 1) {
+    const stats = applyPassiveModifiers(state.baseStats, sumPassiveModifiers(state.inventory, ['tool', 'form', 'relic']))
+    const event = state.phase === 'MORNING' ? null : pickEventForPhase(state.phase, stats, state.lai, state.dayCount, random)
+
+    if (event) {
+      const choice = event.choices[0]
+      const resolution = resolveChoiceForSimulation(choice, event, stats, state.inventory, state.pathProgress, random)
+      state.baseStats = mergeStatDeltas(state.baseStats, resolution.appliedEffects)
+      state.pathProgress = resolution.updatedPathProgress
+    }
+
+    const updatedStats = applyPassiveModifiers(state.baseStats, sumPassiveModifiers(state.inventory, ['tool', 'form', 'relic']))
+    log.push({
+      step,
+      phase: state.phase,
+      day: state.dayCount,
+      lai: state.lai,
+      stats: { ...updatedStats },
+      eventId: event?.id ?? null,
+      choiceLabel: event?.choices[0]?.label,
+    })
+
+    ending = evaluateEndingForState({
+      stats: updatedStats,
+      dayCount: state.dayCount,
+      phase: state.phase,
+      pathProgress: state.pathProgress,
+      lai: state.lai,
+    })
+    if (ending) break
+
+    advancePhaseInSimulation(state)
+  }
+
+  const finalStats = applyPassiveModifiers(state.baseStats, sumPassiveModifiers(state.inventory, ['tool', 'form', 'relic']))
+
+  return { ending, log, finalStats, pathProgress: state.pathProgress, dayHistory: state.dayHistory }
+}
+
+export const __test_resolveChoice = (
+  event: GameEvent,
+  choiceIndex = 0,
+  context?: { stats?: Stats; inventory?: Item[]; pathProgress?: PathProgress; random?: () => number },
+) => {
+  const stats = context?.stats ?? { ...INITIAL_STATS }
+  const inventory = context?.inventory ?? []
+  const pathProgress = context?.pathProgress ?? createInitialPathProgress()
+  const random = context?.random ?? Math.random
+  const choice = event.choices[choiceIndex] ?? event.choices[0]
+
+  return resolveChoiceForSimulation(choice, event, stats, inventory, pathProgress, random)
+}
