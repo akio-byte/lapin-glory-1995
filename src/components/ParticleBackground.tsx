@@ -46,7 +46,6 @@ const ParticleBackground = () => {
     }
 
     const drawConnections = () => {
-      const { innerWidth, innerHeight } = window
       for (let i = 0; i < particles.length; i += 1) {
         for (let j = i + 1; j < particles.length; j += 1) {
           const dx = particles[i].x - particles[j].x

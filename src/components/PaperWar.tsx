@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { GameEvent, Item, Stats } from '../data/gameData'
 import CRTVisual from './CRTVisual'
 import { canonicalStats } from '../data/statMeta'
@@ -9,6 +9,16 @@ const PAPER_WAR_BEATS: Record<PaperWarMove, PaperWarMove> = {
   ATTACK_FORM: 'BLUFF',
   BLUFF: 'DEFEND_RECEIPT',
   DEFEND_RECEIPT: 'ATTACK_FORM',
+}
+
+const getInspectorMove = () => {
+  const choices = Object.keys(PAPER_WAR_BEATS) as PaperWarMove[]
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const buffer = new Uint32Array(1)
+    crypto.getRandomValues(buffer)
+    return choices[buffer[0] % choices.length]
+  }
+  return choices[Math.floor(Math.random() * choices.length)]
 }
 
 const moveMeta: Record<PaperWarMove, { label: string; detail: string; icon: string }> = {
@@ -101,6 +111,27 @@ const PaperWar = ({
   const [finished, setFinished] = useState(false)
   const [sanityShield, setSanityShield] = useState(0)
   const [usedSpecials, setUsedSpecials] = useState<Record<string, boolean>>({})
+  const [networkPeeked, setNetworkPeeked] = useState(false)
+
+  const activeTags = useMemo(() => new Set(inventory.flatMap((item) => item.tags ?? [])), [inventory])
+  const relicGuard = useMemo(() => inventory.some((item) => item.type === 'relic'), [inventory])
+
+  const wins = rounds.filter((entry) => entry.result === 'win').length
+  const losses = rounds.filter((entry) => entry.result === 'loss').length
+  const draws = rounds.filter((entry) => entry.result === 'draw').length
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    setRounds([])
+    setPendingEffects({})
+    setLocalSanity(stats.jarki)
+    setLocalMoney(stats.rahat)
+    setFinished(false)
+    setSanityShield(0)
+    setUsedSpecials({})
+    setNetworkPeeked(false)
+  }, [event.id, stats.jarki, stats.rahat])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   type SpecialMove = {
     id: string
@@ -110,20 +141,41 @@ const PaperWar = ({
     onUse: () => void
   }
 
-  const applyRound = (
-    playerMove: PaperWarMove,
-    inspectorMove: PaperWarMove,
-    result: RoundOutcome,
-    note: string,
-    effectOverride?: Partial<Stats>,
-  ) => {
+  const applyRound = useCallback(
+    (
+      playerMove: PaperWarMove,
+      inspectorMove: PaperWarMove,
+      result: RoundOutcome,
+      note: string,
+      effectOverride?: Partial<Stats>,
+    ) => {
     if (locked || finished) return
+
+    const eventTags = event.tags ?? []
+    let resolvedResult = result
+    let resolvedNote = note
+
+    if (activeTags.has('tax') && eventTags.includes('tax') && resolvedResult === 'loss') {
+      resolvedResult = 'draw'
+      resolvedNote = `${resolvedNote} Verokirje pehmentää iskun.`
+    }
+
+    if (activeTags.has('network') && !networkPeeked && resolvedResult === 'loss') {
+      setNetworkPeeked(true)
+      resolvedResult = 'draw'
+      resolvedNote = `${resolvedNote} Net Monitor paljastaa siirron.`
+    }
+
+    if (activeTags.has('form') && resolvedResult === 'draw') {
+      resolvedResult = 'win'
+      resolvedNote = `${resolvedNote} Lomake 5057e kääntää tilanteen.`
+    }
 
     const roundEffect: Partial<Stats> =
       effectOverride ??
-      (result === 'win'
+      (resolvedResult === 'win'
         ? { maine: 5, rahat: 40, jarki: -2 }
-        : result === 'loss'
+        : resolvedResult === 'loss'
           ? { jarki: -12, rahat: -50, maine: -3 }
           : { jarki: -6, rahat: -10 })
 
@@ -134,10 +186,19 @@ const PaperWar = ({
       setSanityShield((prev) => Math.max(prev - mitigation, 0))
     }
 
+    if (relicGuard && resolvedResult === 'loss') {
+      adjustedEffect.jarki = (adjustedEffect.jarki ?? 0) + 3
+      resolvedNote = `${resolvedNote} (Relic suojaa mieltä.)`
+    }
+
+    if (activeTags.has('tourist') && resolvedResult === 'win') {
+      adjustedEffect.maine = (adjustedEffect.maine ?? 0) + 2
+    }
+
     const nextEffects = mergeEffects(pendingEffects, adjustedEffect)
     const nextRounds = [
       ...rounds,
-      { round: rounds.length + 1, playerMove, inspectorMove, result, note },
+      { round: rounds.length + 1, playerMove, inspectorMove, result: resolvedResult, note: resolvedNote },
     ]
 
     setPendingEffects(nextEffects)
@@ -155,28 +216,31 @@ const PaperWar = ({
       setFinished(true)
       onResolve({ summary, appliedEffects: nextEffects, rounds: nextRounds })
     }
-  }
+  },
+    [activeTags, event.tags, finished, locked, networkPeeked, onResolve, pendingEffects, relicGuard, rounds, sanityShield],
+  )
 
-  const playRound = (playerMove: PaperWarMove) => {
-    const inspectorMove = (Object.keys(PAPER_WAR_BEATS) as PaperWarMove[])[
-      Math.floor(Math.random() * Object.keys(PAPER_WAR_BEATS).length)
-    ]
+  const playRound = useCallback(
+    (playerMove: PaperWarMove) => {
+      const inspectorMove = getInspectorMove()
 
-    let result: RoundOutcome = 'draw'
-    if (PAPER_WAR_BEATS[playerMove] === inspectorMove) result = 'win'
-    else if (PAPER_WAR_BEATS[inspectorMove] === playerMove) result = 'loss'
+      let result: RoundOutcome = 'draw'
+      if (PAPER_WAR_BEATS[playerMove] === inspectorMove) result = 'win'
+      else if (PAPER_WAR_BEATS[inspectorMove] === playerMove) result = 'loss'
 
-    const note =
-      result === 'win'
-        ? 'Krok siristää silmää ja merkitsee kohdan: "hyväksytty hermoromahdus".'
-        : result === 'loss'
-          ? 'Lomake muljahtaa väärinpäin. Kuulokkeissa kuuluu lisäselvityspyyntö.'
-          : 'Paperit törmäävät ilmaan. Molemmat selaatte hiljaa.'
+      const note =
+        result === 'win'
+          ? 'Krok siristää silmää ja merkitsee kohdan: "hyväksytty hermoromahdus".'
+          : result === 'loss'
+            ? 'Lomake muljahtaa väärinpäin. Kuulokkeissa kuuluu lisäselvityspyyntö.'
+            : 'Paperit törmäävät ilmaan. Molemmat selaatte hiljaa.'
 
-    applyRound(playerMove, inspectorMove, result, note)
-  }
+      applyRound(playerMove, inspectorMove, result, note)
+    },
+    [applyRound],
+  )
 
-  const hasItem = (id: string) => inventory.some((item) => item.id === id)
+  const hasItem = useCallback((id: string) => inventory.some((item) => item.id === id), [inventory])
 
   const specialMoves: SpecialMove[] = useMemo(() => {
     const moves: SpecialMove[] = []
@@ -242,8 +306,48 @@ const PaperWar = ({
       })
     }
 
+    if (activeTags.has('network')) {
+      moves.push({
+        id: 'packet-trace',
+        label: 'Kuuntele linjaa',
+        detail: 'Sniffaat tarkastajan makrot. Voitto pienellä rahamenolla.',
+        icon: '📡',
+        onUse: () => {
+          if (locked || finished || usedSpecials['packet-trace']) return
+          setUsedSpecials((prev) => ({ ...prev, 'packet-trace': true }))
+          applyRound(
+            'ATTACK_FORM',
+            'BLUFF',
+            'win',
+            'Kuuloke rätisee: kuulet seuraavan siirron ja isket oikeaan kohtaan.',
+            { rahat: -20, maine: 4, jarki: -1 },
+          )
+        },
+      })
+    }
+
+    if (activeTags.has('occult') || relicGuard) {
+      moves.push({
+        id: 'staalo-sinetti',
+        label: 'Staalo-sinetti',
+        detail: 'Uhraat relikin. Käännät kierroksen tasapeliksi ja vahvistat mieltä.',
+        icon: '🧿',
+        onUse: () => {
+          if (locked || finished || usedSpecials['staalo-sinetti']) return
+          setUsedSpecials((prev) => ({ ...prev, 'staalo-sinetti': true }))
+          applyRound(
+            'BLUFF',
+            'ATTACK_FORM',
+            'draw',
+            'Sinetti välähtää violetissa. Tarkastaja hämmentyy ja vetäytyy hetkeksi.',
+            { jarki: 3, maine: -1 },
+          )
+        },
+      })
+    }
+
     return moves
-  }, [applyRound, finished, inventory, locked, usedSpecials])
+  }, [activeTags, applyRound, finished, hasItem, locked, relicGuard, usedSpecials])
 
   return (
     <div className={`panel relative space-y-4 bg-asphalt/60 ${isGlitching ? 'glitch-veil' : ''}`}>
@@ -256,7 +360,14 @@ const PaperWar = ({
               {event.id}
             </h2>
           </div>
-          <div className="text-xs text-neon uppercase tracking-[0.2em]">Kierros {Math.min(rounds.length + 1, TOTAL_ROUNDS)}/{TOTAL_ROUNDS}</div>
+          <div className="text-right text-xs text-neon uppercase tracking-[0.2em] space-y-1">
+            <div>Kierros {Math.min(rounds.length + 1, TOTAL_ROUNDS)}/{TOTAL_ROUNDS}</div>
+            <div className="flex items-center gap-2 text-[10px] text-slate-200">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-300/40">W {wins}</span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-300/40">D {draws}</span>
+              <span className="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-300/40">L {losses}</span>
+            </div>
+          </div>
         </div>
 
         <CRTVisual media={media} isGlitching={isGlitching} />
@@ -337,8 +448,21 @@ const PaperWar = ({
         <div className="space-y-2 text-sm">
           {rounds.length === 0 && <p className="text-slate-300">Paperit leijuvat ilmassa. Valitse ensimmäinen siirto.</p>}
           {rounds.map((entry) => (
-            <div key={entry.round} className="border-l-2 border-neon pl-3 py-1 bg-black/30">
-              <p className="text-[11px] uppercase tracking-[0.25em] text-neon/70">Kierros {entry.round}</p>
+            <div key={entry.round} className="border-l-2 border-neon pl-3 py-1 bg-black/30 space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] uppercase tracking-[0.25em] text-neon/70">Kierros {entry.round}</p>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-[0.25em] ${
+                    entry.result === 'win'
+                      ? 'bg-emerald-500/20 border border-emerald-300/50 text-emerald-100'
+                      : entry.result === 'loss'
+                        ? 'bg-rose-500/20 border border-rose-300/50 text-rose-100'
+                        : 'bg-amber-500/20 border border-amber-300/50 text-amber-100'
+                  }`}
+                >
+                  {entry.result}
+                </span>
+              </div>
               <p className="font-semibold text-slate-100">
                 Sinä: {moveMeta[entry.playerMove].label} vs. Krok: {moveMeta[entry.inspectorMove].label}
               </p>

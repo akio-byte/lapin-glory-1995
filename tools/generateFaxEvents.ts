@@ -1,6 +1,8 @@
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
+import type { GameEvent, GameEventChoice } from '../src/data/gameData'
+import { isGameEvent } from '../src/data/gameData'
 
 type Phase = 'DAY' | 'NIGHT'
 
@@ -25,21 +27,6 @@ type GeneratedEvent = {
   }[]
 }
 
-type GameEvent = {
-  id: string
-  triggerPhase: 'day' | 'night'
-  text: string
-  vibe?: 'occult' | 'mundane'
-  tier?: 1 | 2 | 3
-  choices: {
-    label: string
-    skillCheck?: { stat: 'pimppaus' | 'byroslavia'; dc: number }
-    cost?: { rahat?: number; jarki?: number }
-    outcomeSuccess: { text: string; effects: Partial<Record<'rahat' | 'maine' | 'jarki' | 'sisu' | 'pimppaus' | 'byroslavia', number>> }
-    outcomeFail: { text: string; effects: Partial<Record<'rahat' | 'maine' | 'jarki' | 'sisu' | 'pimppaus' | 'byroslavia', number>> }
-  }[]
-}
-
 type StatsSnapshot = {
   rahat: number
   maine: number
@@ -53,7 +40,7 @@ const aiEventsPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..
 const readExistingEvents = async (): Promise<GameEvent[]> => {
   try {
     await fs.access(aiEventsPath)
-  } catch (error) {
+  } catch {
     return []
   }
 
@@ -61,7 +48,7 @@ const readExistingEvents = async (): Promise<GameEvent[]> => {
     const moduleUrl = pathToFileURL(aiEventsPath).href
     const imported = await import(moduleUrl)
     if (imported && Array.isArray(imported.aiFaxEvents)) {
-      return imported.aiFaxEvents as GameEvent[]
+      return (imported.aiFaxEvents as GameEvent[]).filter((event) => isGameEvent(event))
     }
   } catch (error) {
     console.warn('⚠️  Failed to import existing aiFaxEvents.ts, starting from empty array.', error)
@@ -132,7 +119,15 @@ const callOpenRouter = async (apiKey: string, snapshot: StatsSnapshot): Promise<
     throw new Error(`OpenRouter request failed: ${response.status} ${response.statusText}\n${text}`)
   }
 
-  const payload = (await response.json()) as any
+  type OpenRouterResponse = {
+    choices?: {
+      message?: {
+        content?: string
+      }
+    }[]
+  }
+
+  const payload = (await response.json()) as OpenRouterResponse
   const content = payload?.choices?.[0]?.message?.content
   if (!content) {
     throw new Error('OpenRouter response missing content')
@@ -143,6 +138,22 @@ const callOpenRouter = async (apiKey: string, snapshot: StatsSnapshot): Promise<
   } catch (error) {
     throw new Error(`Failed to parse OpenRouter JSON: ${(error as Error).message}\nRaw content: ${content}`)
   }
+}
+
+const isGeneratedChoice = (choice: unknown): choice is GeneratedEvent['choices'][number] => {
+  if (!choice || typeof choice !== 'object') return false
+  const c = choice as Record<string, unknown>
+  return typeof c.label === 'string' && typeof c.outcome === 'string' && typeof c.id === 'string'
+}
+
+const isGeneratedEvent = (payload: unknown): payload is GeneratedEvent => {
+  if (!payload || typeof payload !== 'object') return false
+  const obj = payload as Record<string, unknown>
+  const phaseOk = obj.phase === 'DAY' || obj.phase === 'NIGHT'
+  const bandOk = obj.laiBand === 'low' || obj.laiBand === 'mid' || obj.laiBand === 'high'
+  const choicesOk = Array.isArray(obj.choices) && obj.choices.every((c) => isGeneratedChoice(c))
+
+  return typeof obj.id === 'string' && typeof obj.title === 'string' && phaseOk && bandOk && choicesOk
 }
 
 const invertEffects = (
@@ -165,8 +176,20 @@ const mapChoiceEffects = (delta: GeneratedEvent['choices'][number]['delta']) => 
   return mapped
 }
 
-const toGameEvent = (generated: GeneratedEvent): GameEvent => {
-  const choices: GameEvent['choices'] = generated.choices.map((choice) => {
+const deriveTags = (generated: GeneratedEvent): string[] => {
+  const tags = new Set<string>()
+  if (generated.laiBand === 'high') tags.add('occult')
+  if (generated.laiBand === 'mid') tags.add('network')
+
+  generated.choices.forEach((choice) => {
+    if (choice.dcType === 'BYROSLAVIA') tags.add('tax')
+    if (choice.dcType === 'PIMPPAUS') tags.add('tourist')
+  })
+
+  return Array.from(tags)
+}
+
+const normalizeChoice = (choice: GeneratedEvent['choices'][number]): GameEventChoice => {
     const effects = mapChoiceEffects(choice.delta)
     const skillStat =
       choice.dcType === 'PIMPPAUS'
@@ -186,7 +209,12 @@ const toGameEvent = (generated: GeneratedEvent): GameEvent => {
         effects: skillCheck ? invertEffects(effects) : effects,
       },
     }
-  })
+  }
+
+const toGameEvent = (generated: GeneratedEvent): GameEvent => {
+  const choices: GameEvent['choices'] = generated.choices.map((choice) => normalizeChoice(choice))
+
+  const tier: GameEvent['tier'] = generated.laiBand === 'high' ? 3 : generated.laiBand === 'mid' ? 2 : 1
 
   return {
     id: generated.id,
@@ -194,6 +222,8 @@ const toGameEvent = (generated: GeneratedEvent): GameEvent => {
     text: generated.description,
     choices,
     vibe: generated.laiBand === 'high' ? 'occult' : 'mundane',
+    tier,
+    tags: deriveTags(generated),
   }
 }
 
@@ -231,6 +261,9 @@ const mergeEvents = (existing: GameEvent[], next: GameEvent): GameEvent[] => {
   return deduped
 }
 
+const sortEvents = (events: GameEvent[]): GameEvent[] =>
+  [...events].sort((a, b) => (a.tier ?? 1) - (b.tier ?? 1) || a.id.localeCompare(b.id))
+
 const main = async () => {
   const apiKey = ensureEnv('OPENROUTER_API_KEY')
   const phaseArg = process.argv[2]?.toUpperCase()
@@ -239,12 +272,19 @@ const main = async () => {
   console.log(`Generating fax event for phase ${snapshot.phase} (lai ${snapshot.lai})...`)
 
   try {
-    const generated = await callOpenRouter(apiKey, snapshot)
-    const nextEvent = toGameEvent(generated)
+    const raw = await callOpenRouter(apiKey, snapshot)
+    if (!isGeneratedEvent(raw)) {
+      throw new Error('Model response failed validation')
+    }
+    const nextEvent = toGameEvent(raw)
+    if (!isGameEvent(nextEvent)) {
+      throw new Error('Mapped event failed validation')
+    }
     const existing = await readExistingEvents()
     const merged = mergeEvents(existing, nextEvent)
-    await writeEvents(merged)
-    console.log(`✅ Added event ${nextEvent.id} to aiFaxEvents.ts (total ${merged.length})`)
+    const sorted = sortEvents(merged)
+    await writeEvents(sorted)
+    console.log(`✅ Added event ${nextEvent.id} to aiFaxEvents.ts (total ${sorted.length})`)
   } catch (error) {
     console.error('Failed to generate fax event:', error)
     process.exit(1)

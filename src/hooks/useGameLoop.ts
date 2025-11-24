@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { GameEvent, GameEventChoice, Item, Stats } from '../data/gameData'
+import type { BuildPath, GameEvent, GameEventChoice, Item, Stats } from '../data/gameData'
 import {
   fallbackEventMedia,
   gameEvents,
@@ -7,21 +7,23 @@ import {
   getTierForDay,
   items as availableItems,
   resolveEventTier,
+  buildPathMeta,
 } from '../data/gameData'
+import type { EndingType } from '../data/endingData'
 
 export type Phase = 'DAY' | 'NIGHT' | 'MORNING'
-
-export type EndingType = 'psychWard' | 'bankruptcy' | 'taxRaid' | 'vappu'
 
 type EndingState = {
   type: EndingType
   dayCount: number
   stats: Stats
+  lai: number
 }
 
 type MorningReport = {
   rahatDelta: number
   jarkiDelta: number
+  laiDelta: number
   note: string
   day: number
 }
@@ -41,6 +43,17 @@ type ChoiceResolution = {
   outcomeText: string
   appliedEffects: Partial<Stats>
 }
+
+type PathProgress = Record<BuildPath, { xp: number; milestoneIndex: number }>
+
+export type DaySnapshot = { day: number; rahat: number; lai: number; jarki: number; maine: number }
+
+const createInitialPathProgress = (): PathProgress => ({
+  tourist: { xp: 0, milestoneIndex: 0 },
+  tax: { xp: 0, milestoneIndex: 0 },
+  occult: { xp: 0, milestoneIndex: 0 },
+  network: { xp: 0, milestoneIndex: 0 },
+})
 
 type ActiveModifier = {
   id: string
@@ -64,18 +77,21 @@ type GameState = {
   wasRestored: boolean
   lai: number
   nextNightEventHint: string | null
+  pathProgress: PathProgress
+  dayHistory: DaySnapshot[]
 }
 
 type GameActions = {
   advancePhase: () => void
   handleChoice: (effect: Partial<Stats>) => void
   buyItem: (item: Item) => boolean
-  useItem: (itemId: string) => boolean
+  consumeItem: (itemId: string) => boolean
   resolveChoice: (choice: GameEventChoice) => ChoiceResolution
   resetGame: () => void
   pingNetMonitor: () => NetMonitorReading
   adjustLAI: (delta: number) => number
   setNextNightEventHint: (hint: string | null) => void
+  grantPathXp: (xp: Partial<Record<BuildPath, number>>, note?: string) => void
 }
 
 type LegacyStats = {
@@ -105,8 +121,24 @@ type PersistedStateV3 = Omit<PersistedStateBase, 'stats' | 'dayStartStats'> & {
   dayStartStats: Stats
   lai: number
 }
+type PersistedStateV4 = Omit<PersistedStateBase, 'stats' | 'dayStartStats'> & {
+  version: 4
+  stats: Stats
+  dayStartStats: Stats
+  lai: number
+  pathProgress: PathProgress
+}
 
-export type PersistedState = PersistedStateV1 | PersistedStateV2 | PersistedStateV3
+type PersistedStateV5 = Omit<PersistedStateBase, 'stats' | 'dayStartStats'> & {
+  version: 5
+  stats: Stats
+  dayStartStats: Stats
+  lai: number
+  pathProgress: PathProgress
+  dayHistory: DaySnapshot[]
+}
+
+export type PersistedState = PersistedStateV1 | PersistedStateV2 | PersistedStateV3 | PersistedStateV4 | PersistedStateV5
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -129,7 +161,7 @@ const hasPersistedShape = (data: unknown): data is PersistedState => {
   if (!data || typeof data !== 'object') return false
   const candidate = data as Record<string, unknown>
   return (
-    (candidate.version === 1 || candidate.version === 2 || candidate.version === 3) &&
+    (candidate.version === 1 || candidate.version === 2 || candidate.version === 3 || candidate.version === 4 || candidate.version === 5) &&
     'stats' in candidate &&
     'inventory' in candidate &&
     'phase' in candidate &&
@@ -173,7 +205,7 @@ const applyPassiveModifiers = (base: Stats, modifiers: Partial<Stats>): Stats =>
   return next
 }
 
-const hasLai = (state: PersistedState | null): state is PersistedStateV2 | PersistedStateV3 =>
+const hasLai = (state: PersistedState | null): state is PersistedStateV2 | PersistedStateV3 | PersistedStateV4 =>
   Boolean(state && 'lai' in state)
 
 const normalizeStats = (raw: Stats | LegacyStats | null | undefined): Stats => {
@@ -209,7 +241,7 @@ const loadPersistedState = (): PersistedState | null => {
   return null
 }
 
-const savePersistedState = (state: PersistedStateV3): void => {
+const savePersistedState = (state: PersistedStateV5): void => {
   if (typeof localStorage === 'undefined') return
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
@@ -258,13 +290,22 @@ export const useGameLoop = (): GameState & GameActions => {
   const [wasRestored, setWasRestored] = useState(() => Boolean(persistedState))
   const [lai, setLai] = useState<number>(() => (hasLai(persistedState) ? persistedState.lai : 0))
   const [nextNightEventHint, setNextNightEventHint] = useState<string | null>(null)
+  const [pathProgress, setPathProgress] = useState<PathProgress>(() =>
+    persistedState && 'pathProgress' in persistedState ? persistedState.pathProgress : createInitialPathProgress(),
+  )
+  const [dayHistory, setDayHistory] = useState<DaySnapshot[]>(() => {
+    if (persistedState && 'dayHistory' in persistedState && persistedState.dayHistory?.length) {
+      return persistedState.dayHistory
+    }
+    return [{ day: persistedState?.dayCount ?? 1, rahat: baseStats.rahat, lai, jarki: baseStats.jarki, maine: baseStats.maine }]
+  })
 
-  const passiveModifiers = useMemo(() => sumPassiveModifiers(inventory, ['tool', 'form']), [inventory])
+  const passiveModifiers = useMemo(() => sumPassiveModifiers(inventory, ['tool', 'form', 'relic']), [inventory])
   const stats = useMemo(() => applyPassiveModifiers(baseStats, passiveModifiers), [baseStats, passiveModifiers])
   const activeModifiers = useMemo<ActiveModifier[]>(
     () =>
       inventory
-        .filter((item) => item.type === 'tool' || item.type === 'form')
+        .filter((item) => item.type === 'tool' || item.type === 'form' || item.type === 'relic')
         .map((item) => ({ id: item.id, name: item.name, type: item.type, summary: item.summary, tags: item.tags })),
     [inventory],
   )
@@ -276,12 +317,33 @@ export const useGameLoop = (): GameState & GameActions => {
   const prevPhaseRef = useRef<Phase>(phase)
 
   const ending: EndingState | null = useMemo(() => {
-    if (stats.jarki <= 0) return { type: 'psychWard', dayCount, stats }
-    if (stats.rahat < -1000) return { type: 'bankruptcy', dayCount, stats }
-    if (stats.maine > 95) return { type: 'taxRaid', dayCount, stats }
-    if (dayCount >= MAX_DAYS && phase === 'MORNING') return { type: 'vappu', dayCount: MAX_DAYS, stats }
+    if (stats.jarki <= 0) return { type: 'psychWard', dayCount, stats, lai }
+    if (stats.rahat < -1000) return { type: 'bankruptcy', dayCount, stats, lai }
+    if (stats.maine > 95) return { type: 'taxRaid', dayCount, stats, lai }
+    if (dayCount >= MAX_DAYS && phase === 'MORNING') {
+      const pathScores = (Object.keys(pathProgress) as BuildPath[]).map((path) => ({
+        path,
+        level: pathProgress[path]?.milestoneIndex ?? 0,
+        xp: pathProgress[path]?.xp ?? 0,
+      }))
+      const highestPath = pathScores.sort((a, b) => b.level - a.level || b.xp - a.xp)[0]
+
+      if (lai > 90 && (highestPath?.path === 'occult' || highestPath?.path === 'network')) {
+        return { type: highestPath.path === 'occult' ? 'occultAscension' : 'networkProphet', dayCount, stats, lai }
+      }
+      if (highestPath?.path === 'tourist' && stats.rahat > 1500 && stats.maine > 55) {
+        return { type: 'touristMogul', dayCount, stats, lai }
+      }
+      if (highestPath?.path === 'tax' && stats.maine < 70 && stats.byroslavia > 40) {
+        return { type: 'taxLegend', dayCount, stats, lai }
+      }
+      if (lai > 96) {
+        return { type: 'riftCollapse', dayCount, stats, lai }
+      }
+      return { type: 'vappu', dayCount: MAX_DAYS, stats, lai }
+    }
     return null
-  }, [dayCount, stats, phase])
+  }, [dayCount, lai, pathProgress, phase, stats])
 
   const isGlitching = stats.jarki < 20 || lai > 70
 
@@ -289,6 +351,52 @@ export const useGameLoop = (): GameState & GameActions => {
     const next = clamp(lai + delta, 0, 100)
     setLai(next)
     return next
+  }
+
+  const grantPathXp = (xp: Partial<Record<BuildPath, number>>, note?: string) => {
+    const updates: PathProgress = { ...pathProgress }
+    const rewards: Partial<Stats> = {}
+
+    ;(Object.keys(xp) as BuildPath[]).forEach((path) => {
+      const gain = xp[path]
+      if (!gain) return
+      const current = updates[path]?.xp ?? 0
+      const nextXp = current + gain
+      const milestones = buildPathMeta[path].milestones
+      const currentMilestoneIndex = updates[path]?.milestoneIndex ?? 0
+      let milestoneIndex = currentMilestoneIndex
+      while (milestoneIndex < milestones.length && nextXp >= milestones[milestoneIndex]) {
+        milestoneIndex += 1
+        // Reward: small stat bumps tuned per path identity
+        if (path === 'tourist') {
+          rewards.maine = (rewards.maine ?? 0) + 3
+          rewards.rahat = (rewards.rahat ?? 0) + 40
+        }
+        if (path === 'tax') {
+          rewards.byroslavia = (rewards.byroslavia ?? 0) + 4
+          rewards.jarki = (rewards.jarki ?? 0) + 1
+        }
+        if (path === 'occult') {
+          rewards.jarki = (rewards.jarki ?? 0) + 2
+          rewards.sisu = (rewards.sisu ?? 0) + 2
+        }
+        if (path === 'network') {
+          rewards.byroslavia = (rewards.byroslavia ?? 0) + 2
+          rewards.pimppaus = (rewards.pimppaus ?? 0) + 2
+        }
+      }
+
+      updates[path] = { xp: nextXp, milestoneIndex }
+    })
+
+    setPathProgress(updates)
+    if (Object.keys(rewards).length > 0) {
+      handleChoice(rewards)
+    }
+
+    if (note) {
+      console.info('Path XP awarded', xp, note)
+    }
   }
 
   const handleChoice = (effect: Partial<Stats>) => {
@@ -308,6 +416,10 @@ export const useGameLoop = (): GameState & GameActions => {
 
         setDayCount((count) => count + 1)
         setDayStartStats(() => ({ ...baseStats }))
+        setDayHistory((prevHistory) => {
+          const withoutDupes = prevHistory.filter((entry) => entry.day !== dayCount)
+          return [...withoutDupes, { day: dayCount, rahat: stats.rahat, lai, jarki: stats.jarki, maine: stats.maine }]
+        })
         handleChoice({ rahat: -rent })
         if (lai > 85) handleChoice({ jarki: -2 })
         if (lai < 10) handleChoice({ jarki: 1 })
@@ -324,7 +436,7 @@ export const useGameLoop = (): GameState & GameActions => {
     })
   }
 
-  const useItem = (itemId: string) => {
+  const consumeItem = (itemId: string) => {
     const ownedItem = inventory.find((inv) => inv.id === itemId)
     if (!ownedItem) return false
 
@@ -351,7 +463,7 @@ export const useGameLoop = (): GameState & GameActions => {
     setInventory((prev) => [...prev, item])
 
     if (item.type === 'consumable' && item.autoUseOnPurchase) {
-      return useItem(item.id)
+      return consumeItem(item.id)
     }
 
     return true
@@ -362,10 +474,28 @@ export const useGameLoop = (): GameState & GameActions => {
     let success = true
     const tagBonus = (() => {
       if (!currentEvent) return 0
-      if (currentEvent.paperWar && (activeTags.has('tax') || activeTags.has('form'))) return 3
-      if (currentEvent.vibe === 'occult' && activeTags.has('occult')) return 3
-      if (/turisti|bussi/i.test(currentEvent.id) && activeTags.has('tourist')) return 2
-      return 0
+
+      const eventTags = currentEvent.tags ?? []
+      const tagWeights: Record<string, number> = {
+        tax: 2,
+        form: 2,
+        occult: currentEvent.vibe === 'occult' ? 3 : 1,
+        tourist: 2,
+        network: 2,
+      }
+
+      let bonus = 0
+      if (currentEvent.paperWar && (activeTags.has('tax') || activeTags.has('form'))) bonus += 3
+      if (currentEvent.vibe === 'occult' && activeTags.has('occult')) bonus += 3
+      if (/turisti|bussi/i.test(currentEvent.id) && activeTags.has('tourist')) bonus += 2
+
+      eventTags.forEach((tag) => {
+        if (activeTags.has(tag)) {
+          bonus += tagWeights[tag] ?? 1
+        }
+      })
+
+      return bonus
     })()
     const formSupport = currentEvent?.paperWar && inventory.some((item) => item.type === 'form')
 
@@ -397,6 +527,10 @@ export const useGameLoop = (): GameState & GameActions => {
     })
 
     handleChoice(combinedEffects)
+
+    if (choice.pathXp) {
+      grantPathXp(choice.pathXp, `choice:${choice.label}`)
+    }
 
     return { outcomeText, appliedEffects: combinedEffects }
   }
@@ -484,6 +618,8 @@ export const useGameLoop = (): GameState & GameActions => {
     setMorningReport(null)
     setLai(0)
     setNextNightEventHint(null)
+    setPathProgress(createInitialPathProgress())
+    setDayHistory([{ day: 1, rahat: INITIAL_STATS.rahat, lai: 0, jarki: INITIAL_STATS.jarki, maine: INITIAL_STATS.maine }])
     setWasRestored(false)
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY)
@@ -514,6 +650,7 @@ export const useGameLoop = (): GameState & GameActions => {
     ])
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const phaseChanged = phase !== prevPhaseRef.current
     if (phaseChanged) {
@@ -527,19 +664,32 @@ export const useGameLoop = (): GameState & GameActions => {
       setCurrentEvent(pickEventForPhase(phase, stats, lai, dayCount))
     }
   }, [currentEvent, dayCount, lai, phase, stats])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
-    if (phase === 'MORNING') {
-      const moneyDelta = stats.rahat - dayStartStats.rahat
-      const jarkiDelta = stats.jarki - dayStartStats.jarki
-      setMorningReport({
-        rahatDelta: moneyDelta,
-        jarkiDelta,
-        note: buildMorningNote(stats),
-        day: dayCount,
-      })
-    }
-  }, [phase, stats, dayStartStats, dayCount])
+    if (phase !== 'MORNING') return
+    if (morningReport?.day === dayCount) return
+
+    const moneyDelta = stats.rahat - dayStartStats.rahat
+    const jarkiDelta = stats.jarki - dayStartStats.jarki
+    const lastSnapshot =
+      dayHistory.find((entry) => entry.day === dayCount - 1) ?? dayHistory[dayHistory.length - 1]
+    const lastLai = lastSnapshot?.lai ?? lai
+    const laiDelta = lai - lastLai
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMorningReport({
+      rahatDelta: moneyDelta,
+      jarkiDelta,
+      laiDelta,
+      note: buildMorningNote(stats),
+      day: dayCount,
+    })
+    setDayHistory((prev) => {
+      const withoutDupes = prev.filter((entry) => entry.day !== dayCount)
+      return [...withoutDupes, { day: dayCount, rahat: stats.rahat, lai, jarki: stats.jarki, maine: stats.maine }]
+    })
+  }, [phase, stats, dayStartStats, dayCount, lai, dayHistory, morningReport])
 
   useEffect(() => {
     if (ending) {
@@ -550,15 +700,17 @@ export const useGameLoop = (): GameState & GameActions => {
     }
 
     savePersistedState({
-      version: 3,
+      version: 5,
       stats: baseStats,
       inventory,
       phase,
       dayCount,
       dayStartStats,
       lai,
+      pathProgress,
+      dayHistory,
     })
-  }, [baseStats, inventory, phase, dayCount, dayStartStats, ending, lai])
+  }, [baseStats, inventory, phase, dayCount, dayStartStats, ending, lai, pathProgress, dayHistory])
 
   return {
     activeModifiers,
@@ -574,15 +726,18 @@ export const useGameLoop = (): GameState & GameActions => {
     wasRestored,
     lai,
     nextNightEventHint,
+    pathProgress,
+    dayHistory,
     advancePhase,
     handleChoice,
     buyItem,
-    useItem,
+    consumeItem,
     resolveChoice,
     resetGame,
     pingNetMonitor,
     adjustLAI,
     setNextNightEventHint,
+    grantPathXp,
   }
 }
 
