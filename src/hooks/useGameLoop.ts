@@ -42,8 +42,17 @@ type ChoiceResolution = {
   appliedEffects: Partial<Stats>
 }
 
+type ActiveModifier = {
+  id: string
+  name: string
+  type: Item['type']
+  summary: string
+  tags: string[]
+}
+
 type GameState = {
   stats: Stats
+  activeModifiers: ActiveModifier[]
   inventory: Item[]
   phase: Phase
   dayCount: number
@@ -129,6 +138,41 @@ const hasPersistedShape = (data: unknown): data is PersistedState => {
   )
 }
 
+const mergeStatDeltas = (base: Stats, delta: Partial<Stats>): Stats => ({
+  rahat: base.rahat + (delta.rahat ?? 0),
+  maine: clamp(base.maine + (delta.maine ?? 0), 0, 100),
+  jarki: clamp(base.jarki + (delta.jarki ?? 0), 0, 100),
+  sisu: clamp(base.sisu + (delta.sisu ?? 0), 0, 100),
+  pimppaus: clamp(base.pimppaus + (delta.pimppaus ?? 0), 0, 100),
+  byroslavia: clamp(base.byroslavia + (delta.byroslavia ?? 0), 0, 100),
+})
+
+const sumPassiveModifiers = (inventory: Item[], allowedTypes: Item['type'][] = ['tool', 'form']) => {
+  const totals: Partial<Stats> = {}
+  inventory.forEach((item) => {
+    if (!allowedTypes.includes(item.type)) return
+    if (!item.effects.passive) return
+    Object.entries(item.effects.passive).forEach(([key, value]) => {
+      const typedKey = key as keyof Stats
+      totals[typedKey] = (totals[typedKey] ?? 0) + (value ?? 0)
+    })
+  })
+  return totals
+}
+
+const applyPassiveModifiers = (base: Stats, modifiers: Partial<Stats>): Stats => {
+  const next = { ...base }
+  Object.entries(modifiers).forEach(([key, value]) => {
+    const typedKey = key as keyof Stats
+    if (typedKey === 'rahat') {
+      next.rahat += value ?? 0
+    } else {
+      next[typedKey] = clamp(next[typedKey] + (value ?? 0), 0, 100)
+    }
+  })
+  return next
+}
+
 const hasLai = (state: PersistedState | null): state is PersistedStateV2 | PersistedStateV3 =>
   Boolean(state && 'lai' in state)
 
@@ -205,7 +249,7 @@ const pickEventForPhase = (
 export const useGameLoop = (): GameState & GameActions => {
   const persistedState = loadPersistedState()
 
-  const [stats, setStats] = useState<Stats>(() => normalizeStats(persistedState?.stats))
+  const [baseStats, setBaseStats] = useState<Stats>(() => normalizeStats(persistedState?.stats))
   const [inventory, setInventory] = useState<Item[]>(() => persistedState?.inventory ?? [])
   const [phase, setPhase] = useState<Phase>(() => persistedState?.phase ?? 'DAY')
   const [dayCount, setDayCount] = useState<number>(() => persistedState?.dayCount ?? 1)
@@ -214,6 +258,17 @@ export const useGameLoop = (): GameState & GameActions => {
   const [wasRestored, setWasRestored] = useState(() => Boolean(persistedState))
   const [lai, setLai] = useState<number>(() => (hasLai(persistedState) ? persistedState.lai : 0))
   const [nextNightEventHint, setNextNightEventHint] = useState<string | null>(null)
+
+  const passiveModifiers = useMemo(() => sumPassiveModifiers(inventory, ['tool', 'form']), [inventory])
+  const stats = useMemo(() => applyPassiveModifiers(baseStats, passiveModifiers), [baseStats, passiveModifiers])
+  const activeModifiers = useMemo<ActiveModifier[]>(
+    () =>
+      inventory
+        .filter((item) => item.type === 'tool' || item.type === 'form')
+        .map((item) => ({ id: item.id, name: item.name, type: item.type, summary: item.summary, tags: item.tags })),
+    [inventory],
+  )
+  const activeTags = useMemo(() => new Set(inventory.flatMap((item) => item.tags ?? [])), [inventory])
 
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(() =>
     phase === 'MORNING' ? null : pickEventForPhase(phase, stats, lai, dayCount),
@@ -237,14 +292,7 @@ export const useGameLoop = (): GameState & GameActions => {
   }
 
   const handleChoice = (effect: Partial<Stats>) => {
-    setStats((prev) => ({
-      rahat: prev.rahat + (effect.rahat ?? 0),
-      maine: clamp(prev.maine + (effect.maine ?? 0), 0, 100),
-      jarki: clamp(prev.jarki + (effect.jarki ?? 0), 0, 100),
-      sisu: clamp(prev.sisu + (effect.sisu ?? 0), 0, 100),
-      pimppaus: clamp(prev.pimppaus + (effect.pimppaus ?? 0), 0, 100),
-      byroslavia: clamp(prev.byroslavia + (effect.byroslavia ?? 0), 0, 100),
-    }))
+    setBaseStats((prev) => mergeStatDeltas(prev, effect))
   }
 
   const advancePhase = () => {
@@ -259,7 +307,7 @@ export const useGameLoop = (): GameState & GameActions => {
         const rent = getRentForDay(upcomingDay)
 
         setDayCount((count) => count + 1)
-        setDayStartStats(() => ({ ...stats }))
+        setDayStartStats(() => ({ ...baseStats }))
         handleChoice({ rahat: -rent })
         if (lai > 85) handleChoice({ jarki: -2 })
         if (lai < 10) handleChoice({ jarki: 1 })
@@ -302,10 +350,6 @@ export const useGameLoop = (): GameState & GameActions => {
     handleChoice({ rahat: -item.price })
     setInventory((prev) => [...prev, item])
 
-    if (item.type !== 'consumable' && item.effects.passive) {
-      handleChoice(item.effects.passive)
-    }
-
     if (item.type === 'consumable' && item.autoUseOnPurchase) {
       return useItem(item.id)
     }
@@ -316,15 +360,36 @@ export const useGameLoop = (): GameState & GameActions => {
   const resolveChoice = (choice: GameEventChoice): ChoiceResolution => {
     const baseEffect = { ...choice.cost } as Partial<Stats>
     let success = true
+    const tagBonus = (() => {
+      if (!currentEvent) return 0
+      if (currentEvent.paperWar && (activeTags.has('tax') || activeTags.has('form'))) return 3
+      if (currentEvent.vibe === 'occult' && activeTags.has('occult')) return 3
+      if (/turisti|bussi/i.test(currentEvent.id) && activeTags.has('tourist')) return 2
+      return 0
+    })()
+    const formSupport = currentEvent?.paperWar && inventory.some((item) => item.type === 'form')
 
     if (choice.skillCheck) {
       const statValue = stats[choice.skillCheck.stat]
       const roll = Math.floor(Math.random() * 20)
-      success = statValue + roll >= choice.skillCheck.dc
+      success = statValue + roll + tagBonus >= choice.skillCheck.dc
+      if (!success && formSupport) {
+        // Form gives a safety net on paper wars
+        success = statValue + roll + tagBonus + 3 >= choice.skillCheck.dc
+      }
     }
 
     const outcome = success ? choice.outcomeSuccess : choice.outcomeFail
     const combinedEffects: Partial<Stats> = { ...baseEffect }
+    let outcomeText = outcome.text
+
+    if (formSupport && currentEvent?.paperWar) {
+      const paperworkBoost = success ? 2 : 0
+      if (paperworkBoost > 0) {
+        combinedEffects.byroslavia = (combinedEffects.byroslavia ?? 0) + paperworkBoost
+        outcomeText = `${outcomeText} (Lomakkeet voimistavat paperisotaa.)`
+      }
+    }
 
     Object.entries(outcome.effects).forEach(([key, value]) => {
       const typedKey = key as keyof Stats
@@ -333,7 +398,7 @@ export const useGameLoop = (): GameState & GameActions => {
 
     handleChoice(combinedEffects)
 
-    return { outcomeText: outcome.text, appliedEffects: combinedEffects }
+    return { outcomeText, appliedEffects: combinedEffects }
   }
 
   const buildLaiBand = (value: number): NetMonitorReading['band'] => {
@@ -411,7 +476,7 @@ export const useGameLoop = (): GameState & GameActions => {
   }
 
   const resetGame = () => {
-    setStats(INITIAL_STATS)
+    setBaseStats(INITIAL_STATS)
     setInventory([])
     setPhase('DAY')
     setDayCount(1)
@@ -486,16 +551,17 @@ export const useGameLoop = (): GameState & GameActions => {
 
     savePersistedState({
       version: 3,
-      stats,
+      stats: baseStats,
       inventory,
       phase,
       dayCount,
       dayStartStats,
       lai,
     })
-  }, [stats, inventory, phase, dayCount, dayStartStats, ending, lai])
+  }, [baseStats, inventory, phase, dayCount, dayStartStats, ending, lai])
 
   return {
+    activeModifiers,
     stats,
     inventory,
     phase,
