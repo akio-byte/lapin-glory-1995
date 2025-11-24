@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameEvent, GameEventChoice, Item, Stats } from '../data/gameData'
 import {
   fallbackEventMedia,
@@ -215,7 +215,10 @@ export const useGameLoop = (): GameState & GameActions => {
   const [lai, setLai] = useState<number>(() => (hasLai(persistedState) ? persistedState.lai : 0))
   const [nextNightEventHint, setNextNightEventHint] = useState<string | null>(null)
 
-  const currentEvent = useMemo(() => pickEventForPhase(phase, stats, lai, dayCount), [phase, stats, lai, dayCount])
+  const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(() =>
+    phase === 'MORNING' ? null : pickEventForPhase(phase, stats, lai, dayCount),
+  )
+  const prevPhaseRef = useRef<Phase>(phase)
 
   const ending: EndingState | null = useMemo(() => {
     if (stats.jarki <= 0) return { type: 'psychWard', dayCount, stats }
@@ -225,13 +228,13 @@ export const useGameLoop = (): GameState & GameActions => {
     return null
   }, [dayCount, stats, phase])
 
-const isGlitching = stats.jarki < 20 || lai > 70
+  const isGlitching = stats.jarki < 20 || lai > 70
 
-const adjustLAI = (delta: number) => {
-  const next = clamp(lai + delta, 0, 100)
-  setLai(next)
-  return next
-}
+  const adjustLAI = (delta: number) => {
+    const next = clamp(lai + delta, 0, 100)
+    setLai(next)
+    return next
+  }
 
   const handleChoice = (effect: Partial<Stats>) => {
     setStats((prev) => ({
@@ -445,6 +448,20 @@ const adjustLAI = (delta: number) => {
       'OS/95 piippaa hiljaa: "Muista hengittää ennen kuin avaat postin".',
     ])
   }
+
+  useEffect(() => {
+    const phaseChanged = phase !== prevPhaseRef.current
+    if (phaseChanged) {
+      prevPhaseRef.current = phase
+      setCurrentEvent(null)
+    }
+
+    if (phase === 'MORNING') return
+
+    if (phaseChanged || !currentEvent) {
+      setCurrentEvent(pickEventForPhase(phase, stats, lai, dayCount))
+    }
+  }, [currentEvent, dayCount, lai, phase, stats])
 
   useEffect(() => {
     if (phase === 'MORNING') {
