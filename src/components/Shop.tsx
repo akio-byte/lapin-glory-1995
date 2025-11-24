@@ -1,4 +1,5 @@
-import type { Item, Stats } from '../data/gameData'
+import { useMemo, useState } from 'react'
+import type { Item, ItemType, Stats } from '../data/gameData'
 import { items as availableItems } from '../data/gameData'
 import { canonicalStats } from '../data/statMeta'
 import type { Phase } from '../hooks/useGameLoop'
@@ -16,19 +17,21 @@ const ShopCard = ({
   owned,
   onBuy,
   onUse,
+  disabled,
 }: {
   item: Item
   stats: Stats
   owned: number
   onBuy: () => void
   onUse: () => void
+  disabled?: boolean
 }) => {
   const canAfford = stats.rahat >= item.price
   const meetsByroslavia = item.req_stats?.byroslavia ? stats.byroslavia >= item.req_stats.byroslavia : true
   const passiveHint = item.effects.passive ? 'Passiivinen bonus' : 'Kertakäyttö'
 
   return (
-    <div className="border border-neon/40 bg-black/60 rounded-lg p-3 space-y-3 shadow-[0_0_14px_rgba(255,0,255,0.24)]">
+    <div className="glass-panel p-3 space-y-3 shadow-[0_0_18px_rgba(255,0,255,0.2)]">
       <div className="grid gap-3 md:grid-cols-[minmax(0,180px)_1fr] items-start">
         <div className="relative">
           <ItemCard symbol={<span>{item.icon}</span>} label={item.name} />
@@ -63,12 +66,12 @@ const ShopCard = ({
             <button
               className="button-raw flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={onBuy}
-              disabled={!canAfford || !meetsByroslavia}
+              disabled={!canAfford || !meetsByroslavia || disabled}
             >
               Osta
             </button>
             {owned > 0 && (
-              <button className="button-raw flex-1" onClick={onUse}>
+              <button className="button-raw flex-1 disabled:opacity-50 disabled:cursor-not-allowed" onClick={onUse} disabled={disabled}>
                 Käytä
               </button>
             )}
@@ -92,14 +95,23 @@ const Shop = ({
   onBuy: (item: Item) => void
   onUse: (itemId: string) => void
 }) => {
-  if (phase !== 'DAY') return null
+  const [activeTab, setActiveTab] = useState<ItemType>('consumable')
+
+  const filteredItems = useMemo(() => availableItems.filter((item) => item.type === activeTab), [activeTab])
+
+  const tabs: { key: ItemType; label: string }[] = [
+    { key: 'consumable', label: 'Consumables' },
+    { key: 'tool', label: 'Tools' },
+    { key: 'form', label: 'Forms' },
+    { key: 'relic', label: 'Relics' },
+  ]
 
   return (
-    <div className="panel bg-asphalt/70 space-y-3">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <ItemTag label="Päiväkauppa" />
-          <p className="text-sm text-slate-200">Salkku auki: neon-puhelin vastaanottaa tilauksia.</p>
+          <ItemTag label="Salkkukauppa" />
+          <p className="text-sm text-slate-200">Neon-ikkuna kuljettaa tuotteet suoraan tiskille.</p>
         </div>
         <div className="text-right">
           <p className="text-sm text-neon">{canonicalStats.rahat.label}: {formatPrice(stats.rahat)}</p>
@@ -107,17 +119,37 @@ const Shop = ({
         </div>
       </div>
 
-      <div className="space-y-3">
-        {availableItems.map((item) => {
+      <div className="flex flex-wrap gap-2 text-sm">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            className={`button-raw px-3 py-2 ${activeTab === tab.key ? 'bg-neon/30 text-coal' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {phase !== 'DAY' && (
+        <div className="glass-panel text-sm text-amber-200">
+          Kauppa on virallisesti kiinni yöllä. Selaa vapaasti, mutta ostoikkuna aukeaa vasta aamunkoitteessa.
+        </div>
+      )}
+
+      <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+        {filteredItems.map((item) => {
           const ownedCount = inventory.filter((inv) => inv.id === item.id).length
+          const disabled = phase !== 'DAY'
           return (
             <ShopCard
               key={item.id}
               item={item}
               stats={stats}
               owned={ownedCount}
-              onBuy={() => onBuy(item)}
-              onUse={() => onUse(item.id)}
+              disabled={disabled}
+              onBuy={() => !disabled && onBuy(item)}
+              onUse={() => !disabled && onUse(item.id)}
             />
           )
         })}

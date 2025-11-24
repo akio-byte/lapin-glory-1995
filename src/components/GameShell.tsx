@@ -4,13 +4,17 @@ import EventCard from './EventCard'
 import NokiaPhone from './NokiaPhone'
 import PaperWar, { type PaperWarResolution } from './PaperWar'
 import Shop from './Shop'
-import StatsBar from './StatsBar'
 import DebugPanel from './DebugPanel'
 import type { Item, Stats } from '../data/gameData'
 import { canonicalStats } from '../data/statMeta'
 import type { EndingType } from '../hooks/useGameLoop'
 import { useGameLoop } from '../hooks/useGameLoop'
 import { useAudio } from '../hooks/useAudio'
+import Desktop from './Desktop'
+import OSWindow from './OSWindow'
+import Taskbar from './Taskbar'
+import JournalWindow from './JournalWindow'
+import SettingsWindow from './SettingsWindow'
 
 const shakeStyles = `
 @keyframes shake {
@@ -258,6 +262,9 @@ const GameShell = () => {
   const [locked, setLocked] = useState(false)
   const [journal, setJournal] = useState<string[]>([])
   const [textSpeed, setTextSpeed] = useState(3)
+  const [isShopOpen, setIsShopOpen] = useState(false)
+  const [isLogOpen, setIsLogOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [corruptedLabels, setCorruptedLabels] = useState({
     rahat: canonicalStats.rahat.label,
     maine: canonicalStats.maine.label,
@@ -429,216 +436,191 @@ const GameShell = () => {
 
   return (
     <ErrorBoundary>
-      <div
-        className={`min-h-screen text-white relative overflow-hidden bg-[#050912]/70 backdrop-blur-sm ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''}`}
-        style={rootStyle}
-      >
-        <style>{shakeStyles}</style>
-        {lowSanity && <div className="hcr-noise" aria-hidden />}
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
+      <Desktop>
+        <div
+          className={`h-full w-full text-white relative overflow-hidden bg-[#050912]/70 backdrop-blur-sm ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''}`}
+          style={rootStyle}
+        >
+          <style>{shakeStyles}</style>
+          {lowSanity && <div className="hcr-noise" aria-hidden />}
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
 
-        <NokiaPhone
-          jarki={stats.jarki}
-          lai={lai}
-          onPing={() => {
-            const reading = pingNetMonitor()
-            playSfx('nokia')
-            return reading
-          }}
-          nextNightEventHint={nextNightEventHint}
-        />
-
-        <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-7">
-          <div className="glass-panel flex flex-col gap-3 md:flex-row md:items-center md:justify-between px-4 py-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.35em] text-neon/80">Lapin Glory OS/95</p>
-              <p className="text-xl font-semibold text-slate-100">Command Center</p>
-            </div>
-            <div className="grid grid-cols-3 gap-3 text-[11px] w-full md:w-auto md:text-right">
-              <div className="glass-chip px-3 py-2">
-                <p className="uppercase tracking-[0.3em] text-neon/80">Päivä</p>
-                <p className="text-lg font-semibold text-slate-100">D{dayCount}</p>
-              </div>
-              <div className="glass-chip px-3 py-2">
-                <p className="uppercase tracking-[0.3em] text-neon/80">Rahat</p>
-                <p className="text-lg font-semibold text-slate-100">{canonicalStats.rahat.format(stats.rahat)}</p>
-              </div>
-              <div className="glass-chip px-3 py-2">
-                <p className="uppercase tracking-[0.3em] text-neon/80">Järki</p>
-                <p className="text-lg font-semibold text-slate-100">{canonicalStats.jarki.format(stats.jarki)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-panel space-y-3">
-            <h1 className="text-3xl md:text-4xl font-bold glitch-text" data-text="Lapin Glory OS/95">
-              Lapin Glory OS/95
-            </h1>
-            <p className="text-sm text-slate-200 max-w-3xl">
-              Lama-Noir managerointi: faksaa päivällä, pimppaa yöllä, toivo aamulla. Neon pinkki vastaan harmaa byrokratia. Nyt
-              kevyemmillä lasipinnoilla.
-            </p>
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              {wasRestored && (
-                <span className="px-3 py-1 rounded-full border border-neon/40 bg-neon/10 text-neon">Ladattu tallennettu run</span>
-              )}
-              <button className="button-raw px-3 py-1" onClick={handleRestart}>
-                Aloita uusi run
-              </button>
-            </div>
-          </div>
-
-          <section className="grid gap-6 lg:grid-cols-12 items-start">
-            <div className="lg:col-span-8 space-y-4">
-              <RunInfoBar dayCount={dayCount} lai={lai} />
-
-              <div className="glass-panel">
-                <StatsBar stats={stats} phase={phase} dayCount={dayCount} lai={lai} labelOverrides={corruptedLabels} />
-              </div>
-
-              <div className="glass-panel space-y-4 min-h-[420px]">
-                {phase !== 'MORNING' && activeEvent && (
-                  isPaperWar ? (
-                    <PaperWar
-                      event={activeEvent}
-                      stats={stats}
-                      inventory={inventory}
-                      locked={locked}
-                      outcome={outcome}
-                      fallbackMedia={fallbackMedia}
-                      onResolve={handlePaperWarResolve}
-                      onNextPhase={advancePhase}
-                      isGlitching={isGlitching}
-                    />
-                  ) : (
-                    <EventCard
-                      event={activeEvent}
-                      locked={locked}
-                      outcome={outcome}
-                      onChoice={handleEventChoice}
-                      onNextPhase={advancePhase}
-                      fallbackMedia={fallbackMedia}
-                      phase={phase}
-                      isGlitching={isGlitching}
-                    />
-                  )
-                )}
-
-                {phase !== 'MORNING' && !activeEvent && (
-                  <div className="glass-panel">
-                    <p className="text-xs uppercase tracking-[0.3em] text-neon">Hiljainen linja</p>
-                    <p className="text-sm text-slate-200 mt-2">Ei tapahtumia juuri nyt. Avaa ovi ja kuuntele huminaa.</p>
-                    <button className="button-raw mt-3" onClick={advancePhase}>
-                      Pakota seuraava vaihe →
-                    </button>
-                  </div>
-                )}
-
-                {phase === 'MORNING' && (
-                  <MorningReport
-                    stats={stats}
-                    dayCount={report.day}
-                    rahatDelta={report.rahatDelta}
-                    jarkiDelta={report.jarkiDelta}
-                    note={report.note}
-                    onAdvance={advancePhase}
-                  />
-                )}
-              </div>
-            </div>
-
-            <aside className="lg:col-span-4 space-y-4">
-              <Shop phase={phase} inventory={inventory} stats={stats} onBuy={handleBuy} onUse={useItem} />
-
-              <div className="glass-panel space-y-3">
-                <p className="text-xs uppercase tracking-[0.3em] text-neon">Asetukset</p>
-                <div className="flex items-center justify-between text-sm">
-                  <span>{muted ? 'Äänet: mykistetty' : 'Äänet: päällä'}</span>
-                  <button className="button-raw px-3 py-1" onClick={toggleMute}>
-                    {muted ? 'Poista mykistys' : 'Mykistä'}
-                  </button>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span>Humina-loop</span>
-                  <button
-                    className={`button-raw px-3 py-1 ${muted ? 'opacity-40 cursor-not-allowed' : ''}`}
-                    onClick={toggleBackground}
-                    disabled={muted}
-                  >
-                    {backgroundPlaying ? 'Tauko' : 'Soita hiljaa'}
-                  </button>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <label className="flex items-center justify-between gap-3" htmlFor="textSpeed">
-                    <span>Tekstin glitch-tahti</span>
-                    <span className="text-xs text-neon">{textSpeed.toFixed(1)}s</span>
-                  </label>
-                  <input
-                    id="textSpeed"
-                    type="range"
-                    min={1.2}
-                    max={4}
-                    step={0.2}
-                    value={textSpeed}
-                    onChange={(event) => setTextSpeed(parseFloat(event.target.value))}
-                    className="w-full accent-neon"
-                  />
-                  <p className="text-xs text-slate-300">Hidasta jos silmät väsyy, nopeuta jos faksi palaa.</p>
-                </div>
-              </div>
-
-              <div className="glass-panel">
-                <p className="text-xs uppercase tracking-[0.3em] text-neon">Lokikone</p>
-                <p className="text-[11px] text-slate-300 mt-1">
-                  Seuraa Rahat, Maine ja Järki -merkinnät faksien välistä.
-                </p>
-                <ul className="mt-3 space-y-2 text-sm max-h-72 overflow-y-auto pr-2">
-                  {journal.length === 0 && <li className="text-slate-400">Ei merkintöjä vielä.</li>}
-                  {journal.map((entry, idx) => (
-                    <li key={idx} className="border-l-2 border-neon pl-2">
-                      {entry}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="glass-panel text-sm text-slate-200">
-                <p className="text-xs uppercase tracking-[0.3em] text-neon">Ohje</p>
-                <p className="mt-2">
-                  Päivä: Leimaa faksit ja uhraa markkoja. Yö: kohtaa bussit tai tarkastajat. Aamu: maksa indeksikorotettu vuokra ja jatka, jos mielenterveys sallii.
-                </p>
-              </div>
-            </aside>
-          </section>
-        </main>
-        {import.meta.env.DEV && (
-          <div className="fixed bottom-4 right-4 text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
-            <p className="text-[10px] uppercase tracking-[0.25em] text-neon">Active Mods</p>
-            <p className="text-[10px] text-slate-300">Työkalut ja lomakkeet, jotka vaikuttavat tämänhetkiseen event-mathiin.</p>
-            <ul className="space-y-1">
-              {relevantActiveMods.length === 0 && <li className="text-slate-400">Ei aktiivisia modifikaattoreita.</li>}
-              {relevantActiveMods.map((mod) => (
-                <li key={mod.id} className="border-l-2 border-neon pl-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">{mod.name}</span>
-                    <span className="text-[9px] uppercase tracking-[0.2em] text-neon/80">{mod.type}</span>
-                  </div>
-                  <p className="text-slate-200">{mod.summary}</p>
-                  {mod.tags.length > 0 && (
-                    <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400">{mod.tags.join(', ')}</p>
+          <div className="h-full w-full flex items-start justify-center pt-6 pb-24">
+            <div className="w-full max-w-6xl flex flex-col gap-4 items-center">
+              <div className="flex items-center justify-between w-full text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 border border-neon/50 bg-neon/10 uppercase tracking-[0.3em] text-[11px]">Lapin Glory OS/95</span>
+                  {wasRestored && (
+                    <span className="px-3 py-1 rounded-full border border-neon/40 bg-neon/10 text-neon text-[11px] uppercase tracking-[0.2em]">Ladattu tallennus</span>
                   )}
-                </li>
-              ))}
-            </ul>
+                </div>
+                <button className="button-raw px-3 py-1" onClick={handleRestart}>
+                  Aloita uusi run
+                </button>
+              </div>
+
+              <OSWindow title="FAKSI / TAPAHTUMA" isActive size="lg">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] uppercase tracking-[0.2em]">
+                    <div className="glass-chip px-3 py-2">
+                      <p className="text-neon/80">Päivä</p>
+                      <p className="text-lg font-semibold">{dayCount}</p>
+                    </div>
+                    <div className="glass-chip px-3 py-2">
+                      <p className="text-neon/80">LAI</p>
+                      <p className="text-lg font-semibold">{lai.toFixed(0)}</p>
+                    </div>
+                    <div className="glass-chip px-3 py-2">
+                      <p className="text-neon/80">{corruptedLabels.rahat}</p>
+                      <p className="text-lg font-semibold">{canonicalStats.rahat.format(stats.rahat)}</p>
+                    </div>
+                    <div className="glass-chip px-3 py-2">
+                      <p className="text-neon/80">{corruptedLabels.jarki}</p>
+                      <p className="text-lg font-semibold">{canonicalStats.jarki.format(stats.jarki)}</p>
+                    </div>
+                  </div>
+
+                  {phase === 'MORNING' && (
+                    <MorningReport
+                      stats={stats}
+                      dayCount={report.day}
+                      rahatDelta={report.rahatDelta}
+                      jarkiDelta={report.jarkiDelta}
+                      note={report.note}
+                      onAdvance={advancePhase}
+                    />
+                  )}
+
+                  {phase !== 'MORNING' && activeEvent && (
+                    isPaperWar ? (
+                      <PaperWar
+                        event={activeEvent}
+                        stats={stats}
+                        inventory={inventory}
+                        locked={locked}
+                        outcome={outcome}
+                        fallbackMedia={fallbackMedia}
+                        onResolve={handlePaperWarResolve}
+                        onNextPhase={advancePhase}
+                        isGlitching={isGlitching}
+                      />
+                    ) : (
+                      <EventCard
+                        event={activeEvent}
+                        locked={locked}
+                        outcome={outcome}
+                        onChoice={handleEventChoice}
+                        onNextPhase={advancePhase}
+                        fallbackMedia={fallbackMedia}
+                        phase={phase}
+                        isGlitching={isGlitching}
+                      />
+                    )
+                  )}
+
+                  {phase !== 'MORNING' && !activeEvent && (
+                    <div className="glass-panel">
+                      <p className="text-xs uppercase tracking-[0.3em] text-neon">Hiljainen linja</p>
+                      <p className="text-sm text-slate-200 mt-2">Ei tapahtumia juuri nyt. Avaa ovi ja kuuntele huminaa.</p>
+                      <button className="button-raw mt-3" onClick={advancePhase}>
+                        Pakota seuraava vaihe →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </OSWindow>
+
+              <NokiaPhone
+                className="absolute bottom-24 right-4"
+                jarki={stats.jarki}
+                lai={lai}
+                onPing={() => {
+                  const reading = pingNetMonitor()
+                  playSfx('nokia')
+                  return reading
+                }}
+                nextNightEventHint={nextNightEventHint}
+              />
+
+              {isShopOpen && (
+                <OSWindow
+                  title="SALKKUKAUPPA"
+                  isActive
+                  size="md"
+                  onClose={() => setIsShopOpen(false)}
+                >
+                  <Shop phase={phase} inventory={inventory} stats={stats} onBuy={handleBuy} onUse={useItem} />
+                </OSWindow>
+              )}
+
+              {isLogOpen && (
+                <OSWindow
+                  title="LOKIKONE"
+                  isActive
+                  size="sm"
+                  onClose={() => setIsLogOpen(false)}
+                >
+                  <JournalWindow entries={journal} />
+                </OSWindow>
+              )}
+
+              {isSettingsOpen && (
+                <OSWindow
+                  title="ASETUKSET"
+                  isActive
+                  size="sm"
+                  onClose={() => setIsSettingsOpen(false)}
+                >
+                  <SettingsWindow
+                    muted={muted}
+                    toggleMute={toggleMute}
+                    backgroundPlaying={backgroundPlaying}
+                    toggleBackground={toggleBackground}
+                    textSpeed={textSpeed}
+                    onTextSpeedChange={setTextSpeed}
+                  />
+                </OSWindow>
+              )}
+            </div>
           </div>
-        )}
-        <DebugPanel
-          phase={phase}
-          currentEventId={activeEvent?.id}
+
+          {import.meta.env.DEV && (
+            <div className="fixed bottom-24 right-4 text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-neon">Active Mods</p>
+              <p className="text-[10px] text-slate-300">Työkalut ja lomakkeet, jotka vaikuttavat tämänhetkiseen event-mathiin.</p>
+              <ul className="space-y-1">
+                {relevantActiveMods.length === 0 && <li className="text-slate-400">Ei aktiivisia modifikaattoreita.</li>}
+                {relevantActiveMods.map((mod) => (
+                  <li key={mod.id} className="border-l-2 border-neon pl-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">{mod.name}</span>
+                      <span className="text-[9px] uppercase tracking-[0.2em] text-neon/80">{mod.type}</span>
+                    </div>
+                    <p className="text-slate-200">{mod.summary}</p>
+                    {mod.tags.length > 0 && (
+                      <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400">{mod.tags.join(', ')}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <DebugPanel
+            phase={phase}
+            currentEventId={activeEvent?.id}
+            stats={stats}
+            isGlitching={isGlitching}
+          />
+        </div>
+        <Taskbar
           stats={stats}
-          isGlitching={isGlitching}
+          dayCount={dayCount}
+          lai={lai}
+          onToggleShop={() => setIsShopOpen((open) => !open)}
+          onToggleLog={() => setIsLogOpen((open) => !open)}
+          onToggleSettings={() => setIsSettingsOpen((open) => !open)}
         />
-      </div>
+      </Desktop>
     </ErrorBoundary>
   )
 }
