@@ -1,15 +1,23 @@
 import { useMemo, useState } from 'react'
 import type { Item, ItemType, Stats } from '../data/gameData'
-import { items as availableItems } from '../data/gameData'
+import { items as availableItems, tagMeta } from '../data/gameData'
 import { canonicalStats } from '../data/statMeta'
 import type { Phase } from '../hooks/useGameLoop'
 import ItemCard from './ItemCard'
 
 const formatPrice = (price: number) => `${price} mk`
 
-const ItemTag = ({ label }: { label: string }) => (
-  <span className="text-[10px] uppercase tracking-[0.25em] text-neon">{label}</span>
-)
+const ItemTag = ({ tag }: { tag: string }) => {
+  const meta = tagMeta[tag]
+  return (
+    <span
+      className="text-[10px] uppercase tracking-[0.25em] text-neon inline-flex gap-1 items-center"
+      title={meta?.blurb ?? tag}
+    >
+      {meta?.label ?? tag}
+    </span>
+  )
+}
 
 const ShopCard = ({
   item,
@@ -39,12 +47,12 @@ const ShopCard = ({
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span className="text-xl">{item.icon}</span>
               <div>
                 <p className="text-sm font-semibold">{item.name}</p>
-                <ItemTag label={item.type.toUpperCase()} />
+                <ItemTag tag={item.type} />
               </div>
             </div>
             <div className="text-right">
@@ -55,6 +63,20 @@ const ShopCard = ({
 
           <p className="text-xs text-slate-200 leading-snug">{item.description}</p>
           <p className="text-[11px] text-emerald-200 leading-snug">{item.summary}</p>
+
+          {item.tags?.length ? (
+            <div className="flex flex-wrap gap-2 text-[10px] text-slate-200" aria-label="Item tags">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-neon/60 px-2 py-1 bg-black/30"
+                  title={tagMeta[tag]?.blurb ?? tag}
+                >
+                  {tagMeta[tag]?.label ?? tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           {item.req_stats?.byroslavia && (
             <p className="text-[11px] text-amber-200">Byroslavia vaadittu: {item.req_stats.byroslavia}</p>
@@ -108,11 +130,11 @@ const Shop = ({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <ItemTag label="Salkkukauppa" />
-          <p className="text-sm text-slate-200">Neon-ikkuna kuljettaa tuotteet suoraan tiskille.</p>
-        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <ItemTag tag="shop" />
+            <p className="text-sm text-slate-200">Neon-ikkuna kuljettaa tuotteet suoraan tiskille.</p>
+          </div>
         <div className="text-right">
           <p className="text-sm text-neon">{canonicalStats.rahat.label}: {formatPrice(stats.rahat)}</p>
           <p className="text-[10px] text-slate-300 uppercase tracking-[0.2em]">{canonicalStats.rahat.short}</p>

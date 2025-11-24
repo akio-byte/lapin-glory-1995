@@ -259,12 +259,12 @@ export const useGameLoop = (): GameState & GameActions => {
   const [lai, setLai] = useState<number>(() => (hasLai(persistedState) ? persistedState.lai : 0))
   const [nextNightEventHint, setNextNightEventHint] = useState<string | null>(null)
 
-  const passiveModifiers = useMemo(() => sumPassiveModifiers(inventory, ['tool', 'form']), [inventory])
+  const passiveModifiers = useMemo(() => sumPassiveModifiers(inventory, ['tool', 'form', 'relic']), [inventory])
   const stats = useMemo(() => applyPassiveModifiers(baseStats, passiveModifiers), [baseStats, passiveModifiers])
   const activeModifiers = useMemo<ActiveModifier[]>(
     () =>
       inventory
-        .filter((item) => item.type === 'tool' || item.type === 'form')
+        .filter((item) => item.type === 'tool' || item.type === 'form' || item.type === 'relic')
         .map((item) => ({ id: item.id, name: item.name, type: item.type, summary: item.summary, tags: item.tags })),
     [inventory],
   )
@@ -362,10 +362,28 @@ export const useGameLoop = (): GameState & GameActions => {
     let success = true
     const tagBonus = (() => {
       if (!currentEvent) return 0
-      if (currentEvent.paperWar && (activeTags.has('tax') || activeTags.has('form'))) return 3
-      if (currentEvent.vibe === 'occult' && activeTags.has('occult')) return 3
-      if (/turisti|bussi/i.test(currentEvent.id) && activeTags.has('tourist')) return 2
-      return 0
+
+      const eventTags = currentEvent.tags ?? []
+      const tagWeights: Record<string, number> = {
+        tax: 2,
+        form: 2,
+        occult: currentEvent.vibe === 'occult' ? 3 : 1,
+        tourist: 2,
+        network: 2,
+      }
+
+      let bonus = 0
+      if (currentEvent.paperWar && (activeTags.has('tax') || activeTags.has('form'))) bonus += 3
+      if (currentEvent.vibe === 'occult' && activeTags.has('occult')) bonus += 3
+      if (/turisti|bussi/i.test(currentEvent.id) && activeTags.has('tourist')) bonus += 2
+
+      eventTags.forEach((tag) => {
+        if (activeTags.has(tag)) {
+          bonus += tagWeights[tag] ?? 1
+        }
+      })
+
+      return bonus
     })()
     const formSupport = currentEvent?.paperWar && inventory.some((item) => item.type === 'form')
 
