@@ -230,6 +230,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
 const GameShell = () => {
   const {
+    activeModifiers,
     stats,
     phase,
     inventory,
@@ -269,6 +270,17 @@ const GameShell = () => {
 
   const activeEvent = useMemo(() => currentEvent, [currentEvent])
   const isPaperWar = activeEvent?.paperWar
+  const relevantActiveMods = useMemo(
+    () =>
+      activeModifiers.filter((mod) => {
+        if (!activeEvent) return true
+        if (activeEvent.paperWar && (mod.tags.includes('tax') || mod.tags.includes('form') || mod.type === 'form')) return true
+        if (activeEvent.vibe === 'occult' && mod.tags.includes('occult')) return true
+        if (/turisti|bussi/i.test(activeEvent.id) && mod.tags.includes('tourist')) return true
+        return mod.type === 'tool'
+      }),
+    [activeModifiers, activeEvent],
+  )
 
   useEffect(() => {
     setOutcome(null)
@@ -576,6 +588,27 @@ const GameShell = () => {
             </aside>
           </section>
         </main>
+        {import.meta.env.DEV && (
+          <div className="fixed bottom-4 right-4 text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-neon">Active Mods</p>
+            <p className="text-[10px] text-slate-300">Työkalut ja lomakkeet, jotka vaikuttavat tämänhetkiseen event-mathiin.</p>
+            <ul className="space-y-1">
+              {relevantActiveMods.length === 0 && <li className="text-slate-400">Ei aktiivisia modifikaattoreita.</li>}
+              {relevantActiveMods.map((mod) => (
+                <li key={mod.id} className="border-l-2 border-neon pl-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{mod.name}</span>
+                    <span className="text-[9px] uppercase tracking-[0.2em] text-neon/80">{mod.type}</span>
+                  </div>
+                  <p className="text-slate-200">{mod.summary}</p>
+                  {mod.tags.length > 0 && (
+                    <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400">{mod.tags.join(', ')}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <DebugPanel
           phase={phase}
           currentEventId={activeEvent?.id}

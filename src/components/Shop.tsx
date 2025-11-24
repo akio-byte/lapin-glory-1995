@@ -51,6 +51,7 @@ const ShopCard = ({
           </div>
 
           <p className="text-xs text-slate-200 leading-snug">{item.description}</p>
+          <p className="text-[11px] text-emerald-200 leading-snug">{item.summary}</p>
 
           {item.req_stats?.byroslavia && (
             <p className="text-[11px] text-amber-200">Byroslavia vaadittu: {item.req_stats.byroslavia}</p>

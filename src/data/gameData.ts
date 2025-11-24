@@ -22,6 +22,8 @@ export interface Item {
   name: string
   price: number
   description: string
+  summary: string
+  tags: string[]
   type: ItemType
   icon: string
   effects: ItemEffects
@@ -77,6 +79,8 @@ export const items: Item[] = [
     name: 'Jaloviina',
     price: 120,
     description: 'Pahvilaatikkoon piilotettu kansallisaarre. Lämmität mielen ja unohtuu byrokratia.',
+    summary: 'Kertanosto järkeen ja sisun palautus',
+    tags: ['tourist'],
     type: 'consumable',
     icon: '🍾',
     effects: { immediate: { jarki: 12, sisu: 6 } },
@@ -86,6 +90,8 @@ export const items: Item[] = [
     name: 'Nokia 2110',
     price: 480,
     description: 'Operatiivinen Net Monitor. Kuulee faksien väliset kuiskaukset ja näyttää tukiaseman haamut.',
+    summary: 'Passiivisesti nostaa mainetta ja Byroslaviaa',
+    tags: ['occult', 'network'],
     type: 'tool',
     icon: '📟',
     effects: { passive: { maine: 4, byroslavia: 5 } },
@@ -95,6 +101,8 @@ export const items: Item[] = [
     name: 'Lomake 5057e',
     price: 75,
     description: 'Verohallinnon esoteerinen kaavake. Leikkaa jonot ja avaa salaiset luukut.',
+    summary: 'Passiivinen byrokraattinen etu paperisodassa, hieman järkiveroa',
+    tags: ['tax', 'form'],
     type: 'form',
     icon: '📑',
     effects: { passive: { byroslavia: 15, jarki: -2 } },
@@ -105,6 +113,8 @@ export const items: Item[] = [
     name: 'Salmiakkikossu',
     price: 90,
     description: 'Aito apteekin sekoitus. Nostaa sisua, mutta maksa huutaa.',
+    summary: 'Kertakäyttö: sisu- ja järkibuusti, maine kärsii',
+    tags: ['tourist'],
     type: 'consumable',
     icon: '🥃',
     effects: { immediate: { jarki: 8, maine: -2, sisu: 10 } },
@@ -114,6 +124,8 @@ export const items: Item[] = [
     name: 'Neon-kyltti V2',
     price: 1500,
     description: 'Uusi kirkas kehä, joka näkyy napapiirin yli. Pitää maineen hengissä kun Staalo kurkkii.',
+    summary: 'Passiivinen maine- ja pimppausbonus',
+    tags: ['tourist', 'occult'],
     type: 'tool',
     icon: '💡',
     effects: { passive: { maine: 12, pimppaus: 6 } },
@@ -123,6 +135,8 @@ export const items: Item[] = [
     name: 'Lahjusrahasto',
     price: 500,
     description: 'Ruskea kirjekuori -setti. Rahasto, jota ruokit jotta tarkastajat pysyvät pehmeinä.',
+    summary: 'Passiivinen Byroslavia- ja maine-etu viranomaissuhteisiin',
+    tags: ['tax'],
     type: 'tool',
     icon: '💼',
     effects: { passive: { byroslavia: 10, maine: 4 } },
