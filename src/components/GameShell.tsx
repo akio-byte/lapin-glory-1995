@@ -1,4 +1,14 @@
-import { Component, type ErrorInfo, type ReactNode, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import '../App.css'
 import EventCard from './EventCard'
 import NokiaPhone from './NokiaPhone'
@@ -515,9 +525,9 @@ const GameShell = () => {
     endingLoggedRef.current = true
   }, [ending, lai, pathProgress])
 
-    const handleEventChoice = useCallback(
-      (choice: Parameters<typeof resolveChoice>[0]) => {
-        if (locked || !activeEvent) return
+  const handleEventChoice = useCallback(
+    (choice: Parameters<typeof resolveChoice>[0]) => {
+      if (locked || !activeEvent) return
       playSfx('choice')
       const result = resolveChoice(choice)
       setOutcome(result.outcomeText)

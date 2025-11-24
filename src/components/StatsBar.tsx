@@ -60,6 +60,8 @@ const getLaiMood = (lai: number) => {
   return { label: 'LAI: tyyni kenttä', accent: 'text-emerald-200' }
 }
 
+type TrackedStat = 'rahat' | 'maine' | 'jarki' | 'lai'
+
 const StatsBar = ({
   stats,
   phase,
@@ -76,14 +78,12 @@ const StatsBar = ({
   const laiMood = getLaiMood(lai)
   const prevStatsRef = useRef(stats)
   const prevLaiRef = useRef(lai)
-  const [deltas, setDeltas] = useState<Partial<Record<'rahat' | 'maine' | 'jarki' | 'lai', { value: number; key: string }>>>(
-    {},
-  )
+  const [deltas, setDeltas] = useState<Partial<Record<TrackedStat, { value: number; key: string }>>>({})
 
   useEffect(() => {
     const prevStats = prevStatsRef.current
     const prevLai = prevLaiRef.current
-    const changes: [keyof Stats | 'lai', number][] = []
+    const changes: [TrackedStat, number][] = []
 
     if (stats.rahat !== prevStats.rahat) changes.push(['rahat', stats.rahat - prevStats.rahat])
     if (stats.maine !== prevStats.maine) changes.push(['maine', stats.maine - prevStats.maine])
