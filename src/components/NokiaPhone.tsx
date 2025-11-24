@@ -49,6 +49,8 @@ const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint, className }:
   const [signalDbm, setSignalDbm] = useState(-92)
   const [pingMs, setPingMs] = useState(120)
   const [prophecy, setProphecy] = useState<string | null>(nextNightEventHint ?? null)
+  const [isCompact, setIsCompact] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(false)
 
   useEffect(() => {
     setLocalLai(lai)
@@ -73,6 +75,30 @@ const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint, className }:
     return isGlitch ? `${message} // ${glitchSalt}Hz` : message
   }, [isGlitch])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const syncCompact = () => {
+      setIsCompact(window.innerHeight < 780)
+    }
+    syncCompact()
+    window.addEventListener('resize', syncCompact)
+    return () => window.removeEventListener('resize', syncCompact)
+  }, [])
+
+  useEffect(() => {
+    if (isCompact) {
+      setIsMinimized(true)
+    }
+  }, [isCompact])
+
+  const toggleMinimize = useCallback(() => {
+    setIsMinimized((prev) => !prev)
+  }, [])
+
+  const containerClass = ['fixed z-50 nokia-shell', className, isCompact ? 'nokia-shell--compact' : '']
+    .filter(Boolean)
+    .join(' ')
+
   const handlePing = () => {
     const result = onPing?.()
     const fallbackLai = clamp(localLai + (Math.random() * 6 - 2), 0, 100)
@@ -94,52 +120,68 @@ const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint, className }:
   }
 
   return (
-    <div
-      className={`fixed z-50 ${className ?? 'bottom-6 right-6'}`}
-      style={{ fontFamily: '"VT323", "IBM Plex Mono", monospace' }}
-    >
+    <div className={containerClass} style={{ fontFamily: '"VT323", "IBM Plex Mono", monospace' }}>
       <style>{pixelVibes}</style>
-      <div className="w-64 bg-lime-900/80 text-green-200 border-4 border-lime-700 rounded-2xl shadow-[0_0_22px_rgba(110,130,0,0.6)]">
-        <div className="flex items-center justify-between px-4 py-2 text-xs uppercase tracking-[0.25em] bg-lime-800/70 border-b border-lime-700">
+      <div
+        className={`bg-lime-900/80 text-green-200 border-4 border-lime-700 rounded-2xl shadow-[0_0_22px_rgba(110,130,0,0.6)] ${
+          isCompact ? 'w-56' : 'w-64'
+        }`}
+        style={{ maxHeight: 'calc(100vh - var(--taskbar-height, 58px) - 1rem)' }}
+      >
+        <div className="flex items-center justify-between px-4 py-2 text-xs uppercase tracking-[0.25em] bg-lime-800/70 border-b border-lime-700 gap-2">
           <span>Net Monitor</span>
-          <span className={`font-bold ${isGlitch ? 'animate-[jitter_0.6s_infinite]' : ''}`}>
-            LAI {localLai.toFixed(0)}
-          </span>
-        </div>
-        <div className="p-4 bg-lime-950/50 text-sm leading-tight space-y-2">
-          <div className={`${isGlitch ? 'animate-[jitter_0.5s_infinite] text-lime-200' : 'text-lime-100'}`}>
-            <p>{readout}</p>
-            <p className={`text-xs uppercase tracking-[0.2em] ${uiState[stage].color}`}>
-              LAI {localLai.toFixed(0)} — {uiState[stage].label}
-            </p>
-            <p className="text-[11px] text-lime-300/80">{uiState[stage].hint}</p>
-            {lastDelta !== null && (
-              <p className="text-[11px] text-lime-300/70">Δ LAI: {lastDelta > 0 ? '+' : ''}{lastDelta.toFixed(0)}</p>
-            )}
-            {prophecy && (
-              <p className="text-[11px] text-lime-200 font-semibold">{glitchify(prophecy)}</p>
-            )}
-          </div>
-          <div className={`grid grid-cols-2 gap-2 text-xs ${stage === 'glitch' || stage === 'severe' ? 'animate-[pulse_1.4s_infinite]' : ''}`}>
-            <div className="border border-lime-700/60 bg-lime-900/50 px-2 py-1 rounded">
-              <p className="uppercase tracking-[0.2em]">Signal</p>
-              <p className="text-sm font-semibold">{signalDbm} dBm</p>
-            </div>
-            <div className="border border-lime-700/60 bg-lime-900/50 px-2 py-1 rounded">
-              <p className="uppercase tracking-[0.2em]">Ping</p>
-              <p className="text-sm font-semibold">{pingMs} ms</p>
-            </div>
-          </div>
-          <div className="pt-2">
+          <div className="flex items-center gap-2">
+            <span className={`font-bold ${isGlitch ? 'animate-[jitter_0.6s_infinite]' : ''}`}>
+              LAI {localLai.toFixed(0)}
+            </span>
             <button
-              className="w-full bg-lime-800/60 border border-lime-600 text-lime-100 uppercase tracking-[0.2em] text-xs py-1 hover:bg-lime-700"
-              onClick={handlePing}
+              className="px-2 py-0.5 text-[11px] rounded bg-lime-900/80 border border-lime-700 hover:bg-lime-800"
+              onClick={toggleMinimize}
               type="button"
+              aria-label={isMinimized ? 'Avaa Net Monitor' : 'Pienennä Net Monitor'}
             >
-              Pingaa verkkoa
+              {isMinimized ? '▢' : '–'}
             </button>
           </div>
         </div>
+        {!isMinimized && (
+          <div className="p-4 bg-lime-950/50 text-sm leading-tight space-y-2">
+            <div className={`${isGlitch ? 'animate-[jitter_0.5s_infinite] text-lime-200' : 'text-lime-100'}`}>
+              <p>{readout}</p>
+              <p className={`text-xs uppercase tracking-[0.2em] ${uiState[stage].color}`}>
+                LAI {localLai.toFixed(0)} — {uiState[stage].label}
+              </p>
+              <p className="text-[11px] text-lime-300/80">{uiState[stage].hint}</p>
+              {lastDelta !== null && (
+                <p className="text-[11px] text-lime-300/70">Δ LAI: {lastDelta > 0 ? '+' : ''}{lastDelta.toFixed(0)}</p>
+              )}
+              {prophecy && (
+                <p className="text-[11px] text-lime-200 font-semibold">{glitchify(prophecy)}</p>
+              )}
+            </div>
+            <div
+              className={`grid grid-cols-2 gap-2 text-xs ${stage === 'glitch' || stage === 'severe' ? 'animate-[pulse_1.4s_infinite]' : ''}`}
+            >
+              <div className="border border-lime-700/60 bg-lime-900/50 px-2 py-1 rounded">
+                <p className="uppercase tracking-[0.2em]">Signal</p>
+                <p className="text-sm font-semibold">{signalDbm} dBm</p>
+              </div>
+              <div className="border border-lime-700/60 bg-lime-900/50 px-2 py-1 rounded">
+                <p className="uppercase tracking-[0.2em]">Ping</p>
+                <p className="text-sm font-semibold">{pingMs} ms</p>
+              </div>
+            </div>
+            <div className={`pt-2 ${isCompact ? 'text-[13px]' : ''}`}>
+              <button
+                className="w-full bg-lime-800/60 border border-lime-600 text-lime-100 uppercase tracking-[0.2em] text-xs py-1 hover:bg-lime-700"
+                onClick={handlePing}
+                type="button"
+              >
+                Pingaa verkkoa
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

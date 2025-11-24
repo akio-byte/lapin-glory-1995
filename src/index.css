@@ -13,6 +13,7 @@
   -moz-osx-font-smoothing: grayscale;
   --glitch-duration: 3s;
   --crt-noise-strength: 0.14;
+  --taskbar-height: 58px;
 }
 
 * {
@@ -22,8 +23,8 @@
 html,
 body,
 #root {
-  height: 100vh;
-  width: 100vw;
+  min-height: 100vh;
+  width: 100%;
   margin: 0;
   padding: 0;
   overflow-y: auto;
@@ -40,7 +41,6 @@ body {
   html,
   body,
   #root {
-    height: auto;
     min-height: 100vh;
     overflow-y: auto;
   }

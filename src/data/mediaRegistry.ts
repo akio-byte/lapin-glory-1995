@@ -1,7 +1,17 @@
 const PLACEHOLDER_ASSET = 'PLACEHOLDER_FAX'
 export const PLACEHOLDER_MEDIA_URL = 'https://placehold.co/600x400/1b1f2d/FF00FF?text=Glitch'
 
-const mediaFiles = import.meta.glob('../assets/**/*', { eager: true, query: '?url', import: 'default' })
+// Avoid hard dependency on import.meta.glob so non-Vite tooling can import data safely.
+// eslint-disable-next-line no-new-func
+const globFn: ((...args: unknown[]) => Record<string, string>) | undefined = (() => {
+  try {
+    return new Function('return import.meta.glob')()
+  } catch (error) {
+    console.warn('[MediaRegistry] import.meta.glob unavailable, falling back to empty registry.', error)
+    return undefined
+  }
+})()
+const mediaFiles = globFn ? globFn('../assets/**/*', { eager: true, query: '?url', import: 'default' }) : {}
 
 const normalizeFileName = (fileName: string) => fileName.replace(/(\.png|\.mp4|\.jpg|\.jpeg)\1$/i, '$1')
 

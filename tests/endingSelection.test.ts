@@ -21,11 +21,11 @@ const buildState = ({ stats, lai, dayCount, phase, pathProgress }: EndingParams)
     pathProgress: pathProgress ?? createInitialPathProgress(),
   })
 
-describe('ending selection logic', () => {
+  describe('ending selection logic', () => {
   it('returns immediate fail endings when stats crash', () => {
-    const psychWard = buildState({ stats: { ...INITIAL_STATS, jarki: 0 }, lai: 10, dayCount: 3, phase: 'DAY' })
-    const bankruptcy = buildState({ stats: { ...INITIAL_STATS, rahat: -1200 }, lai: 10, dayCount: 3, phase: 'DAY' })
-    const taxRaid = buildState({ stats: { ...INITIAL_STATS, maine: 99 }, lai: 10, dayCount: 3, phase: 'DAY' })
+    const psychWard = buildState({ stats: { ...INITIAL_STATS, jarki: 0 }, lai: 10, dayCount: 3, phase: 'MORNING' })
+    const bankruptcy = buildState({ stats: { ...INITIAL_STATS, rahat: -1200 }, lai: 10, dayCount: 3, phase: 'MORNING' })
+    const taxRaid = buildState({ stats: { ...INITIAL_STATS, maine: 99 }, lai: 10, dayCount: 3, phase: 'MORNING' })
 
     expect(psychWard?.type).toBe('psychWard')
     expect(bankruptcy?.type).toBe('bankruptcy')

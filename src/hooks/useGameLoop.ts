@@ -10,6 +10,7 @@ import {
   buildPathMeta,
 } from '../data/gameData'
 import type { EndingType } from '../data/endingData'
+import { safeReadJson, safeRemove, safeWriteJson } from '../utils/safeStorage'
 
 export type Phase = 'DAY' | 'NIGHT' | 'MORNING'
 
@@ -54,6 +55,17 @@ export const createInitialPathProgress = (): PathProgress => ({
   occult: { xp: 0, milestoneIndex: 0 },
   network: { xp: 0, milestoneIndex: 0 },
 })
+
+const normalizePathProgress = (progress?: PathProgress | null): PathProgress => {
+  const base = createInitialPathProgress()
+  if (!progress) return base
+  return {
+    tourist: progress.tourist ?? base.tourist,
+    tax: progress.tax ?? base.tax,
+    occult: progress.occult ?? base.occult,
+    network: progress.network ?? base.network,
+  }
+}
 
 type ActiveModifier = {
   id: string
@@ -138,7 +150,22 @@ type PersistedStateV5 = Omit<PersistedStateBase, 'stats' | 'dayStartStats'> & {
   dayHistory: DaySnapshot[]
 }
 
-export type PersistedState = PersistedStateV1 | PersistedStateV2 | PersistedStateV3 | PersistedStateV4 | PersistedStateV5
+type PersistedStateV6 = Omit<PersistedStateBase, 'stats' | 'dayStartStats'> & {
+  version: 6
+  stats: Stats
+  dayStartStats: Stats
+  lai: number
+  pathProgress: PathProgress
+  dayHistory: DaySnapshot[]
+}
+
+export type PersistedState =
+  | PersistedStateV1
+  | PersistedStateV2
+  | PersistedStateV3
+  | PersistedStateV4
+  | PersistedStateV5
+  | PersistedStateV6
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -156,12 +183,39 @@ export const INITIAL_STATS: Stats = {
 const PHASE_ORDER: Phase[] = ['DAY', 'NIGHT', 'MORNING']
 
 const STORAGE_KEY = 'lapin-glory-state'
+const STORAGE_VERSION = 6
+
+const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const isStatsShape = (candidate: Stats | LegacyStats): candidate is Stats =>
+  candidate != null &&
+  typeof candidate === 'object' &&
+  'rahat' in candidate &&
+  isNumber((candidate as Stats).rahat) &&
+  isNumber((candidate as Stats).maine) &&
+  isNumber((candidate as Stats).jarki) &&
+  isNumber((candidate as Stats).sisu) &&
+  isNumber((candidate as Stats).pimppaus) &&
+  isNumber((candidate as Stats).byroslavia)
+
+const isPathProgressShape = (value: unknown): value is PathProgress => {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Record<string, unknown>
+  return (['tourist', 'tax', 'occult', 'network'] as BuildPath[]).every((key) => {
+    const entry = candidate[key] as { xp?: unknown; milestoneIndex?: unknown } | undefined
+    return entry ? isNumber(entry.xp) && isNumber(entry.milestoneIndex) : true
+  })
+}
 
 const hasPersistedShape = (data: unknown): data is PersistedState => {
   if (!data || typeof data !== 'object') return false
   const candidate = data as Record<string, unknown>
   return (
-    (candidate.version === 1 || candidate.version === 2 || candidate.version === 3 || candidate.version === 4 || candidate.version === 5) &&
+    (candidate.version === 1 ||
+      candidate.version === 2 ||
+      candidate.version === 3 ||
+      candidate.version === 4 ||
+      candidate.version === 5 ||
+      candidate.version === 6) &&
     'stats' in candidate &&
     'inventory' in candidate &&
     'phase' in candidate &&
@@ -179,7 +233,7 @@ const mergeStatDeltas = (base: Stats, delta: Partial<Stats>): Stats => ({
   byroslavia: clamp(base.byroslavia + (delta.byroslavia ?? 0), 0, 100),
 })
 
-const sumPassiveModifiers = (inventory: Item[], allowedTypes: Item['type'][] = ['tool', 'form']) => {
+const sumPassiveModifiers = (inventory: Item[], allowedTypes: Item['type'][] = ['tool', 'form', 'relic']) => {
   const totals: Partial<Stats> = {}
   inventory.forEach((item) => {
     if (!allowedTypes.includes(item.type)) return
@@ -205,7 +259,9 @@ const applyPassiveModifiers = (base: Stats, modifiers: Partial<Stats>): Stats =>
   return next
 }
 
-const hasLai = (state: PersistedState | null): state is PersistedStateV2 | PersistedStateV3 | PersistedStateV4 =>
+const hasLai = (
+  state: PersistedState | null,
+): state is PersistedStateV2 | PersistedStateV3 | PersistedStateV4 | PersistedStateV5 | PersistedStateV6 =>
   Boolean(state && 'lai' in state)
 
 const normalizeStats = (raw: Stats | LegacyStats | null | undefined): Stats => {
@@ -224,26 +280,57 @@ const normalizeStats = (raw: Stats | LegacyStats | null | undefined): Stats => {
   return raw
 }
 
-const loadPersistedState = (): PersistedState | null => {
-  if (typeof localStorage === 'undefined') return null
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return null
-
-  try {
-    const parsed = JSON.parse(raw)
-    if (hasPersistedShape(parsed)) {
-      return parsed
-    }
-  } catch (error) {
-    console.warn('Failed to parse persisted state', error)
+const loadPersistedState = (): PersistedStateV6 | null => {
+  const parsed = safeReadJson<PersistedState>(STORAGE_KEY)
+  if (!parsed) return null
+  if (!hasPersistedShape(parsed)) {
+    safeRemove(STORAGE_KEY)
+    return null
   }
 
-  return null
+  if (!isStatsShape(parsed.stats as Stats) || !isStatsShape(parsed.dayStartStats as Stats)) {
+    safeRemove(STORAGE_KEY)
+    return null
+  }
+
+  const normalizedStats = normalizeStats(parsed.stats as Stats)
+  const normalizedDayStart = normalizeStats(parsed.dayStartStats as Stats)
+  const laiValue = hasLai(parsed) ? parsed.lai : 0
+  if (!isPathProgressShape((parsed as PersistedStateV6).pathProgress)) {
+    safeRemove(STORAGE_KEY)
+    return null
+  }
+  const normalizedHistory =
+    'dayHistory' in parsed && Array.isArray(parsed.dayHistory) && parsed.dayHistory.length > 0
+      ? parsed.dayHistory
+      : [
+          {
+            day: parsed.dayCount ?? 1,
+            rahat: normalizedStats.rahat,
+            lai: laiValue,
+            jarki: normalizedStats.jarki,
+            maine: normalizedStats.maine,
+          },
+        ]
+
+  const normalized: PersistedStateV6 = {
+    version: STORAGE_VERSION,
+    stats: normalizedStats,
+    inventory: parsed.inventory ?? [],
+    phase: parsed.phase ?? 'DAY',
+    dayCount: parsed.dayCount ?? 1,
+    dayStartStats: normalizedDayStart,
+    lai: laiValue,
+    pathProgress: normalizePathProgress('pathProgress' in parsed ? parsed.pathProgress : null),
+    dayHistory: normalizedHistory,
+  }
+
+  safeWriteJson(STORAGE_KEY, normalized)
+  return normalized
 }
 
-const savePersistedState = (state: PersistedStateV5): void => {
-  if (typeof localStorage === 'undefined') return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+const savePersistedState = (state: PersistedStateV6): void => {
+  safeWriteJson(STORAGE_KEY, state)
 }
 
 export const pickEventForPhase = (
@@ -292,10 +379,13 @@ export const evaluateEndingForState = ({
   pathProgress: PathProgress
   lai: number
 }): EndingState | null => {
+  if (phase !== 'MORNING') return null
+
   if (stats.jarki <= 0) return { type: 'psychWard', dayCount, stats, lai }
   if (stats.rahat < -1000) return { type: 'bankruptcy', dayCount, stats, lai }
   if (stats.maine > 95) return { type: 'taxRaid', dayCount, stats, lai }
-  if (dayCount >= MAX_DAYS && phase === 'MORNING') {
+
+  if (dayCount >= MAX_DAYS) {
     const pathScores = (Object.keys(pathProgress) as BuildPath[]).map((path) => ({
       path,
       level: pathProgress[path]?.milestoneIndex ?? 0,
@@ -320,6 +410,168 @@ export const evaluateEndingForState = ({
   return null
 }
 
+type TagBonusResult = { rollBonus: number; statEffects: Partial<Stats>; laiDelta: number }
+
+const mergePartialStats = (base: Partial<Stats>, delta: Partial<Stats>): Partial<Stats> => {
+  const next = { ...base }
+  Object.entries(delta).forEach(([key, value]) => {
+    const typedKey = key as keyof Stats
+    next[typedKey] = (next[typedKey] ?? 0) + (value ?? 0)
+  })
+  return next
+}
+
+const getTagBonus = (
+  tags: string[] = [],
+  inventory: Item[],
+  pathProgress: PathProgress,
+): TagBonusResult => {
+  const activeTags = new Set(inventory.flatMap((item) => item.tags ?? []))
+  let rollBonus = 0
+  let laiDelta = 0
+  let statEffects: Partial<Stats> = {}
+
+  tags.forEach((tag) => {
+    const milestone = pathProgress[tag as BuildPath]?.milestoneIndex ?? 0
+    const hasTag = activeTags.has(tag) || milestone > 0
+    if (!hasTag) return
+
+    const pathBonus = 1 + milestone
+    rollBonus += pathBonus
+
+    switch (tag) {
+      case 'occult':
+        statEffects = mergePartialStats(statEffects, { jarki: -1, sisu: 1 + milestone })
+        break
+      case 'tourist':
+        statEffects = mergePartialStats(statEffects, { maine: 1 + milestone, rahat: 10 * (milestone + 1) })
+        break
+      case 'tax':
+      case 'form':
+        statEffects = mergePartialStats(statEffects, { byroslavia: 1 + milestone })
+        break
+      case 'network':
+        laiDelta -= 1 + milestone
+        statEffects = mergePartialStats(statEffects, { pimppaus: 1 })
+        break
+      default:
+        break
+    }
+  })
+
+  return { rollBonus, statEffects, laiDelta }
+}
+
+const applyMilestone = (path: BuildPath): { stats: Partial<Stats>; laiDelta: number } => {
+  switch (path) {
+    case 'tourist':
+      return { stats: { rahat: 50, maine: 3 }, laiDelta: 0 }
+    case 'tax':
+      return { stats: { byroslavia: 4, jarki: 1 }, laiDelta: 0 }
+    case 'occult':
+      return { stats: { sisu: 2, jarki: 1 }, laiDelta: 0 }
+    case 'network':
+      return { stats: { pimppaus: 2, byroslavia: 1 }, laiDelta: -2 }
+    default:
+      return { stats: {}, laiDelta: 0 }
+  }
+}
+
+const applyPathXp = (
+  currentProgress: PathProgress,
+  xp: Partial<Record<BuildPath, number>>,
+): { rewards: Partial<Stats>; updatedProgress: PathProgress; laiDelta: number } => {
+  const updates: PathProgress = normalizePathProgress(currentProgress)
+  let rewards: Partial<Stats> = {}
+  let laiDelta = 0
+
+  ;(Object.keys(xp) as BuildPath[]).forEach((path) => {
+    const gain = xp[path]
+    if (!gain) return
+    const milestones = buildPathMeta[path].milestones
+    const cap = milestones[milestones.length - 1] ?? gain + updates[path].xp
+
+    const nextXp = Math.min(updates[path].xp + gain, cap)
+    let milestoneIndex = updates[path].milestoneIndex
+    while (milestoneIndex < milestones.length && nextXp >= milestones[milestoneIndex]) {
+      milestoneIndex += 1
+      const reward = applyMilestone(path)
+      rewards = mergePartialStats(rewards, reward.stats)
+      laiDelta += reward.laiDelta
+    }
+
+    updates[path] = { xp: nextXp, milestoneIndex }
+  })
+
+  return { rewards, updatedProgress: updates, laiDelta }
+}
+
+type ResolveChoiceInput = {
+  choice: GameEventChoice
+  event: GameEvent | null
+  stats: Stats
+  inventory: Item[]
+  lai: number
+  pathProgress: PathProgress
+  random?: () => number
+}
+
+const resolveChoiceCore = ({
+  choice,
+  event,
+  stats,
+  inventory,
+  lai,
+  pathProgress,
+  random = Math.random,
+}: ResolveChoiceInput): {
+  appliedEffects: Partial<Stats>
+  outcomeText: string
+  success: boolean
+  updatedPathProgress: PathProgress
+  laiDelta: number
+} => {
+  const baseEffect = { ...choice.cost } as Partial<Stats>
+  const tagResult = getTagBonus(event?.tags ?? [], inventory, pathProgress)
+  const formSupport = Boolean(event?.paperWar && inventory.some((item) => item.type === 'form'))
+
+  let success = true
+  if (choice.skillCheck) {
+    const statValue = stats[choice.skillCheck.stat]
+    const roll = Math.floor(random() * 20)
+    const total = statValue + tagResult.rollBonus + roll
+    success = total >= choice.skillCheck.dc
+    if (!success && formSupport) {
+      success = total + 3 >= choice.skillCheck.dc
+    }
+  }
+
+  const outcome = success ? choice.outcomeSuccess : choice.outcomeFail
+  let combinedEffects: Partial<Stats> = { ...baseEffect }
+  let outcomeText = outcome.text
+
+  if (formSupport && event?.paperWar) {
+    combinedEffects = mergePartialStats(combinedEffects, { byroslavia: success ? 2 : 0 })
+    outcomeText = `${outcomeText} (Paperisodan lomake suojaa.)`
+  }
+
+  combinedEffects = mergePartialStats(combinedEffects, outcome.effects)
+  combinedEffects = mergePartialStats(combinedEffects, tagResult.statEffects)
+
+  const pathOutcome = choice.pathXp ? applyPathXp(pathProgress, choice.pathXp) : { rewards: {}, updatedProgress: pathProgress, laiDelta: 0 }
+  combinedEffects = mergePartialStats(combinedEffects, pathOutcome.rewards)
+
+  const laiDelta = tagResult.laiDelta + pathOutcome.laiDelta
+
+  return {
+    appliedEffects: combinedEffects,
+    outcomeText,
+    success,
+    updatedPathProgress: pathOutcome.updatedProgress,
+    laiDelta,
+  }
+}
+
 export const useGameLoop = (): GameState & GameActions => {
   const persistedState = loadPersistedState()
 
@@ -333,7 +585,7 @@ export const useGameLoop = (): GameState & GameActions => {
   const [lai, setLai] = useState<number>(() => (hasLai(persistedState) ? persistedState.lai : 0))
   const [nextNightEventHint, setNextNightEventHint] = useState<string | null>(null)
   const [pathProgress, setPathProgress] = useState<PathProgress>(() =>
-    persistedState && 'pathProgress' in persistedState ? persistedState.pathProgress : createInitialPathProgress(),
+    normalizePathProgress(persistedState?.pathProgress ?? null),
   )
   const [dayHistory, setDayHistory] = useState<DaySnapshot[]>(() => {
     if (persistedState && 'dayHistory' in persistedState && persistedState.dayHistory?.length) {
@@ -351,12 +603,14 @@ export const useGameLoop = (): GameState & GameActions => {
         .map((item) => ({ id: item.id, name: item.name, type: item.type, summary: item.summary, tags: item.tags })),
     [inventory],
   )
-  const activeTags = useMemo(() => new Set(inventory.flatMap((item) => item.tags ?? [])), [inventory])
-
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(() =>
     phase === 'MORNING' ? null : pickEventForPhase(phase, stats, lai, dayCount),
   )
   const prevPhaseRef = useRef<Phase>(phase)
+  const eventRollRef = useRef<{ phase: Phase; day: number }>({ phase, day: dayCount })
+  const morningProcessedRef = useRef<number | null>(null)
+  const persistSnapshotRef = useRef<string>('')
+  const phaseTransitioningRef = useRef(false)
 
   const ending: EndingState | null = useMemo(
     () => evaluateEndingForState({ stats, dayCount, phase, pathProgress, lai }),
@@ -372,45 +626,16 @@ export const useGameLoop = (): GameState & GameActions => {
   }
 
   const grantPathXp = (xp: Partial<Record<BuildPath, number>>, note?: string) => {
-    const updates: PathProgress = { ...pathProgress }
-    const rewards: Partial<Stats> = {}
-
-    ;(Object.keys(xp) as BuildPath[]).forEach((path) => {
-      const gain = xp[path]
-      if (!gain) return
-      const current = updates[path]?.xp ?? 0
-      const nextXp = current + gain
-      const milestones = buildPathMeta[path].milestones
-      const currentMilestoneIndex = updates[path]?.milestoneIndex ?? 0
-      let milestoneIndex = currentMilestoneIndex
-      while (milestoneIndex < milestones.length && nextXp >= milestones[milestoneIndex]) {
-        milestoneIndex += 1
-        // Reward: small stat bumps tuned per path identity
-        if (path === 'tourist') {
-          rewards.maine = (rewards.maine ?? 0) + 3
-          rewards.rahat = (rewards.rahat ?? 0) + 40
-        }
-        if (path === 'tax') {
-          rewards.byroslavia = (rewards.byroslavia ?? 0) + 4
-          rewards.jarki = (rewards.jarki ?? 0) + 1
-        }
-        if (path === 'occult') {
-          rewards.jarki = (rewards.jarki ?? 0) + 2
-          rewards.sisu = (rewards.sisu ?? 0) + 2
-        }
-        if (path === 'network') {
-          rewards.byroslavia = (rewards.byroslavia ?? 0) + 2
-          rewards.pimppaus = (rewards.pimppaus ?? 0) + 2
-        }
+    setPathProgress((prev) => {
+      const result = applyPathXp(prev, xp)
+      if (Object.keys(result.rewards).length > 0) {
+        setBaseStats((base) => mergeStatDeltas(base, result.rewards))
       }
-
-      updates[path] = { xp: nextXp, milestoneIndex }
+      if (result.laiDelta !== 0) {
+        setLai((prevLai) => clamp(prevLai + result.laiDelta, 0, 100))
+      }
+      return result.updatedProgress
     })
-
-    setPathProgress(updates)
-    if (Object.keys(rewards).length > 0) {
-      handleChoice(rewards)
-    }
 
     if (note) {
       console.info('Path XP awarded', xp, note)
@@ -422,7 +647,8 @@ export const useGameLoop = (): GameState & GameActions => {
   }
 
   const advancePhase = () => {
-    if (ending) return
+    if (ending || phaseTransitioningRef.current) return
+    phaseTransitioningRef.current = true
 
     setPhase((prev) => {
       const currentIndex = PHASE_ORDER.indexOf(prev)
@@ -488,69 +714,22 @@ export const useGameLoop = (): GameState & GameActions => {
   }
 
   const resolveChoice = (choice: GameEventChoice): ChoiceResolution => {
-    const baseEffect = { ...choice.cost } as Partial<Stats>
-    let success = true
-    const tagBonus = (() => {
-      if (!currentEvent) return 0
-
-      const eventTags = currentEvent.tags ?? []
-      const tagWeights: Record<string, number> = {
-        tax: 2,
-        form: 2,
-        occult: currentEvent.vibe === 'occult' ? 3 : 1,
-        tourist: 2,
-        network: 2,
-      }
-
-      let bonus = 0
-      if (currentEvent.paperWar && (activeTags.has('tax') || activeTags.has('form'))) bonus += 3
-      if (currentEvent.vibe === 'occult' && activeTags.has('occult')) bonus += 3
-      if (/turisti|bussi/i.test(currentEvent.id) && activeTags.has('tourist')) bonus += 2
-
-      eventTags.forEach((tag) => {
-        if (activeTags.has(tag)) {
-          bonus += tagWeights[tag] ?? 1
-        }
-      })
-
-      return bonus
-    })()
-    const formSupport = currentEvent?.paperWar && inventory.some((item) => item.type === 'form')
-
-    if (choice.skillCheck) {
-      const statValue = stats[choice.skillCheck.stat]
-      const roll = Math.floor(Math.random() * 20)
-      success = statValue + roll + tagBonus >= choice.skillCheck.dc
-      if (!success && formSupport) {
-        // Form gives a safety net on paper wars
-        success = statValue + roll + tagBonus + 3 >= choice.skillCheck.dc
-      }
-    }
-
-    const outcome = success ? choice.outcomeSuccess : choice.outcomeFail
-    const combinedEffects: Partial<Stats> = { ...baseEffect }
-    let outcomeText = outcome.text
-
-    if (formSupport && currentEvent?.paperWar) {
-      const paperworkBoost = success ? 2 : 0
-      if (paperworkBoost > 0) {
-        combinedEffects.byroslavia = (combinedEffects.byroslavia ?? 0) + paperworkBoost
-        outcomeText = `${outcomeText} (Lomakkeet voimistavat paperisotaa.)`
-      }
-    }
-
-    Object.entries(outcome.effects).forEach(([key, value]) => {
-      const typedKey = key as keyof Stats
-      combinedEffects[typedKey] = (combinedEffects[typedKey] ?? 0) + (value ?? 0)
+    const resolution = resolveChoiceCore({
+      choice,
+      event: currentEvent,
+      stats,
+      inventory,
+      lai,
+      pathProgress,
     })
 
-    handleChoice(combinedEffects)
-
-    if (choice.pathXp) {
-      grantPathXp(choice.pathXp, `choice:${choice.label}`)
+    handleChoice(resolution.appliedEffects)
+    if (resolution.laiDelta !== 0) {
+      setLai((prevLai) => clamp(prevLai + resolution.laiDelta, 0, 100))
     }
+    setPathProgress(resolution.updatedPathProgress)
 
-    return { outcomeText, appliedEffects: combinedEffects }
+    return { outcomeText: resolution.outcomeText, appliedEffects: resolution.appliedEffects }
   }
 
   const buildLaiBand = (value: number): NetMonitorReading['band'] => {
@@ -639,10 +818,16 @@ export const useGameLoop = (): GameState & GameActions => {
     setPathProgress(createInitialPathProgress())
     setDayHistory([{ day: 1, rahat: INITIAL_STATS.rahat, lai: 0, jarki: INITIAL_STATS.jarki, maine: INITIAL_STATS.maine }])
     setWasRestored(false)
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem(STORAGE_KEY)
-    }
+    setCurrentEvent(null)
+    morningProcessedRef.current = null
+    eventRollRef.current = { phase: 'DAY', day: 1 }
+    persistSnapshotRef.current = ''
+    safeRemove(STORAGE_KEY)
   }
+
+  useEffect(() => {
+    phaseTransitioningRef.current = false
+  }, [phase, dayCount])
 
   const buildMorningNote = (state: Stats) => {
     const randomPick = (options: string[]) => options[Math.floor(Math.random() * options.length)]
@@ -668,25 +853,33 @@ export const useGameLoop = (): GameState & GameActions => {
     ])
   }
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const phaseChanged = phase !== prevPhaseRef.current
     if (phaseChanged) {
       prevPhaseRef.current = phase
-      setCurrentEvent(null)
+      if (phase === 'MORNING') {
+        setCurrentEvent(null)
+      }
     }
 
-    if (phase === 'MORNING') return
+    if (phase === 'MORNING') {
+      eventRollRef.current = { phase, day: dayCount }
+      return
+    }
 
-    if (phaseChanged || !currentEvent) {
-      setCurrentEvent(pickEventForPhase(phase, stats, lai, dayCount))
+    const alreadyRolled = eventRollRef.current.phase === phase && eventRollRef.current.day === dayCount
+
+    if (!alreadyRolled || !currentEvent) {
+      const nextEvent = pickEventForPhase(phase, stats, lai, dayCount)
+      setCurrentEvent(nextEvent)
+      eventRollRef.current = { phase, day: dayCount }
     }
   }, [currentEvent, dayCount, lai, phase, stats])
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (phase !== 'MORNING') return
-    if (morningReport?.day === dayCount) return
+    if (morningProcessedRef.current === dayCount) return
+    morningProcessedRef.current = dayCount
 
     const moneyDelta = stats.rahat - dayStartStats.rahat
     const jarkiDelta = stats.jarki - dayStartStats.jarki
@@ -707,18 +900,17 @@ export const useGameLoop = (): GameState & GameActions => {
       const withoutDupes = prev.filter((entry) => entry.day !== dayCount)
       return [...withoutDupes, { day: dayCount, rahat: stats.rahat, lai, jarki: stats.jarki, maine: stats.maine }]
     })
-  }, [phase, stats, dayStartStats, dayCount, lai, dayHistory, morningReport])
+  }, [phase, stats, dayStartStats, dayCount, lai, dayHistory])
 
   useEffect(() => {
     if (ending) {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEY)
-      }
+      safeRemove(STORAGE_KEY)
+      persistSnapshotRef.current = ''
       return
     }
 
-    savePersistedState({
-      version: 5,
+    const payload: PersistedStateV6 = {
+      version: STORAGE_VERSION,
       stats: baseStats,
       inventory,
       phase,
@@ -727,7 +919,11 @@ export const useGameLoop = (): GameState & GameActions => {
       lai,
       pathProgress,
       dayHistory,
-    })
+    }
+    const snapshot = JSON.stringify(payload)
+    if (snapshot === persistSnapshotRef.current) return
+    persistSnapshotRef.current = snapshot
+    savePersistedState(payload)
   }, [baseStats, inventory, phase, dayCount, dayStartStats, ending, lai, pathProgress, dayHistory])
 
   return {
@@ -771,122 +967,31 @@ type SimulationState = {
   dayHistory: DaySnapshot[]
 }
 
-const applyPathXpSimulation = (
-  currentProgress: PathProgress,
-  xp: Partial<Record<BuildPath, number>>,
-): { rewards: Partial<Stats>; updatedProgress: PathProgress } => {
-  const updates: PathProgress = { ...currentProgress }
-  const rewards: Partial<Stats> = {}
-
-  ;(Object.keys(xp) as BuildPath[]).forEach((path) => {
-    const gain = xp[path]
-    if (!gain) return
-    const current = updates[path]?.xp ?? 0
-    const nextXp = current + gain
-    const milestones = buildPathMeta[path].milestones
-    const currentMilestoneIndex = updates[path]?.milestoneIndex ?? 0
-    let milestoneIndex = currentMilestoneIndex
-    while (milestoneIndex < milestones.length && nextXp >= milestones[milestoneIndex]) {
-      milestoneIndex += 1
-      if (path === 'tourist') {
-        rewards.maine = (rewards.maine ?? 0) + 3
-        rewards.rahat = (rewards.rahat ?? 0) + 40
-      }
-      if (path === 'tax') {
-        rewards.byroslavia = (rewards.byroslavia ?? 0) + 4
-        rewards.jarki = (rewards.jarki ?? 0) + 1
-      }
-      if (path === 'occult') {
-        rewards.jarki = (rewards.jarki ?? 0) + 2
-        rewards.sisu = (rewards.sisu ?? 0) + 2
-      }
-      if (path === 'network') {
-        rewards.byroslavia = (rewards.byroslavia ?? 0) + 2
-        rewards.pimppaus = (rewards.pimppaus ?? 0) + 2
-      }
-    }
-
-    updates[path] = { xp: nextXp, milestoneIndex }
-  })
-
-  return { rewards, updatedProgress: updates }
-}
-
 const resolveChoiceForSimulation = (
   choice: GameEventChoice,
   currentEvent: GameEvent | null,
   stats: Stats,
   inventory: Item[],
   pathProgress: PathProgress,
+  lai: number,
   random: () => number,
-): { appliedEffects: Partial<Stats>; outcomeText: string; updatedPathProgress: PathProgress } => {
-  const baseEffect = { ...choice.cost } as Partial<Stats>
-  let success = true
-  const activeTags = new Set(inventory.flatMap((item) => item.tags ?? []))
-  const tagBonus = (() => {
-    if (!currentEvent) return 0
-
-    const eventTags = currentEvent.tags ?? []
-    const tagWeights: Record<string, number> = {
-      tax: 2,
-      form: 2,
-      occult: currentEvent.vibe === 'occult' ? 3 : 1,
-      tourist: 2,
-      network: 2,
-    }
-
-    let bonus = 0
-    if (currentEvent.paperWar && (activeTags.has('tax') || activeTags.has('form'))) bonus += 3
-    if (currentEvent.vibe === 'occult' && activeTags.has('occult')) bonus += 3
-    if (/turisti|bussi/i.test(currentEvent.id) && activeTags.has('tourist')) bonus += 2
-
-    eventTags.forEach((tag) => {
-      if (activeTags.has(tag)) {
-        bonus += tagWeights[tag] ?? 1
-      }
-    })
-
-    return bonus
-  })()
-  const formSupport = currentEvent?.paperWar && inventory.some((item) => item.type === 'form')
-
-  if (choice.skillCheck) {
-    const statValue = stats[choice.skillCheck.stat]
-    const roll = Math.floor(random() * 20)
-    success = statValue + roll + tagBonus >= choice.skillCheck.dc
-    if (!success && formSupport) {
-      success = statValue + roll + tagBonus + 3 >= choice.skillCheck.dc
-    }
-  }
-
-  const outcome = success ? choice.outcomeSuccess : choice.outcomeFail
-  const combinedEffects: Partial<Stats> = { ...baseEffect }
-  let outcomeText = outcome.text
-
-  if (formSupport && currentEvent?.paperWar) {
-    const paperworkBoost = success ? 2 : 0
-    if (paperworkBoost > 0) {
-      combinedEffects.byroslavia = (combinedEffects.byroslavia ?? 0) + paperworkBoost
-      outcomeText = `${outcomeText} (Lomakkeet voimistavat paperisotaa.)`
-    }
-  }
-
-  Object.entries(outcome.effects).forEach(([key, value]) => {
-    const typedKey = key as keyof Stats
-    combinedEffects[typedKey] = (combinedEffects[typedKey] ?? 0) + (value ?? 0)
+): { appliedEffects: Partial<Stats>; outcomeText: string; updatedPathProgress: PathProgress; laiDelta: number } => {
+  const resolution = resolveChoiceCore({
+    choice,
+    event: currentEvent,
+    stats,
+    inventory,
+    lai,
+    pathProgress,
+    random,
   })
 
-  let updatedPathProgress = pathProgress
-  if (choice.pathXp) {
-    const pathRewards = applyPathXpSimulation(pathProgress, choice.pathXp)
-    updatedPathProgress = pathRewards.updatedProgress
-    Object.entries(pathRewards.rewards).forEach(([key, value]) => {
-      const typedKey = key as keyof Stats
-      combinedEffects[typedKey] = (combinedEffects[typedKey] ?? 0) + (value ?? 0)
-    })
+  return {
+    appliedEffects: resolution.appliedEffects,
+    outcomeText: resolution.outcomeText,
+    updatedPathProgress: resolution.updatedPathProgress,
+    laiDelta: resolution.laiDelta,
   }
-
-  return { appliedEffects: combinedEffects, outcomeText, updatedPathProgress }
 }
 
 const advancePhaseInSimulation = (state: SimulationState) => {
@@ -934,6 +1039,11 @@ export type SimulationResult = {
   dayHistory: DaySnapshot[]
 }
 
+export const __test_getTagBonus = getTagBonus
+export const __test_applyPathXp = applyPathXp
+export const __test_resolveChoiceCore = resolveChoiceCore
+export const __test_sumPassiveModifiers = sumPassiveModifiers
+
 export const __test_simulateRun = (options?: { maxSteps?: number; random?: () => number }): SimulationResult => {
   const random = options?.random ?? Math.random
   const state: SimulationState = {
@@ -958,9 +1068,20 @@ export const __test_simulateRun = (options?: { maxSteps?: number; random?: () =>
 
     if (event) {
       const choice = event.choices[0]
-      const resolution = resolveChoiceForSimulation(choice, event, stats, state.inventory, state.pathProgress, random)
+      const resolution = resolveChoiceForSimulation(
+        choice,
+        event,
+        stats,
+        state.inventory,
+        state.pathProgress,
+        state.lai,
+        random,
+      )
       state.baseStats = mergeStatDeltas(state.baseStats, resolution.appliedEffects)
       state.pathProgress = resolution.updatedPathProgress
+      if (resolution.laiDelta !== 0) {
+        state.lai = clamp(state.lai + resolution.laiDelta, 0, 100)
+      }
     }
 
     const updatedStats = applyPassiveModifiers(state.baseStats, sumPassiveModifiers(state.inventory, ['tool', 'form', 'relic']))
@@ -994,13 +1115,14 @@ export const __test_simulateRun = (options?: { maxSteps?: number; random?: () =>
 export const __test_resolveChoice = (
   event: GameEvent,
   choiceIndex = 0,
-  context?: { stats?: Stats; inventory?: Item[]; pathProgress?: PathProgress; random?: () => number },
+  context?: { stats?: Stats; inventory?: Item[]; pathProgress?: PathProgress; random?: () => number; lai?: number },
 ) => {
   const stats = context?.stats ?? { ...INITIAL_STATS }
   const inventory = context?.inventory ?? []
   const pathProgress = context?.pathProgress ?? createInitialPathProgress()
   const random = context?.random ?? Math.random
+  const lai = context?.lai ?? 0
   const choice = event.choices[choiceIndex] ?? event.choices[0]
 
-  return resolveChoiceForSimulation(choice, event, stats, inventory, pathProgress, random)
+  return resolveChoiceForSimulation(choice, event, stats, inventory, pathProgress, lai, random)
 }

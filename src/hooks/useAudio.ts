@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { safeReadJson, safeWriteJson } from '../utils/safeStorage'
 
 type SfxKey = 'choice' | 'nokia' | 'boss' | 'cash' | 'static'
 
@@ -39,22 +40,13 @@ type AudioPrefs = {
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
 const loadPrefs = (): AudioPrefs => {
-  if (typeof window === 'undefined') {
-    return { muted: false, backgroundVolume: 0.25, sfxVolume: 0.3 }
-  }
-
-  try {
-    const stored = window.localStorage.getItem(AUDIO_PREFS_KEY)
-    if (!stored) return { muted: false, backgroundVolume: 0.25, sfxVolume: 0.3 }
-    const parsed = JSON.parse(stored) as Partial<AudioPrefs>
-    return {
-      muted: parsed.muted ?? false,
-      backgroundVolume: clamp(parsed.backgroundVolume ?? 0.25, 0, 1),
-      sfxVolume: clamp(parsed.sfxVolume ?? 0.3, 0, 1),
-    }
-  } catch (error) {
-    console.warn('Failed to parse audio prefs', error)
-    return { muted: false, backgroundVolume: 0.25, sfxVolume: 0.3 }
+  const defaults = { muted: false, backgroundVolume: 0.25, sfxVolume: 0.3 }
+  const parsed = safeReadJson<Partial<AudioPrefs>>(AUDIO_PREFS_KEY)
+  if (!parsed) return defaults
+  return {
+    muted: parsed.muted ?? defaults.muted,
+    backgroundVolume: clamp(parsed.backgroundVolume ?? defaults.backgroundVolume, 0, 1),
+    sfxVolume: clamp(parsed.sfxVolume ?? defaults.sfxVolume, 0, 1),
   }
 }
 
@@ -73,6 +65,8 @@ export const useAudio = (config: UseAudioConfig = {}) => {
   const [sfxVolume, setSfxVolume] = useState(prefs.sfxVolume)
   const [backgroundPlaying, setBackgroundPlaying] = useState(false)
   const [backgroundMode, setBackgroundMode] = useState<'normal' | 'intense'>('normal')
+  const [isPrimed, setIsPrimed] = useState(false)
+
   const lastPlayRef = useRef<Record<SfxKey, number>>({
     boss: 0,
     cash: 0,
@@ -80,82 +74,105 @@ export const useAudio = (config: UseAudioConfig = {}) => {
     nokia: 0,
     static: 0,
   })
+  const backgroundAudioRef = useRef<HTMLAudioElement | null>(null)
+  const intenseBackgroundAudioRef = useRef<HTMLAudioElement | null>(null)
+  const sfxAudioRef = useRef<Partial<Record<SfxKey, HTMLAudioElement>>>({})
 
-  const backgroundAudio = useMemo(() => {
-    const audio = new Audio(sources.backgroundSrc)
-    audio.loop = true
-    audio.volume = backgroundVolume
-    audio.preload = 'auto'
-    return audio
-  }, [backgroundVolume, sources.backgroundSrc])
+  const primeAudio = useCallback(() => {
+    setIsPrimed((prev) => prev || true)
+  }, [])
 
-  const intenseBackgroundAudio = useMemo(() => {
-    const audio = new Audio(sources.intenseBackgroundSrc)
-    audio.loop = true
-    audio.volume = clamp(backgroundVolume + 0.03, 0, 1)
-    audio.preload = 'auto'
-    return audio
-  }, [backgroundVolume, sources.intenseBackgroundSrc])
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = () => setIsPrimed(true)
+    window.addEventListener('pointerdown', handler, { once: true })
+    return () => window.removeEventListener('pointerdown', handler)
+  }, [])
 
-  const sfxAudio = useMemo(() => {
-    const entries: Partial<Record<SfxKey, HTMLAudioElement>> = {} as Partial<Record<SfxKey, HTMLAudioElement>>
-    ;(Object.keys(sources.sfxMap) as (keyof typeof sources.sfxMap)[]).forEach((key) => {
-      const typedKey = key as SfxKey
-      const src = sources.sfxMap[typedKey]
+  const ensureBackgroundAudio = useCallback(
+    (mode: 'normal' | 'intense') => {
+      if (!isPrimed) return null
+      const targetRef = mode === 'intense' ? intenseBackgroundAudioRef : backgroundAudioRef
+      const src = mode === 'intense' ? sources.intenseBackgroundSrc : sources.backgroundSrc
+      const normalizedSrc = typeof window !== 'undefined' ? new URL(src, window.location.href).href : src
+
+      if (!targetRef.current || targetRef.current.src !== normalizedSrc) {
+        targetRef.current?.pause()
+        const audio = new Audio(src)
+        audio.loop = true
+        audio.preload = 'auto'
+        targetRef.current = audio
+      }
+
+      const audio = targetRef.current
+      const intendedVolume = mode === 'intense' ? clamp(backgroundVolume + 0.03, 0, 1) : backgroundVolume
+      if (audio) {
+        audio.volume = muted ? 0 : intendedVolume
+        audio.muted = muted
+      }
+
+      return audio
+    },
+    [backgroundVolume, isPrimed, muted, sources.backgroundSrc, sources.intenseBackgroundSrc],
+  )
+
+  const refreshSfxAudio = useCallback(() => {
+    if (!isPrimed) return
+    const current = sfxAudioRef.current
+    ;(Object.keys(sources.sfxMap) as SfxKey[]).forEach((key) => {
+      const src = sources.sfxMap[key]
       if (!src) return
-      const audio = new Audio(src)
-      const baseVolume = SFX_BASE_VOLUME[typedKey]
-      audio.volume = clamp(baseVolume * (sfxVolume / 0.3), 0, 1)
-      audio.preload = 'auto'
-      entries[typedKey] = audio
+      const normalizedSrc = typeof window !== 'undefined' ? new URL(src, window.location.href).href : src
+      if (!current[key] || current[key]?.src !== normalizedSrc) {
+        current[key]?.pause?.()
+        const audio = new Audio(src)
+        audio.preload = 'auto'
+        current[key] = audio
+      }
+      const audio = current[key]
+      if (!audio) return
+      audio.volume = muted ? 0 : clamp(SFX_BASE_VOLUME[key] * (sfxVolume / 0.3), 0, 1)
+      audio.muted = muted
     })
-    return entries
-  }, [sfxVolume, sources])
+  }, [isPrimed, muted, sfxVolume, sources.sfxMap])
+
+  useEffect(() => {
+    if (!isPrimed) return
+    ensureBackgroundAudio('normal')
+    ensureBackgroundAudio('intense')
+    refreshSfxAudio()
+  }, [ensureBackgroundAudio, isPrimed, refreshSfxAudio])
+
+  useEffect(() => {
+    if (!isPrimed) return undefined
+    const activeAudio = ensureBackgroundAudio(backgroundMode)
+    const inactiveAudio = ensureBackgroundAudio(backgroundMode === 'intense' ? 'normal' : 'intense')
+
+    if (backgroundPlaying && !muted && activeAudio) {
+      inactiveAudio?.pause()
+      void activeAudio.play().catch(() => setBackgroundPlaying(false))
+    } else {
+      activeAudio?.pause()
+    }
+
+    return () => {
+      activeAudio?.pause()
+      inactiveAudio?.pause()
+    }
+  }, [backgroundMode, backgroundPlaying, ensureBackgroundAudio, isPrimed, muted])
 
   useEffect(
     () => () => {
-      backgroundAudio.pause()
-      intenseBackgroundAudio.pause()
+      backgroundAudioRef.current?.pause()
+      intenseBackgroundAudioRef.current?.pause()
+      Object.values(sfxAudioRef.current).forEach((audio) => audio?.pause())
     },
-    [backgroundAudio, intenseBackgroundAudio],
+    [],
   )
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
-    backgroundAudio.volume = backgroundVolume
-    // eslint-disable-next-line react-hooks/immutability
-    intenseBackgroundAudio.volume = clamp(backgroundVolume + 0.03, 0, 1)
-    Object.entries(sfxAudio).forEach(([key, audio]) => {
-      if (!audio) return
-      const typedKey = key as SfxKey
-      audio.volume = clamp(SFX_BASE_VOLUME[typedKey] * (sfxVolume / 0.3), 0, 1)
-    })
-  }, [backgroundAudio, backgroundVolume, intenseBackgroundAudio, sfxAudio, sfxVolume])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
-    backgroundAudio.muted = muted
-    // eslint-disable-next-line react-hooks/immutability
-    intenseBackgroundAudio.muted = muted
-    if (muted) {
-      backgroundAudio.pause()
-      intenseBackgroundAudio.pause()
-      setBackgroundPlaying(false)
-    } else if (backgroundPlaying) {
-      const activeAudio = backgroundMode === 'intense' ? intenseBackgroundAudio : backgroundAudio
-      void activeAudio.play()
-    }
-
-    Object.values(sfxAudio).forEach((audio) => {
-      if (audio) audio.muted = muted
-    })
-  }, [backgroundAudio, backgroundMode, backgroundPlaying, intenseBackgroundAudio, muted, sfxAudio])
-
-  useEffect(() => {
     const payload: AudioPrefs = { muted, backgroundVolume, sfxVolume }
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(AUDIO_PREFS_KEY, JSON.stringify(payload))
-    }
+    safeWriteJson(AUDIO_PREFS_KEY, payload)
   }, [backgroundVolume, muted, sfxVolume])
 
   const toggleMute = useCallback(() => {
@@ -171,51 +188,35 @@ export const useAudio = (config: UseAudioConfig = {}) => {
   }, [])
 
   const toggleBackground = useCallback(() => {
-    setBackgroundPlaying((prev) => {
-      const next = !prev
-      if (muted) return prev
-      const activeAudio = backgroundMode === 'intense' ? intenseBackgroundAudio : backgroundAudio
-      const inactiveAudio = backgroundMode === 'intense' ? backgroundAudio : intenseBackgroundAudio
-      inactiveAudio.pause()
-      if (next) {
-        void activeAudio.play()
-      } else {
-        activeAudio.pause()
-      }
-      return next
-    })
-  }, [backgroundAudio, backgroundMode, intenseBackgroundAudio, muted])
+    primeAudio()
+    setBackgroundPlaying((prev) => !prev)
+  }, [primeAudio])
 
   const setBackgroundModeSafe = useCallback(
     (mode: 'normal' | 'intense') => {
-      setBackgroundMode((prev) => {
-        if (prev === mode) return prev
-        if (muted) return mode
-        const activeAudio = mode === 'intense' ? intenseBackgroundAudio : backgroundAudio
-        const inactiveAudio = mode === 'intense' ? backgroundAudio : intenseBackgroundAudio
-        inactiveAudio.pause()
-        if (backgroundPlaying) {
-          void activeAudio.play()
-        }
-        return mode
-      })
+      primeAudio()
+      setBackgroundMode((prev) => (prev === mode ? prev : mode))
     },
-    [backgroundAudio, backgroundPlaying, intenseBackgroundAudio, muted],
+    [primeAudio],
   )
 
   const playSfx = useCallback(
     (key: SfxKey) => {
-      const audio = sfxAudio[key]
+      if (!isPrimed) {
+        primeAudio()
+        return
+      }
+      refreshSfxAudio()
+      const audio = sfxAudioRef.current[key]
       if (!audio || muted) return
       const now = performance.now()
       const lastPlay = lastPlayRef.current[key] ?? 0
       if (now - lastPlay < 120) return
       lastPlayRef.current[key] = now
-      // eslint-disable-next-line react-hooks/immutability
       audio.currentTime = 0
-      void audio.play()
+      void audio.play().catch(() => {})
     },
-    [muted, sfxAudio],
+    [isPrimed, muted, primeAudio, refreshSfxAudio],
   )
 
   return {
