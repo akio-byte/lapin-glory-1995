@@ -32,7 +32,7 @@ const formatDelta = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(0
 
 // RunInfoBar shows the current run structure and guardrails at a glance.
 const RunInfoBar = ({ dayCount, lai }: { dayCount: number; lai: number }) => (
-  <div className="grid gap-3 md:grid-cols-4 bg-asphalt/70 border border-neon/40 shadow-neon px-4 py-3 rounded">
+  <div className="glass-panel grid gap-3 md:grid-cols-4 px-4 py-3">
     <div className="space-y-1">
       <p className="text-[10px] uppercase tracking-[0.3em] text-neon/80">Run Structure</p>
       <p className="text-lg font-semibold">Päivä {Math.min(dayCount, 10)} / 10</p>
@@ -69,7 +69,7 @@ const MorningReport = ({
   note: string
   onAdvance: () => void
 }) => (
-  <div className="panel space-y-4 bg-asphalt/70 border border-neon/40">
+  <div className="glass-panel space-y-4">
     <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-neon/70">
       <span>OS/95 Raportti</span>
       <span className="text-[11px]">Päivä {dayCount} →</span>
@@ -430,7 +430,7 @@ const GameShell = () => {
   return (
     <ErrorBoundary>
       <div
-        className={`min-h-screen bg-[#0f1118] text-white relative overflow-hidden ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''}`}
+        className={`min-h-screen text-white relative overflow-hidden bg-[#050912]/70 backdrop-blur-sm ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''}`}
         style={rootStyle}
       >
         <style>{shakeStyles}</style>
@@ -448,86 +448,109 @@ const GameShell = () => {
           nextNightEventHint={nextNightEventHint}
         />
 
-        <main className="relative max-w-6xl mx-auto px-6 py-10 space-y-8">
-          <header className="space-y-2">
-            <p className="text-xs tracking-[0.35em] text-neon">Pimppisimulaattori: Lapin Glory</p>
-            <h1 className="text-4xl font-bold glitch-text" data-text="Lapin Glory OS/95">
+        <main className="relative max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-7">
+          <div className="glass-panel flex flex-col gap-3 md:flex-row md:items-center md:justify-between px-4 py-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.35em] text-neon/80">Lapin Glory OS/95</p>
+              <p className="text-xl font-semibold text-slate-100">Command Center</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-[11px] w-full md:w-auto md:text-right">
+              <div className="glass-chip px-3 py-2">
+                <p className="uppercase tracking-[0.3em] text-neon/80">Päivä</p>
+                <p className="text-lg font-semibold text-slate-100">D{dayCount}</p>
+              </div>
+              <div className="glass-chip px-3 py-2">
+                <p className="uppercase tracking-[0.3em] text-neon/80">Rahat</p>
+                <p className="text-lg font-semibold text-slate-100">{canonicalStats.rahat.format(stats.rahat)}</p>
+              </div>
+              <div className="glass-chip px-3 py-2">
+                <p className="uppercase tracking-[0.3em] text-neon/80">Järki</p>
+                <p className="text-lg font-semibold text-slate-100">{canonicalStats.jarki.format(stats.jarki)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-panel space-y-3">
+            <h1 className="text-3xl md:text-4xl font-bold glitch-text" data-text="Lapin Glory OS/95">
               Lapin Glory OS/95
             </h1>
-            <p className="text-sm text-slate-300 max-w-2xl">
-              Lama-Noir managerointi: faksaa päivällä, pimppaa yöllä, toivo aamulla. Neon pinkki vastaan harmaa byrokratia.
+            <p className="text-sm text-slate-200 max-w-3xl">
+              Lama-Noir managerointi: faksaa päivällä, pimppaa yöllä, toivo aamulla. Neon pinkki vastaan harmaa byrokratia. Nyt
+              kevyemmillä lasipinnoilla.
             </p>
             <div className="flex flex-wrap items-center gap-3 text-sm">
               {wasRestored && (
-                <span className="px-3 py-1 rounded-full border border-neon/40 bg-neon/10 text-neon">
-                  Ladattu tallennettu run
-                </span>
+                <span className="px-3 py-1 rounded-full border border-neon/40 bg-neon/10 text-neon">Ladattu tallennettu run</span>
               )}
               <button className="button-raw px-3 py-1" onClick={handleRestart}>
                 Aloita uusi run
               </button>
             </div>
-          </header>
+          </div>
 
-          <RunInfoBar dayCount={dayCount} lai={lai} />
+          <section className="grid gap-6 lg:grid-cols-12 items-start">
+            <div className="lg:col-span-8 space-y-4">
+              <RunInfoBar dayCount={dayCount} lai={lai} />
 
-          <StatsBar stats={stats} phase={phase} dayCount={dayCount} lai={lai} labelOverrides={corruptedLabels} />
+              <div className="glass-panel">
+                <StatsBar stats={stats} phase={phase} dayCount={dayCount} lai={lai} labelOverrides={corruptedLabels} />
+              </div>
 
-          <section className="grid md:grid-cols-3 gap-6 items-start">
-            <div className="md:col-span-2 space-y-4">
-              {phase !== 'MORNING' && activeEvent && (
-                isPaperWar ? (
-                  <PaperWar
-                    event={activeEvent}
+              <div className="glass-panel space-y-4 min-h-[420px]">
+                {phase !== 'MORNING' && activeEvent && (
+                  isPaperWar ? (
+                    <PaperWar
+                      event={activeEvent}
+                      stats={stats}
+                      inventory={inventory}
+                      locked={locked}
+                      outcome={outcome}
+                      fallbackMedia={fallbackMedia}
+                      onResolve={handlePaperWarResolve}
+                      onNextPhase={advancePhase}
+                      isGlitching={isGlitching}
+                    />
+                  ) : (
+                    <EventCard
+                      event={activeEvent}
+                      locked={locked}
+                      outcome={outcome}
+                      onChoice={handleEventChoice}
+                      onNextPhase={advancePhase}
+                      fallbackMedia={fallbackMedia}
+                      phase={phase}
+                      isGlitching={isGlitching}
+                    />
+                  )
+                )}
+
+                {phase !== 'MORNING' && !activeEvent && (
+                  <div className="glass-panel">
+                    <p className="text-xs uppercase tracking-[0.3em] text-neon">Hiljainen linja</p>
+                    <p className="text-sm text-slate-200 mt-2">Ei tapahtumia juuri nyt. Avaa ovi ja kuuntele huminaa.</p>
+                    <button className="button-raw mt-3" onClick={advancePhase}>
+                      Pakota seuraava vaihe →
+                    </button>
+                  </div>
+                )}
+
+                {phase === 'MORNING' && (
+                  <MorningReport
                     stats={stats}
-                    inventory={inventory}
-                    locked={locked}
-                    outcome={outcome}
-                    fallbackMedia={fallbackMedia}
-                    onResolve={handlePaperWarResolve}
-                    onNextPhase={advancePhase}
-                    isGlitching={isGlitching}
+                    dayCount={report.day}
+                    rahatDelta={report.rahatDelta}
+                    jarkiDelta={report.jarkiDelta}
+                    note={report.note}
+                    onAdvance={advancePhase}
                   />
-                ) : (
-                  <EventCard
-                    event={activeEvent}
-                    locked={locked}
-                    outcome={outcome}
-                    onChoice={handleEventChoice}
-                    onNextPhase={advancePhase}
-                    fallbackMedia={fallbackMedia}
-                    phase={phase}
-                    isGlitching={isGlitching}
-                  />
-                )
-              )}
-
-              {phase !== 'MORNING' && !activeEvent && (
-                <div className="panel bg-coal/70">
-                  <p className="text-xs uppercase tracking-[0.3em] text-neon">Hiljainen linja</p>
-                  <p className="text-sm text-slate-200 mt-2">Ei tapahtumia juuri nyt. Avaa ovi ja kuuntele huminaa.</p>
-                  <button className="button-raw mt-3" onClick={advancePhase}>
-                    Pakota seuraava vaihe →
-                  </button>
-                </div>
-              )}
-
-              {phase === 'MORNING' && (
-                <MorningReport
-                  stats={stats}
-                  dayCount={report.day}
-                  rahatDelta={report.rahatDelta}
-                  jarkiDelta={report.jarkiDelta}
-                  note={report.note}
-                  onAdvance={advancePhase}
-                />
-              )}
+                )}
+              </div>
             </div>
 
-            <aside className="space-y-4">
+            <aside className="lg:col-span-4 space-y-4">
               <Shop phase={phase} inventory={inventory} stats={stats} onBuy={handleBuy} onUse={useItem} />
 
-              <div className="panel bg-coal/80 space-y-3">
+              <div className="glass-panel space-y-3">
                 <p className="text-xs uppercase tracking-[0.3em] text-neon">Asetukset</p>
                 <div className="flex items-center justify-between text-sm">
                   <span>{muted ? 'Äänet: mykistetty' : 'Äänet: päällä'}</span>
@@ -564,7 +587,7 @@ const GameShell = () => {
                 </div>
               </div>
 
-              <div className="panel bg-asphalt/70">
+              <div className="glass-panel">
                 <p className="text-xs uppercase tracking-[0.3em] text-neon">Lokikone</p>
                 <p className="text-[11px] text-slate-300 mt-1">
                   Seuraa Rahat, Maine ja Järki -merkinnät faksien välistä.
@@ -579,7 +602,7 @@ const GameShell = () => {
                 </ul>
               </div>
 
-              <div className="panel text-sm text-slate-200 bg-coal/70">
+              <div className="glass-panel text-sm text-slate-200">
                 <p className="text-xs uppercase tracking-[0.3em] text-neon">Ohje</p>
                 <p className="mt-2">
                   Päivä: Leimaa faksit ja uhraa markkoja. Yö: kohtaa bussit tai tarkastajat. Aamu: maksa indeksikorotettu vuokra ja jatka, jos mielenterveys sallii.

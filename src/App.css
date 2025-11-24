@@ -1,11 +1,37 @@
 @tailwind components;
 
 @layer components {
+  .glass-panel,
   .panel {
-    @apply border-2 border-neon bg-asphalt/80 shadow-neon rounded-none p-4;
+    background: radial-gradient(circle at 30% 30%, rgba(255, 0, 255, 0.05), transparent 45%),
+      rgba(13, 22, 37, 0.68);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    box-shadow: 0 0 30px rgba(34, 211, 238, 0.08), 0 10px 45px rgba(5, 10, 22, 0.65);
+    border-radius: 14px;
+    color: #e2e8f0;
+    @apply p-4;
   }
 
   .button-raw {
-    @apply uppercase tracking-widest border-2 border-neon bg-coal text-neon px-4 py-2 transition hover:bg-neon hover:text-coal shadow-neon;
+    @apply uppercase tracking-[0.28em] border border-neon bg-white/5 text-neon px-4 py-2 transition shadow-neon;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border-color: rgba(255, 0, 255, 0.45);
+  }
+
+  .button-raw:hover {
+    background: rgba(255, 0, 255, 0.1);
+    color: #0b1020;
+  }
+
+  .glass-chip {
+    background: rgba(34, 211, 238, 0.12);
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    box-shadow: 0 0 18px rgba(34, 211, 238, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 10px;
   }
 }

@@ -91,7 +91,7 @@ const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint }: NokiaPhone
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-50" style={{ fontFamily: '"VT323", "IBM Plex Mono", monospace' }}>
+    <div className="fixed bottom-6 right-6 z-50" style={{ fontFamily: '"VT323", "IBM Plex Mono", monospace' }}>
       <style>{pixelVibes}</style>
       <div className="w-64 bg-lime-900/80 text-green-200 border-4 border-lime-700 rounded-2xl shadow-[0_0_22px_rgba(110,130,0,0.6)]">
         <div className="flex items-center justify-between px-4 py-2 text-xs uppercase tracking-[0.25em] bg-lime-800/70 border-b border-lime-700">
