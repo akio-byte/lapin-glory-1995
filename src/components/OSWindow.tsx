@@ -21,7 +21,9 @@ const OSWindow = ({
   size?: 'sm' | 'md' | 'lg'
 }) => {
   return (
-    <div className={`os-window ${size ? sizeClassMap[size] : ''} ${isActive ? 'ring-2 ring-neon/60' : ''}`}>
+    <div
+      className={`os-window ${size ? sizeClassMap[size] : ''} ${isActive ? 'ring-2 ring-neon/60' : ''} max-[900px]:max-h-[100%] max-[900px]:min-h-[auto]`}
+    >
       <div className="os-window__titlebar">
         <span className="glitch-text" data-text={title}>
           {title}
@@ -32,7 +34,7 @@ const OSWindow = ({
           </button>
         )}
       </div>
-      <div className="os-window__content">{children}</div>
+      <div className="os-window__content max-[900px]:max-h-[60vh]">{children}</div>
     </div>
   )
 }
