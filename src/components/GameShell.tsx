@@ -61,15 +61,55 @@ type PathProgressChipsProps = {
 }
 
 const PathProgressChips = ({ progress }: PathProgressChipsProps) => {
+  const [isCompact, setIsCompact] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const paths = Object.keys(buildPathMeta) as BuildPath[]
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mediaQuery = window.matchMedia('(max-height: 850px)')
+    let previousMatch = false
+
+    const applyMatch = (matches: boolean) => {
+      setIsCompact(matches)
+      if (!matches) {
+        setCollapsed(false)
+      } else if (!previousMatch) {
+        setCollapsed(true)
+      }
+      previousMatch = matches
+    }
+
+    applyMatch(mediaQuery.matches)
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      applyMatch(event.matches)
+    }
+
+    mediaQuery.addEventListener('change', handleChange)
+
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
 
   return (
     <div className="glass-panel px-4 py-3 space-y-2">
-      <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-neon/80">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-[0.3em] text-neon/80">
         <span>Build Paths</span>
-        <span className="text-[11px] text-slate-300">Tourist / Tax / Occult / Network</span>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-slate-300">Tourist / Tax / Occult / Network</span>
+          {isCompact && (
+            <button
+              type="button"
+              className="button-raw px-3 py-1 text-[10px] tracking-[0.2em]"
+              aria-expanded={!collapsed}
+              onClick={() => setCollapsed((prev) => !prev)}
+            >
+              {collapsed ? 'Show progress' : 'Hide progress'}
+            </button>
+          )}
+        </div>
       </div>
-      <div className="grid md:grid-cols-2 gap-3">
+      <div className={`grid md:grid-cols-2 gap-3 ${isCompact && collapsed ? 'hidden' : ''}`}>
         {paths.map((path) => {
           const meta = buildPathMeta[path]
           const xp = progress[path]?.xp ?? 0
@@ -618,15 +658,15 @@ const GameShell = () => {
     <ErrorBoundary>
       <Desktop>
         <div
-          className={`h-full w-full text-white relative overflow-hidden bg-[#050912]/70 backdrop-blur-sm ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''}`}
+          className={`w-full min-h-screen text-white relative overflow-hidden bg-[#050912]/70 backdrop-blur-sm ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''} max-[900px]:max-h-[100%] max-[900px]:min-h-[auto]`}
           style={rootStyle}
         >
           <style>{shakeStyles}</style>
           {lowSanity && <div className="hcr-noise" aria-hidden />}
           <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
 
-          <div className="h-full w-full flex items-start justify-center pt-6 pb-24">
-            <div className="w-full max-w-6xl flex flex-col gap-4 items-center">
+          <div className="w-full flex items-start justify-center pt-6 pb-24 max-[900px]:pt-4 max-[900px]:pb-16">
+            <div className="w-full max-w-6xl flex flex-col gap-4 items-stretch">
               <div className="flex items-center justify-between w-full text-sm">
                 <div className="flex items-center gap-2">
                   <span className="px-3 py-1 border border-neon/50 bg-neon/10 uppercase tracking-[0.3em] text-[11px]">Lapin Glory OS/95</span>

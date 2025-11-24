@@ -5,7 +5,8 @@
     position: relative;
     min-height: 100vh;
     width: 100vw;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     background: radial-gradient(circle at 20% 20%, rgba(255, 0, 255, 0.08), transparent 30%),
       radial-gradient(circle at 80% 0%, rgba(124, 140, 222, 0.08), transparent 35%),
       #0f1118;
@@ -17,14 +18,16 @@
     min-height: 100vh;
     width: 100vw;
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: visible;
   }
 
   .desktop-stage {
     flex: 1;
     position: relative;
     padding: 20px 20px 96px;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: visible;
   }
 
   .glass-panel,
@@ -175,8 +178,8 @@
   }
 
   .nokia-shell {
-    right: 1.5rem;
-    bottom: 6rem;
+    right: clamp(0.75rem, 3vw, 1.5rem);
+    bottom: clamp(4.5rem, 12vh, 7.5rem);
   }
 
   .dev-panel {
@@ -190,6 +193,68 @@
     outline: 2px solid #ff00ff;
     outline-offset: 2px;
     box-shadow: 0 0 0 2px rgba(255, 0, 255, 0.25);
+  }
+
+  @media (max-height: 900px) {
+    .desktop-shell,
+    .desktop-stage {
+      min-height: auto;
+      max-height: 100%;
+    }
+
+    .desktop-stage {
+      padding: 14px 14px 78px;
+    }
+
+    .os-window {
+      max-height: 100%;
+    }
+
+    .os-window__content {
+      max-height: 58vh;
+    }
+
+    .taskbar {
+      height: 38px;
+      padding: 6px 10px;
+      gap: 10px;
+      box-shadow: none;
+      background: rgba(10, 12, 24, 0.8);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .taskbar .start-btn {
+      height: 32px;
+      min-width: 86px;
+      box-shadow: none;
+      padding: 0 12px;
+    }
+
+    .taskbar .taskbar-chip {
+      padding: 6px 10px;
+      border-radius: 8px;
+      box-shadow: none;
+    }
+
+    .taskbar .taskbar-actions {
+      gap: 8px;
+    }
+
+    .taskbar .taskbar-actions button,
+    .taskbar .taskbar-actions .button-raw {
+      height: 32px;
+      padding: 0 10px;
+    }
+
+    .taskbar__stats {
+      padding-bottom: 0;
+    }
+
+    .nokia-shell {
+      right: clamp(0.75rem, 3vw, 1.5rem);
+      bottom: clamp(4rem, 10vh, 7rem);
+    }
   }
 
   @media (max-width: 1100px) {
@@ -211,8 +276,8 @@
     }
 
     .nokia-shell {
-      right: 1rem;
-      bottom: 6.5rem;
+      right: clamp(0.75rem, 3vw, 1.25rem);
+      bottom: clamp(4.5rem, 12vh, 7rem);
       width: min(320px, 88vw);
     }
   }
@@ -247,14 +312,17 @@
       height: auto;
       flex-wrap: wrap;
       align-items: flex-start;
-      gap: 10px;
-      padding: 10px 12px 14px;
-      row-gap: 8px;
+      gap: 8px;
+      padding: 8px 10px 12px;
+      row-gap: 6px;
+      box-shadow: none;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
     }
 
     .taskbar .start-btn {
-      min-width: 88px;
-      height: 38px;
+      min-width: 86px;
+      height: 34px;
     }
 
     .taskbar .taskbar-actions {
@@ -270,12 +338,13 @@
     .taskbar .start-btn,
     .taskbar .taskbar-chip {
       font-size: 12px;
+      height: 34px;
     }
 
     .nokia-shell {
       position: fixed;
-      right: 0.75rem;
-      bottom: 6.5rem;
+      right: clamp(0.5rem, 3vw, 1rem);
+      bottom: clamp(4rem, 12vh, 7rem);
       width: min(300px, 90vw);
       transform: translateZ(0);
     }
@@ -307,8 +376,8 @@
     }
 
     .nokia-shell {
-      bottom: 7rem;
-      right: 0.5rem;
+      bottom: clamp(4.5rem, 14vh, 7.5rem);
+      right: clamp(0.5rem, 4vw, 0.9rem);
     }
   }
 }
