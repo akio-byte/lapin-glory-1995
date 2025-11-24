@@ -35,7 +35,7 @@ const Taskbar = ({
   const focusMeta = focusPath ? buildPathMeta[focusPath] : null
   const focusXp = focusPath ? pathProgress[focusPath]?.xp ?? 0 : 0
   const focusMilestones = focusPath ? buildPathMeta[focusPath].milestones : []
-  const next = focusMilestones.find((v, idx) => idx >= (pathProgress[focusPath]?.milestoneIndex ?? 0))
+  const next = focusMilestones.find((_, idx) => idx >= (pathProgress[focusPath]?.milestoneIndex ?? 0))
   const ratio = next ? Math.min(1, focusXp / next) : 1
 
   return (

@@ -97,10 +97,10 @@ export const isGameEvent = (candidate: unknown): candidate is GameEvent => {
   const hasId = typeof obj.id === 'string'
   const triggerPhase = obj.triggerPhase === 'day' || obj.triggerPhase === 'night'
   const textOk = typeof obj.text === 'string'
-  const choices = Array.isArray(obj.choices)
-  if (!(hasId && triggerPhase && textOk && choices)) return false
+  const choicesArray = Array.isArray(obj.choices) ? (obj.choices as unknown[]) : null
+  if (!(hasId && triggerPhase && textOk && choicesArray)) return false
 
-  return obj.choices.every((choice) => {
+  return choicesArray.every((choice: unknown) => {
     if (!choice || typeof choice !== 'object') return false
     const c = choice as Record<string, unknown>
     const labelOk = typeof c.label === 'string'
