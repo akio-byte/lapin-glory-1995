@@ -6,7 +6,7 @@ import PaperWar, { type PaperWarResolution } from './PaperWar'
 import Shop from './Shop'
 import StatsBar from './StatsBar'
 import DebugPanel from './DebugPanel'
-import type { Stats } from '../data/gameData'
+import type { Item, Stats } from '../data/gameData'
 import { canonicalStats } from '../data/statMeta'
 import type { EndingType } from '../hooks/useGameLoop'
 import { useGameLoop } from '../hooks/useGameLoop'
@@ -29,6 +29,30 @@ const shakeStyles = `
 `
 
 const formatDelta = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(0)}`
+
+// RunInfoBar shows the current run structure and guardrails at a glance.
+const RunInfoBar = ({ dayCount, lai }: { dayCount: number; lai: number }) => (
+  <div className="grid gap-3 md:grid-cols-4 bg-asphalt/70 border border-neon/40 shadow-neon px-4 py-3 rounded">
+    <div className="space-y-1">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-neon/80">Run Structure</p>
+      <p className="text-lg font-semibold">Päivä {Math.min(dayCount, 10)} / 10</p>
+      <p className="text-[11px] text-slate-300">Seuraa sykliä ja pidä rytmi yllä.</p>
+    </div>
+    <div className="space-y-1">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-neon/80">Lapin Anomalia</p>
+      <p className="text-lg font-semibold">LAI {lai.toFixed(0)} / 100</p>
+      <p className="text-[11px] text-slate-300">Glitch-kanava voimistuu yli 70.</p>
+    </div>
+    <div className="space-y-1">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-200">Voita</p>
+      <p className="text-[13px] leading-snug text-slate-100">Selviä 10 päivää, pidä LAI hallinnassa ja kassavirta plussalla.</p>
+    </div>
+    <div className="space-y-1">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-rose-300">Häviät jos</p>
+      <p className="text-[13px] leading-snug text-slate-100">Järki 0, Rahat alle -1000 mk tai Maine yli 95 → Veropetos-ratsia.</p>
+    </div>
+  </div>
+)
 
 const MorningReport = ({
   stats,
@@ -240,6 +264,7 @@ const GameShell = () => {
   })
   const bossIntroRef = useRef<string | null>(null)
   const sanityPrevRef = useRef(stats)
+  const laiPrevRef = useRef(lai)
   const [sanityHueShift, setSanityHueShift] = useState(0)
 
   const activeEvent = useMemo(() => currentEvent, [currentEvent])
@@ -335,6 +360,26 @@ const GameShell = () => {
     resetGame()
   }
 
+  const pushJournal = (entry: string) => {
+    setJournal((prev) => [entry, ...prev].slice(0, 12))
+  }
+
+  useEffect(() => {
+    const previousLai = laiPrevRef.current
+    if (lai !== previousLai) {
+      const laiDelta = lai - previousLai
+      pushJournal(`LAI muutos: ${formatDelta(laiDelta)} → ${lai.toFixed(0)}`)
+      laiPrevRef.current = lai
+    }
+  }, [lai])
+
+  useEffect(() => {
+    if (!morningReport) return
+    pushJournal(
+      `Aamuraportti D${morningReport.day}: Raha ${formatDelta(morningReport.rahatDelta)} mk, Järki ${formatDelta(morningReport.jarkiDelta)}`,
+    )
+  }, [morningReport])
+
   if (ending) {
     return <RunOverScreen ending={ending} onRestart={handleRestart} />
   }
@@ -345,7 +390,7 @@ const GameShell = () => {
     const result = resolveChoice(choice)
     setOutcome(result.outcomeText)
     setLocked(true)
-    setJournal((prev) => [`${phase}: ${choice.label} -> ${result.outcomeText}`, ...prev].slice(0, 6))
+    pushJournal(`Tapahtuma ${activeEvent.id}: ${choice.label} → ${result.outcomeText}`)
   }
 
   const handlePaperWarResolve = (result: PaperWarResolution) => {
@@ -354,7 +399,14 @@ const GameShell = () => {
     applyChoiceEffects(result.appliedEffects)
     setOutcome(result.summary)
     setLocked(true)
-    setJournal((prev) => [`${phase}: ${activeEvent.id} -> ${result.summary}`, ...prev].slice(0, 6))
+    pushJournal(`PaperWar ${activeEvent.id}: ${result.summary}`)
+  }
+
+  const handleBuy = (item: Item) => {
+    const success = buyItem(item)
+    if (success) {
+      pushJournal(`Osto: ${item.name} (${item.price} mk)`)
+    }
   }
 
   const wrapperGlitchClass = isGlitching ? 'glitch-wrapper invert' : ''
@@ -404,6 +456,8 @@ const GameShell = () => {
               </button>
             </div>
           </header>
+
+          <RunInfoBar dayCount={dayCount} lai={lai} />
 
           <StatsBar stats={stats} phase={phase} dayCount={dayCount} lai={lai} labelOverrides={corruptedLabels} />
 
@@ -459,7 +513,7 @@ const GameShell = () => {
             </div>
 
             <aside className="space-y-4">
-              <Shop phase={phase} inventory={inventory} stats={stats} onBuy={buyItem} onUse={useItem} />
+              <Shop phase={phase} inventory={inventory} stats={stats} onBuy={handleBuy} onUse={useItem} />
 
               <div className="panel bg-coal/80 space-y-3">
                 <p className="text-xs uppercase tracking-[0.3em] text-neon">Asetukset</p>
