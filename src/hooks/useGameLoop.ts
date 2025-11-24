@@ -85,7 +85,7 @@ type GameActions = {
   advancePhase: () => void
   handleChoice: (effect: Partial<Stats>) => void
   buyItem: (item: Item) => boolean
-  useItem: (itemId: string) => boolean
+  consumeItem: (itemId: string) => boolean
   resolveChoice: (choice: GameEventChoice) => ChoiceResolution
   resetGame: () => void
   pingNetMonitor: () => NetMonitorReading
@@ -357,7 +357,7 @@ export const useGameLoop = (): GameState & GameActions => {
     const updates: PathProgress = { ...pathProgress }
     const rewards: Partial<Stats> = {}
 
-    (Object.keys(xp) as BuildPath[]).forEach((path) => {
+    ;(Object.keys(xp) as BuildPath[]).forEach((path) => {
       const gain = xp[path]
       if (!gain) return
       const current = updates[path]?.xp ?? 0
@@ -436,7 +436,7 @@ export const useGameLoop = (): GameState & GameActions => {
     })
   }
 
-  const useItem = (itemId: string) => {
+  const consumeItem = (itemId: string) => {
     const ownedItem = inventory.find((inv) => inv.id === itemId)
     if (!ownedItem) return false
 
@@ -463,7 +463,7 @@ export const useGameLoop = (): GameState & GameActions => {
     setInventory((prev) => [...prev, item])
 
     if (item.type === 'consumable' && item.autoUseOnPurchase) {
-      return useItem(item.id)
+      return consumeItem(item.id)
     }
 
     return true
@@ -650,6 +650,7 @@ export const useGameLoop = (): GameState & GameActions => {
     ])
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const phaseChanged = phase !== prevPhaseRef.current
     if (phaseChanged) {
@@ -663,6 +664,7 @@ export const useGameLoop = (): GameState & GameActions => {
       setCurrentEvent(pickEventForPhase(phase, stats, lai, dayCount))
     }
   }, [currentEvent, dayCount, lai, phase, stats])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (phase !== 'MORNING') return
@@ -675,6 +677,7 @@ export const useGameLoop = (): GameState & GameActions => {
     const lastLai = lastSnapshot?.lai ?? lai
     const laiDelta = lai - lastLai
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMorningReport({
       rahatDelta: moneyDelta,
       jarkiDelta,
@@ -728,7 +731,7 @@ export const useGameLoop = (): GameState & GameActions => {
     advancePhase,
     handleChoice,
     buyItem,
-    useItem,
+    consumeItem,
     resolveChoice,
     resetGame,
     pingNetMonitor,

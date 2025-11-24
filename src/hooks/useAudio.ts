@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type SfxKey = 'choice' | 'nokia' | 'boss' | 'cash' | 'static'
 
@@ -59,17 +59,27 @@ const loadPrefs = (): AudioPrefs => {
 }
 
 export const useAudio = (config: UseAudioConfig = {}) => {
-  const sources: Required<UseAudioConfig> = {
-    backgroundSrc: config.backgroundSrc ?? DEFAULT_SOURCES.backgroundSrc,
-    intenseBackgroundSrc: config.intenseBackgroundSrc ?? DEFAULT_SOURCES.intenseBackgroundSrc,
-    sfxMap: { ...DEFAULT_SOURCES.sfxMap, ...config.sfxMap },
-  }
-  const prefs = useMemo(loadPrefs, [])
+  const sources: Required<UseAudioConfig> = useMemo(
+    () => ({
+      backgroundSrc: config.backgroundSrc ?? DEFAULT_SOURCES.backgroundSrc,
+      intenseBackgroundSrc: config.intenseBackgroundSrc ?? DEFAULT_SOURCES.intenseBackgroundSrc,
+      sfxMap: { ...DEFAULT_SOURCES.sfxMap, ...config.sfxMap },
+    }),
+    [config.backgroundSrc, config.intenseBackgroundSrc, config.sfxMap],
+  )
+  const [prefs] = useState(loadPrefs)
   const [muted, setMuted] = useState(prefs.muted)
   const [backgroundVolume, setBackgroundVolume] = useState(prefs.backgroundVolume)
   const [sfxVolume, setSfxVolume] = useState(prefs.sfxVolume)
   const [backgroundPlaying, setBackgroundPlaying] = useState(false)
   const [backgroundMode, setBackgroundMode] = useState<'normal' | 'intense'>('normal')
+  const lastPlayRef = useRef<Record<SfxKey, number>>({
+    boss: 0,
+    cash: 0,
+    choice: 0,
+    nokia: 0,
+    static: 0,
+  })
 
   const backgroundAudio = useMemo(() => {
     const audio = new Audio(sources.backgroundSrc)
@@ -77,7 +87,7 @@ export const useAudio = (config: UseAudioConfig = {}) => {
     audio.volume = backgroundVolume
     audio.preload = 'auto'
     return audio
-  }, [sources.backgroundSrc])
+  }, [backgroundVolume, sources.backgroundSrc])
 
   const intenseBackgroundAudio = useMemo(() => {
     const audio = new Audio(sources.intenseBackgroundSrc)
@@ -85,7 +95,7 @@ export const useAudio = (config: UseAudioConfig = {}) => {
     audio.volume = clamp(backgroundVolume + 0.03, 0, 1)
     audio.preload = 'auto'
     return audio
-  }, [sources.intenseBackgroundSrc])
+  }, [backgroundVolume, sources.intenseBackgroundSrc])
 
   const sfxAudio = useMemo(() => {
     const entries: Partial<Record<SfxKey, HTMLAudioElement>> = {} as Partial<Record<SfxKey, HTMLAudioElement>>
@@ -100,7 +110,7 @@ export const useAudio = (config: UseAudioConfig = {}) => {
       entries[typedKey] = audio
     })
     return entries
-  }, [sfxVolume, sources.sfxMap])
+  }, [sfxVolume, sources])
 
   useEffect(
     () => () => {
@@ -111,7 +121,9 @@ export const useAudio = (config: UseAudioConfig = {}) => {
   )
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     backgroundAudio.volume = backgroundVolume
+    // eslint-disable-next-line react-hooks/immutability
     intenseBackgroundAudio.volume = clamp(backgroundVolume + 0.03, 0, 1)
     Object.entries(sfxAudio).forEach(([key, audio]) => {
       if (!audio) return
@@ -121,7 +133,9 @@ export const useAudio = (config: UseAudioConfig = {}) => {
   }, [backgroundAudio, backgroundVolume, intenseBackgroundAudio, sfxAudio, sfxVolume])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     backgroundAudio.muted = muted
+    // eslint-disable-next-line react-hooks/immutability
     intenseBackgroundAudio.muted = muted
     if (muted) {
       backgroundAudio.pause()
@@ -193,6 +207,11 @@ export const useAudio = (config: UseAudioConfig = {}) => {
     (key: SfxKey) => {
       const audio = sfxAudio[key]
       if (!audio || muted) return
+      const now = performance.now()
+      const lastPlay = lastPlayRef.current[key] ?? 0
+      if (now - lastPlay < 120) return
+      lastPlayRef.current[key] = now
+      // eslint-disable-next-line react-hooks/immutability
       audio.currentTime = 0
       void audio.play()
     },

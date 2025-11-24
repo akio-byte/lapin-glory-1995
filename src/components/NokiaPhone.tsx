@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { NetMonitorReading } from '../hooks/useGameLoop'
 
 const pixelVibes = `
@@ -68,8 +68,10 @@ const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint, className }:
     severe: { label: 'Staalo-linja', hint: 'Rituaalinen häiriö', color: 'text-rose-200' },
   }
 
-  const glitchify = (message: string) =>
-    isGlitch ? `${message} // ${Math.round(Math.random() * 999)}Hz` : message
+  const glitchSalt = 404
+  const glitchify = useCallback((message: string) => {
+    return isGlitch ? `${message} // ${glitchSalt}Hz` : message
+  }, [isGlitch])
 
   const handlePing = () => {
     const result = onPing?.()

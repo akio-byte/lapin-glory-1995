@@ -46,26 +46,52 @@ type RunSummary = {
 
 const formatDelta = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(0)}`
 
-// RunInfoBar shows the current run structure and guardrails at a glance.
-const RunInfoBar = ({ dayCount, lai }: { dayCount: number; lai: number }) => (
-  <div className="glass-panel grid gap-3 md:grid-cols-4 px-4 py-3">
-    <div className="space-y-1">
-      <p className="text-[10px] uppercase tracking-[0.3em] text-neon/80">Run Structure</p>
-      <p className="text-lg font-semibold">Päivä {Math.min(dayCount, 10)} / 10</p>
-      <p className="text-[11px] text-slate-300">Seuraa sykliä ja pidä rytmi yllä.</p>
+const PathProgressChips = ({
+  progress,
+}: {
+  progress: Record<BuildPath, { xp: number; milestoneIndex: number }>
+}) => (
+  <div className="glass-panel px-4 py-3 space-y-2">
+    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-neon/80">
+      <span>Build Paths</span>
+      <span className="text-[11px] text-slate-300">Tourist / Tax / Occult / Network</span>
     </div>
-    <div className="space-y-1">
-      <p className="text-[10px] uppercase tracking-[0.3em] text-neon/80">Lapin Anomalia</p>
-      <p className="text-lg font-semibold">LAI {lai.toFixed(0)} / 100</p>
-      <p className="text-[11px] text-slate-300">Glitch-kanava voimistuu yli 70.</p>
-    </div>
-    <div className="space-y-1">
-      <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-200">Voita</p>
-      <p className="text-[13px] leading-snug text-slate-100">Selviä 10 päivää, pidä LAI hallinnassa ja kassavirta plussalla.</p>
-    </div>
-    <div className="space-y-1">
-      <p className="text-[10px] uppercase tracking-[0.3em] text-rose-300">Häviät jos</p>
-      <p className="text-[13px] leading-snug text-slate-100">Järki 0, Rahat alle -1000 mk tai Maine yli 95 → Veropetos-ratsia.</p>
+    <div className="grid md:grid-cols-2 gap-3">
+      {(Object.keys(buildPathMeta) as BuildPath[]).map((path) => {
+        const meta = buildPathMeta[path]
+        const xp = progress[path]?.xp ?? 0
+        const index = progress[path]?.milestoneIndex ?? 0
+        const milestones = meta.milestones
+        const next = milestones[index] ?? milestones[milestones.length - 1]
+        const prev = index === 0 ? 0 : milestones[index - 1]
+        const ratio = next ? Math.min(1, (xp - prev) / (next - prev)) : 1
+        const cappedRatio = Number.isFinite(ratio) ? ratio : 0
+        const stageLabel = index >= milestones.length ? 'Valmis' : `Taso ${index + 1}`
+
+        return (
+          <div key={path} className="bg-black/40 border border-neon/30 p-3 rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-neon/70">{meta.label}</p>
+                <p className="text-xs text-slate-300">{meta.description}</p>
+              </div>
+              <span className="text-[11px] text-neon/80">{stageLabel}</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className={`h-full bg-gradient-to-r ${meta.color}`}
+                style={{ width: `${Math.min(100, cappedRatio * 100)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-200">
+              <span>XP {xp.toFixed(0)}</span>
+              <span>
+                {index >= milestones.length ? 'Max' : `Seuraava @ ${next} XP`}
+              </span>
+            </div>
+          </div>
+        )
+      })}
     </div>
   </div>
 )
@@ -337,7 +363,7 @@ const GameShell = () => {
     advancePhase,
     resolveChoice,
     buyItem,
-    useItem,
+    consumeItem,
     morningReport,
     resetGame,
     wasRestored,
@@ -404,35 +430,10 @@ const GameShell = () => {
     [runHistory],
   )
 
-  useEffect(() => {
+  const resetInteraction = useCallback(() => {
     setOutcome(null)
     setLocked(false)
-  }, [phase])
-
-  useEffect(() => {
-    setOutcome(null)
-    setLocked(false)
-  }, [activeEvent?.id])
-
-  useEffect(() => {
-    if (typeof localStorage === 'undefined') return
-    const raw = localStorage.getItem(RUN_HISTORY_KEY)
-    if (!raw) return
-    try {
-      const parsed = JSON.parse(raw) as RunSummary[]
-      setRunHistory(parsed)
-    } catch (error) {
-      console.warn('Failed to load run history', error)
-    }
   }, [])
-
-  useEffect(() => {
-    if (locked && !outcome) {
-      // Fallback: avoid getting stuck in a locked state without a visible outcome
-      console.warn('Locked without outcome – unlocking for safety')
-      setLocked(false)
-    }
-  }, [locked, outcome])
 
   const rootStyle = useMemo(
     () => ({ '--glitch-duration': `${textSpeed}s`, '--sanity-hue': `${sanityHueShift}deg` } as CSSProperties),
@@ -496,19 +497,19 @@ const GameShell = () => {
       const interval = window.setInterval(tick, 3800)
       return () => window.clearInterval(interval)
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCorruptedLabels(baseLabels)
   }, [stats.jarki])
 
-  const handleRestart = () => {
+  const handleRestart = useCallback(() => {
     setJournal([])
-    setOutcome(null)
-    setLocked(false)
+    resetInteraction()
     resetGame()
-  }
+  }, [resetGame, resetInteraction])
 
-  const pushJournal = (entry: string) => {
+  const pushJournal = useCallback((entry: string) => {
     setJournal((prev) => [entry, ...prev].slice(0, 12))
-  }
+  }, [])
 
   useEffect(() => {
     const previousLai = laiPrevRef.current
@@ -517,14 +518,15 @@ const GameShell = () => {
       pushJournal(`LAI muutos: ${formatDelta(laiDelta)} → ${lai.toFixed(0)}`)
       laiPrevRef.current = lai
     }
-  }, [lai])
+  }, [lai, pushJournal])
 
   useEffect(() => {
     if (!morningReport) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     pushJournal(
       `Aamuraportti D${morningReport.day}: Raha ${formatDelta(morningReport.rahatDelta)} mk, Järki ${formatDelta(morningReport.jarkiDelta)}`,
     )
-  }, [morningReport])
+  }, [morningReport, pushJournal])
 
   useEffect(() => {
     if (!ending) {
@@ -547,6 +549,7 @@ const GameShell = () => {
       focusPath: focusPath ?? null,
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRunHistory((prev) => {
       const next = [entry, ...prev].slice(0, 8)
       if (typeof localStorage !== 'undefined') {
@@ -558,49 +561,94 @@ const GameShell = () => {
     endingLoggedRef.current = true
   }, [ending, lai, pathProgress])
 
-  if (ending) {
-    return <RunOverScreen ending={ending} onRestart={handleRestart} />
-  }
+    const handleEventChoice = useCallback(
+      (choice: Parameters<typeof resolveChoice>[0]) => {
+        if (locked || !activeEvent) return
+      playSfx('choice')
+      const result = resolveChoice(choice)
+      setOutcome(result.outcomeText)
+      setLocked(true)
+      pushJournal(`Tapahtuma ${activeEvent.id}: ${choice.label} → ${result.outcomeText}`)
+    },
+    [activeEvent, locked, playSfx, pushJournal, resolveChoice],
+  )
 
-  const handleEventChoice = (choice: Parameters<typeof resolveChoice>[0]) => {
-    if (locked || !activeEvent) return
+  const handlePaperWarResolve = useCallback(
+    (result: PaperWarResolution) => {
+      if (locked || !activeEvent) return
+      playSfx('choice')
+      applyChoiceEffects(result.appliedEffects)
+      setOutcome(result.summary)
+      setLocked(true)
+      pushJournal(`PaperWar ${activeEvent.id}: ${result.summary}`)
+
+      if (activeEvent.paths?.length) {
+        const wins = result.rounds.filter((r) => r.result === 'win').length
+        const xpPerPath: Partial<Record<BuildPath, number>> = {}
+        activeEvent.paths.forEach((path) => {
+          xpPerPath[path] = (xpPerPath[path] ?? 0) + Math.max(2, wins + 1)
+        })
+        grantPathXp(xpPerPath, `paperwar:${activeEvent.id}`)
+      }
+    },
+    [activeEvent, applyChoiceEffects, grantPathXp, locked, playSfx, pushJournal],
+  )
+
+  const handleBuy = useCallback(
+    (item: Item) => {
+      const success = buyItem(item)
+      if (success) {
+        pushJournal(`Osto: ${item.name} (${item.price} mk)`)
+        playSfx('cash')
+      }
+    },
+    [buyItem, playSfx, pushJournal],
+  )
+
+  const handleAdvancePhase = useCallback(() => {
+    resetInteraction()
+    advancePhase()
+  }, [advancePhase, resetInteraction])
+
+  const toggleShop = useCallback(() => {
     playSfx('choice')
-    const result = resolveChoice(choice)
-    setOutcome(result.outcomeText)
-    setLocked(true)
-    pushJournal(`Tapahtuma ${activeEvent.id}: ${choice.label} → ${result.outcomeText}`)
-  }
+    setIsShopOpen((prev) => !prev)
+  }, [playSfx])
 
-  const handlePaperWarResolve = (result: PaperWarResolution) => {
-    if (locked || !activeEvent) return
+  const toggleLog = useCallback(() => {
     playSfx('choice')
-    applyChoiceEffects(result.appliedEffects)
-    setOutcome(result.summary)
-    setLocked(true)
-    pushJournal(`PaperWar ${activeEvent.id}: ${result.summary}`)
+    setIsLogOpen((prev) => !prev)
+  }, [playSfx])
 
-    if (activeEvent.paths?.length) {
-      const wins = result.rounds.filter((r) => r.result === 'win').length
-      const xpPerPath: Partial<Record<BuildPath, number>> = {}
-      activeEvent.paths.forEach((path) => {
-        xpPerPath[path] = (xpPerPath[path] ?? 0) + Math.max(2, wins + 1)
-      })
-      grantPathXp(xpPerPath, `paperwar:${activeEvent.id}`)
-    }
-  }
+  const toggleSettings = useCallback(() => {
+    playSfx('choice')
+    setIsSettingsOpen((prev) => !prev)
+  }, [playSfx])
 
-  const handleBuy = (item: Item) => {
-    const success = buyItem(item)
-    if (success) {
-      pushJournal(`Osto: ${item.name} (${item.price} mk)`)
-    }
-  }
+  const closeShop = useCallback(() => {
+    playSfx('choice')
+    setIsShopOpen(false)
+  }, [playSfx])
+
+  const closeLog = useCallback(() => {
+    playSfx('choice')
+    setIsLogOpen(false)
+  }, [playSfx])
+
+  const closeSettings = useCallback(() => {
+    playSfx('choice')
+    setIsSettingsOpen(false)
+  }, [playSfx])
 
   const wrapperGlitchClass = isGlitching ? 'glitch-wrapper invert' : ''
   const lowSanity = stats.jarki < 50
 
   const report =
     morningReport ?? ({ rahatDelta: 0, jarkiDelta: 0, laiDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
+
+  if (ending) {
+    return <RunOverScreen ending={ending} onRestart={handleRestart} />
+  }
 
   return (
     <ErrorBoundary>
@@ -659,7 +707,7 @@ const GameShell = () => {
                       laiDelta={report.laiDelta}
                       history={dayHistory}
                       note={report.note}
-                      onAdvance={advancePhase}
+                      onAdvance={handleAdvancePhase}
                     />
                   )}
 
@@ -673,7 +721,7 @@ const GameShell = () => {
                         outcome={outcome}
                         fallbackMedia={fallbackMedia}
                         onResolve={handlePaperWarResolve}
-                        onNextPhase={advancePhase}
+                        onNextPhase={handleAdvancePhase}
                         isGlitching={isGlitching}
                       />
                     ) : (
@@ -682,7 +730,7 @@ const GameShell = () => {
                         locked={locked}
                         outcome={outcome}
                         onChoice={handleEventChoice}
-                        onNextPhase={advancePhase}
+                        onNextPhase={handleAdvancePhase}
                         fallbackMedia={fallbackMedia}
                         phase={phase}
                         isGlitching={isGlitching}
@@ -694,7 +742,7 @@ const GameShell = () => {
                     <div className="glass-panel">
                       <p className="text-xs uppercase tracking-[0.3em] text-neon">Hiljainen linja</p>
                       <p className="text-sm text-slate-200 mt-2">Ei tapahtumia juuri nyt. Avaa ovi ja kuuntele huminaa.</p>
-                      <button className="button-raw mt-3" onClick={advancePhase}>
+                      <button className="button-raw mt-3" onClick={handleAdvancePhase}>
                         Pakota seuraava vaihe →
                       </button>
                     </div>
@@ -715,34 +763,19 @@ const GameShell = () => {
               />
 
               {isShopOpen && (
-                <OSWindow
-                  title="SALKKUKAUPPA"
-                  isActive
-                  size="md"
-                  onClose={() => setIsShopOpen(false)}
-                >
-                  <Shop phase={phase} inventory={inventory} stats={stats} onBuy={handleBuy} onUse={useItem} />
+                <OSWindow title="SALKKUKAUPPA" isActive size="md" onClose={closeShop}>
+              <Shop phase={phase} inventory={inventory} stats={stats} onBuy={handleBuy} onUse={consumeItem} />
                 </OSWindow>
               )}
 
               {isLogOpen && (
-                <OSWindow
-                  title="LOKIKONE"
-                  isActive
-                  size="sm"
-                  onClose={() => setIsLogOpen(false)}
-                >
+                <OSWindow title="LOKIKONE" isActive size="sm" onClose={closeLog}>
                   <JournalWindow entries={journal} runHistory={runHistoryLines} />
                 </OSWindow>
               )}
 
               {isSettingsOpen && (
-                <OSWindow
-                  title="ASETUKSET"
-                  isActive
-                  size="sm"
-                  onClose={() => setIsSettingsOpen(false)}
-                >
+                <OSWindow title="ASETUKSET" isActive size="sm" onClose={closeSettings}>
                   <SettingsWindow
                     muted={muted}
                     toggleMute={toggleMute}
@@ -793,9 +826,9 @@ const GameShell = () => {
           dayCount={dayCount}
           lai={lai}
           pathProgress={pathProgress}
-          onToggleShop={() => setIsShopOpen((open) => !open)}
-          onToggleLog={() => setIsLogOpen((open) => !open)}
-          onToggleSettings={() => setIsSettingsOpen((open) => !open)}
+          onToggleShop={toggleShop}
+          onToggleLog={toggleLog}
+          onToggleSettings={toggleSettings}
         />
       </Desktop>
     </ErrorBoundary>

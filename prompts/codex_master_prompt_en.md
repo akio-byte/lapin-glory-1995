@@ -19,7 +19,7 @@ Context:
 - `GAME_BIBLE.md` is the authoritative design document. Its mechanics, stats and mood are canon.
 - Core code locations:
   - Game loop & phases: `src/hooks/useGameLoop.ts`
-  - Content & rules: `src/data/gameData.ts`, `src/data/events.ts`
+  - Content & rules: `src/data/gameData.ts`, AI fax content, `src/data/aiFaxEvents.ts`
   - Presentation: `src/components/*.tsx`, `src/App.tsx`
 - Visual tone: "Lama-Noir" + vaporwave, CRT scanlines, brutalist Finland 1995.
 

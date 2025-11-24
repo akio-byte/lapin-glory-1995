@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { GameEvent, Item, Stats } from '../data/gameData'
 import CRTVisual from './CRTVisual'
 import { canonicalStats } from '../data/statMeta'
@@ -9,6 +9,16 @@ const PAPER_WAR_BEATS: Record<PaperWarMove, PaperWarMove> = {
   ATTACK_FORM: 'BLUFF',
   BLUFF: 'DEFEND_RECEIPT',
   DEFEND_RECEIPT: 'ATTACK_FORM',
+}
+
+const getInspectorMove = () => {
+  const choices = Object.keys(PAPER_WAR_BEATS) as PaperWarMove[]
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const buffer = new Uint32Array(1)
+    crypto.getRandomValues(buffer)
+    return choices[buffer[0] % choices.length]
+  }
+  return choices[Math.floor(Math.random() * choices.length)]
 }
 
 const moveMeta: Record<PaperWarMove, { label: string; detail: string; icon: string }> = {
@@ -110,6 +120,7 @@ const PaperWar = ({
   const losses = rounds.filter((entry) => entry.result === 'loss').length
   const draws = rounds.filter((entry) => entry.result === 'draw').length
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setRounds([])
     setPendingEffects({})
@@ -119,7 +130,8 @@ const PaperWar = ({
     setSanityShield(0)
     setUsedSpecials({})
     setNetworkPeeked(false)
-  }, [event.id])
+  }, [event.id, stats.jarki, stats.rahat])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   type SpecialMove = {
     id: string
@@ -129,13 +141,14 @@ const PaperWar = ({
     onUse: () => void
   }
 
-  const applyRound = (
-    playerMove: PaperWarMove,
-    inspectorMove: PaperWarMove,
-    result: RoundOutcome,
-    note: string,
-    effectOverride?: Partial<Stats>,
-  ) => {
+  const applyRound = useCallback(
+    (
+      playerMove: PaperWarMove,
+      inspectorMove: PaperWarMove,
+      result: RoundOutcome,
+      note: string,
+      effectOverride?: Partial<Stats>,
+    ) => {
     if (locked || finished) return
 
     const eventTags = event.tags ?? []
@@ -203,28 +216,31 @@ const PaperWar = ({
       setFinished(true)
       onResolve({ summary, appliedEffects: nextEffects, rounds: nextRounds })
     }
-  }
+  },
+    [activeTags, event.tags, finished, locked, networkPeeked, onResolve, pendingEffects, relicGuard, rounds, sanityShield],
+  )
 
-  const playRound = (playerMove: PaperWarMove) => {
-    const inspectorMove = (Object.keys(PAPER_WAR_BEATS) as PaperWarMove[])[
-      Math.floor(Math.random() * Object.keys(PAPER_WAR_BEATS).length)
-    ]
+  const playRound = useCallback(
+    (playerMove: PaperWarMove) => {
+      const inspectorMove = getInspectorMove()
 
-    let result: RoundOutcome = 'draw'
-    if (PAPER_WAR_BEATS[playerMove] === inspectorMove) result = 'win'
-    else if (PAPER_WAR_BEATS[inspectorMove] === playerMove) result = 'loss'
+      let result: RoundOutcome = 'draw'
+      if (PAPER_WAR_BEATS[playerMove] === inspectorMove) result = 'win'
+      else if (PAPER_WAR_BEATS[inspectorMove] === playerMove) result = 'loss'
 
-    const note =
-      result === 'win'
-        ? 'Krok siristää silmää ja merkitsee kohdan: "hyväksytty hermoromahdus".'
-        : result === 'loss'
-          ? 'Lomake muljahtaa väärinpäin. Kuulokkeissa kuuluu lisäselvityspyyntö.'
-          : 'Paperit törmäävät ilmaan. Molemmat selaatte hiljaa.'
+      const note =
+        result === 'win'
+          ? 'Krok siristää silmää ja merkitsee kohdan: "hyväksytty hermoromahdus".'
+          : result === 'loss'
+            ? 'Lomake muljahtaa väärinpäin. Kuulokkeissa kuuluu lisäselvityspyyntö.'
+            : 'Paperit törmäävät ilmaan. Molemmat selaatte hiljaa.'
 
-    applyRound(playerMove, inspectorMove, result, note)
-  }
+      applyRound(playerMove, inspectorMove, result, note)
+    },
+    [applyRound],
+  )
 
-  const hasItem = (id: string) => inventory.some((item) => item.id === id)
+  const hasItem = useCallback((id: string) => inventory.some((item) => item.id === id), [inventory])
 
   const specialMoves: SpecialMove[] = useMemo(() => {
     const moves: SpecialMove[] = []
@@ -331,7 +347,7 @@ const PaperWar = ({
     }
 
     return moves
-  }, [activeTags, applyRound, finished, inventory, locked, relicGuard, usedSpecials])
+  }, [activeTags, applyRound, finished, hasItem, locked, relicGuard, usedSpecials])
 
   return (
     <div className={`panel relative space-y-4 bg-asphalt/60 ${isGlitching ? 'glitch-veil' : ''}`}>

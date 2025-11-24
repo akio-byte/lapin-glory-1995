@@ -40,7 +40,7 @@ const aiEventsPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..
 const readExistingEvents = async (): Promise<GameEvent[]> => {
   try {
     await fs.access(aiEventsPath)
-  } catch (_err) {
+  } catch {
     return []
   }
 
