@@ -5,7 +5,7 @@ import NokiaPhone from './NokiaPhone'
 import PaperWar, { type PaperWarResolution } from './PaperWar'
 import Shop from './Shop'
 import DebugPanel from './DebugPanel'
-import type { Item, Stats } from '../data/gameData'
+import { buildPathMeta, type BuildPath, type Item, type Stats } from '../data/gameData'
 import { canonicalStats } from '../data/statMeta'
 import type { EndingType } from '../hooks/useGameLoop'
 import { useGameLoop } from '../hooks/useGameLoop'
@@ -54,6 +54,56 @@ const RunInfoBar = ({ dayCount, lai }: { dayCount: number; lai: number }) => (
     <div className="space-y-1">
       <p className="text-[10px] uppercase tracking-[0.3em] text-rose-300">Häviät jos</p>
       <p className="text-[13px] leading-snug text-slate-100">Järki 0, Rahat alle -1000 mk tai Maine yli 95 → Veropetos-ratsia.</p>
+    </div>
+  </div>
+)
+
+const PathProgressChips = ({
+  progress,
+}: {
+  progress: Record<BuildPath, { xp: number; milestoneIndex: number }>
+}) => (
+  <div className="glass-panel px-4 py-3 space-y-2">
+    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-neon/80">
+      <span>Build Paths</span>
+      <span className="text-[11px] text-slate-300">Tourist / Tax / Occult / Network</span>
+    </div>
+    <div className="grid md:grid-cols-2 gap-3">
+      {(Object.keys(buildPathMeta) as BuildPath[]).map((path) => {
+        const meta = buildPathMeta[path]
+        const xp = progress[path]?.xp ?? 0
+        const index = progress[path]?.milestoneIndex ?? 0
+        const milestones = meta.milestones
+        const next = milestones[index] ?? milestones[milestones.length - 1]
+        const prev = index === 0 ? 0 : milestones[index - 1]
+        const ratio = next ? Math.min(1, (xp - prev) / (next - prev)) : 1
+        const cappedRatio = Number.isFinite(ratio) ? ratio : 0
+        const stageLabel = index >= milestones.length ? 'Valmis' : `Taso ${index + 1}`
+
+        return (
+          <div key={path} className="bg-black/40 border border-neon/30 p-3 rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-neon/70">{meta.label}</p>
+                <p className="text-xs text-slate-300">{meta.description}</p>
+              </div>
+              <span className="text-[11px] text-neon/80">{stageLabel}</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className={`h-full bg-gradient-to-r ${meta.color}`}
+                style={{ width: `${Math.min(100, cappedRatio * 100)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-200">
+              <span>XP {xp.toFixed(0)}</span>
+              <span>
+                {index >= milestones.length ? 'Max' : `Seuraava @ ${next} XP`}
+              </span>
+            </div>
+          </div>
+        )
+      })}
     </div>
   </div>
 )
@@ -244,6 +294,7 @@ const GameShell = () => {
     currentEvent,
     fallbackMedia,
     lai,
+    pathProgress,
     handleChoice: applyChoiceEffects,
     advancePhase,
     resolveChoice,
@@ -254,9 +305,21 @@ const GameShell = () => {
     wasRestored,
     pingNetMonitor,
     nextNightEventHint,
+    grantPathXp,
   } = useGameLoop()
 
-  const { muted, toggleMute, backgroundPlaying, toggleBackground, playSfx, setBackgroundMode } = useAudio()
+  const {
+    muted,
+    toggleMute,
+    backgroundPlaying,
+    toggleBackground,
+    backgroundVolume,
+    setBackgroundVolume,
+    sfxVolume,
+    setSfxVolume,
+    playSfx,
+    setBackgroundMode,
+  } = useAudio()
 
   const [outcome, setOutcome] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
@@ -419,6 +482,15 @@ const GameShell = () => {
     setOutcome(result.summary)
     setLocked(true)
     pushJournal(`PaperWar ${activeEvent.id}: ${result.summary}`)
+
+    if (activeEvent.paths?.length) {
+      const wins = result.rounds.filter((r) => r.result === 'win').length
+      const xpPerPath: Partial<Record<BuildPath, number>> = {}
+      activeEvent.paths.forEach((path) => {
+        xpPerPath[path] = (xpPerPath[path] ?? 0) + Math.max(2, wins + 1)
+      })
+      grantPathXp(xpPerPath, `paperwar:${activeEvent.id}`)
+    }
   }
 
   const handleBuy = (item: Item) => {
@@ -458,6 +530,8 @@ const GameShell = () => {
                   Aloita uusi run
                 </button>
               </div>
+
+              <PathProgressChips progress={pathProgress} />
 
               <OSWindow title="FAKSI / TAPAHTUMA" isActive size="lg">
                 <div className="space-y-4">
@@ -531,7 +605,7 @@ const GameShell = () => {
               </OSWindow>
 
               <NokiaPhone
-                className="absolute bottom-24 right-4"
+                className="nokia-shell"
                 jarki={stats.jarki}
                 lai={lai}
                 onPing={() => {
@@ -576,6 +650,10 @@ const GameShell = () => {
                     toggleMute={toggleMute}
                     backgroundPlaying={backgroundPlaying}
                     toggleBackground={toggleBackground}
+                    backgroundVolume={backgroundVolume}
+                    sfxVolume={sfxVolume}
+                    onBackgroundVolumeChange={setBackgroundVolume}
+                    onSfxVolumeChange={setSfxVolume}
                     textSpeed={textSpeed}
                     onTextSpeedChange={setTextSpeed}
                   />
@@ -585,7 +663,7 @@ const GameShell = () => {
           </div>
 
           {import.meta.env.DEV && (
-            <div className="fixed bottom-24 right-4 text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
+            <div className="fixed dev-panel text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
               <p className="text-[10px] uppercase tracking-[0.25em] text-neon">Active Mods</p>
               <p className="text-[10px] text-slate-300">Työkalut ja lomakkeet, jotka vaikuttavat tämänhetkiseen event-mathiin.</p>
               <ul className="space-y-1">
@@ -616,6 +694,7 @@ const GameShell = () => {
           stats={stats}
           dayCount={dayCount}
           lai={lai}
+          pathProgress={pathProgress}
           onToggleShop={() => setIsShopOpen((open) => !open)}
           onToggleLog={() => setIsLogOpen((open) => !open)}
           onToggleSettings={() => setIsSettingsOpen((open) => !open)}
