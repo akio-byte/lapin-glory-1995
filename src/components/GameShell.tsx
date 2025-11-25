@@ -233,15 +233,14 @@ const MorningReportView = ({
         <p className="text-xs text-slate-300">Raportti huomioi eilisillan päätöksen ja tämän aamun tilan.</p>
       </div>
     </div>
-      <div className="p-3 bg-black/40 border border-neon/30 text-sm rounded italic text-slate-100">{note}</div>
-      <div className="text-right">
-        <button className="button-raw" onClick={onAdvance}>
-          Hyväksy raportti →
-        </button>
-      </div>
+    <div className="p-3 bg-black/40 border border-neon/30 text-sm rounded italic text-slate-100">{note}</div>
+    <div className="text-right">
+      <button className="button-raw" onClick={onAdvance}>
+        Hyväksy raportti →
+      </button>
     </div>
   </div>
-)
+  );
 
 type PhaseViewProps = {
   dayCount: number
