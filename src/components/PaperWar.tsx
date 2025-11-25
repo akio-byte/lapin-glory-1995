@@ -119,6 +119,7 @@ const PaperWar = ({
   const wins = rounds.filter((entry) => entry.result === 'win').length
   const losses = rounds.filter((entry) => entry.result === 'loss').length
   const draws = rounds.filter((entry) => entry.result === 'draw').length
+  const resolutionTone: RoundOutcome | null = outcome ? (wins > losses ? 'win' : losses > wins ? 'loss' : 'draw') : null
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -474,7 +475,17 @@ const PaperWar = ({
         {outcome && (
           <div className="border-2 border-dashed border-neon/70 bg-coal/80 p-4 shadow-inner text-sm">
             <p className="text-[10px] uppercase tracking-[0.3em] text-neon">Loppusumma</p>
-            <p className="mt-2">{outcome}</p>
+            <p
+              className={`mt-2 text-2xl font-black tracking-wide ${
+                resolutionTone === 'win'
+                  ? 'text-emerald-300'
+                  : resolutionTone === 'loss'
+                    ? 'text-rose-300'
+                    : 'text-amber-200'
+              }`}
+            >
+              {outcome}
+            </p>
             <div className="mt-3 text-right">
               <button className="button-raw bg-neon text-coal" onClick={onNextPhase}>
                 Next Phase →

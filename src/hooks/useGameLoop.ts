@@ -807,6 +807,7 @@ export const useGameLoop = (): GameState & GameActions => {
     const phaseChanged = phase !== prevPhaseRef.current
     if (phaseChanged) {
       prevPhaseRef.current = phase
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentEvent(null)
     }
 

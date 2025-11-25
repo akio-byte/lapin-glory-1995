@@ -15,7 +15,14 @@ import NokiaPhone from './NokiaPhone'
 import PaperWar, { type PaperWarResolution } from './PaperWar'
 import Shop from './Shop'
 import DebugPanel from './DebugPanel'
-import { buildPathMeta, type BuildPath, type Item, type Stats } from '../data/gameData'
+import {
+  buildPathMeta,
+  type BuildPath,
+  type GameEvent,
+  type GameEventChoice,
+  type Item,
+  type Stats,
+} from '../data/gameData'
 import { canonicalStats } from '../data/statMeta'
 import { endingEpilogues, type EndingType } from '../data/endingData'
 import { useGameLoop, type DaySnapshot } from '../hooks/useGameLoop'
@@ -25,22 +32,6 @@ import OSWindow from './OSWindow'
 import Taskbar from './Taskbar'
 import JournalWindow from './JournalWindow'
 import SettingsWindow from './SettingsWindow'
-
-const shakeStyles = `
-@keyframes shake {
-  0% { transform: translate(1px, 1px) rotate(0deg); }
-  10% { transform: translate(-1px, -2px) rotate(-1deg); }
-  20% { transform: translate(-3px, 0px) rotate(1deg); }
-  30% { transform: translate(3px, 2px) rotate(0deg); }
-  40% { transform: translate(1px, -1px) rotate(1deg); }
-  50% { transform: translate(-1px, 2px) rotate(-1deg); }
-  60% { transform: translate(-3px, 1px) rotate(0deg); }
-  70% { transform: translate(3px, 1px) rotate(-1deg); }
-  80% { transform: translate(-1px, -1px) rotate(-1deg); }
-  90% { transform: translate(1px, 2px) rotate(0deg); }
-  100% { transform: translate(1px, -2px) rotate(-1deg); }
-}
-`
 
 const RUN_HISTORY_KEY = 'lapin-glory-runs'
 
@@ -245,6 +236,112 @@ const MorningReport = ({
   </div>
 )
 
+type PhaseViewProps = {
+  dayCount: number
+  lai: number
+  stats: Stats
+  corruptedLabels: { rahat: string; maine: string; jarki: string }
+  activeEvent: GameEvent | null
+  isPaperWar: boolean
+  inventory: Item[]
+  locked: boolean
+  outcome: string | null
+  fallbackMedia: NonNullable<GameEvent['media']>
+  isGlitching: boolean
+  onPaperWarResolve: (result: PaperWarResolution) => void
+  onEventChoice: (choice: GameEventChoice) => void
+  onAdvancePhase: () => void
+}
+
+const PhaseView = ({
+  phase,
+  dayCount,
+  lai,
+  stats,
+  corruptedLabels,
+  activeEvent,
+  isPaperWar,
+  inventory,
+  locked,
+  outcome,
+  fallbackMedia,
+  isGlitching,
+  onPaperWarResolve,
+  onEventChoice,
+  onAdvancePhase,
+}: PhaseViewProps & { phase: 'DAY' | 'NIGHT' }) => {
+  const phaseTitle = phase === 'DAY' ? 'PÄIVÄVUORO' : 'YÖVUORO'
+  const quietTitle = phase === 'DAY' ? 'Hiljainen linja' : 'Staalo nukkuu'
+  const quietBody =
+    phase === 'DAY'
+      ? 'Ei lomakkeita juuri nyt. Juot kahvin, katsot ulos ja kuuntelet neonin sirinää.'
+      : 'Yövuoro nielee valot. Tietokone humisee, eikä yhtään faksia luisu pöydälle.'
+
+  return (
+    <OSWindow title={`FAKSI / TAPAHTUMA — ${phaseTitle}`} isActive size="lg">
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] uppercase tracking-[0.2em]">
+          <div className="glass-chip px-3 py-2">
+            <p className="text-neon/80">Päivä</p>
+            <p className="text-lg font-semibold">{dayCount}</p>
+          </div>
+          <div className="glass-chip px-3 py-2">
+            <p className="text-neon/80">LAI</p>
+            <p className="text-lg font-semibold">{lai.toFixed(0)}</p>
+          </div>
+          <div className="glass-chip px-3 py-2">
+            <p className="text-neon/80">{corruptedLabels.rahat}</p>
+            <p className="text-lg font-semibold">{canonicalStats.rahat.format(stats.rahat)}</p>
+          </div>
+          <div className="glass-chip px-3 py-2">
+            <p className="text-neon/80">{corruptedLabels.jarki}</p>
+            <p className="text-lg font-semibold">{canonicalStats.jarki.format(stats.jarki)}</p>
+          </div>
+        </div>
+
+        {activeEvent ? (
+          isPaperWar ? (
+            <PaperWar
+              event={activeEvent}
+              stats={stats}
+              inventory={inventory}
+              locked={locked}
+              outcome={outcome}
+              fallbackMedia={fallbackMedia}
+              onResolve={onPaperWarResolve}
+              onNextPhase={onAdvancePhase}
+              isGlitching={isGlitching}
+            />
+          ) : (
+            <EventCard
+              event={activeEvent}
+              locked={locked}
+              outcome={outcome}
+              onChoice={onEventChoice}
+              onNextPhase={onAdvancePhase}
+              fallbackMedia={fallbackMedia}
+              phase={phase}
+              isGlitching={isGlitching}
+            />
+          )
+        ) : (
+          <div className="glass-panel">
+            <p className="text-xs uppercase tracking-[0.3em] text-neon">{quietTitle}</p>
+            <p className="text-sm text-slate-200 mt-2">{quietBody}</p>
+            <button className="button-raw mt-3" onClick={onAdvancePhase}>
+              Pakota seuraava vaihe →
+            </button>
+          </div>
+        )}
+      </div>
+    </OSWindow>
+  )
+}
+
+const DayView = (props: PhaseViewProps) => <PhaseView phase="DAY" {...props} />
+
+const NightView = (props: PhaseViewProps) => <PhaseView phase="NIGHT" {...props} />
+
 const RunOverScreen = ({
   ending,
   onRestart,
@@ -407,6 +504,7 @@ const GameShell = () => {
   const laiPrevRef = useRef(lai)
   const endingLoggedRef = useRef(false)
   const [sanityHueShift, setSanityHueShift] = useState(0)
+  const [desktopShaking, setDesktopShaking] = useState(false)
 
   const activeEvent = useMemo(() => currentEvent, [currentEvent])
   const isPaperWar = activeEvent?.paperWar
@@ -459,13 +557,22 @@ const GameShell = () => {
 
   useEffect(() => {
     const prevStats = sanityPrevRef.current
+    let shakeTimer: number | null = null
     if (stats.rahat - prevStats.rahat > 100) {
       playSfx('cash')
     }
     if (stats.jarki < prevStats.jarki) {
       playSfx('static')
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDesktopShaking(true)
+      shakeTimer = window.setTimeout(() => setDesktopShaking(false), 650)
     }
     sanityPrevRef.current = stats
+    return () => {
+      if (shakeTimer) {
+        window.clearTimeout(shakeTimer)
+      }
+    }
   }, [playSfx, stats])
 
   useEffect(() => {
@@ -650,191 +757,156 @@ const GameShell = () => {
   const report =
     morningReport ?? ({ rahatDelta: 0, jarkiDelta: 0, laiDelta: 0, note: 'Raportti latautuu...', day: dayCount } as const)
 
+  const phaseViewProps: PhaseViewProps = {
+    dayCount,
+    lai,
+    stats,
+    corruptedLabels,
+    activeEvent,
+    isPaperWar: Boolean(isPaperWar),
+    inventory,
+    locked,
+    outcome,
+    fallbackMedia: fallbackMedia!,
+    isGlitching,
+    onPaperWarResolve: handlePaperWarResolve,
+    onEventChoice: handleEventChoice,
+    onAdvancePhase: handleAdvancePhase,
+  }
+
+  const phaseView =
+    phase === 'MORNING' ? (
+      <MorningReport
+        stats={stats}
+        dayCount={report.day}
+        rahatDelta={report.rahatDelta}
+        jarkiDelta={report.jarkiDelta}
+        laiDelta={report.laiDelta}
+        history={dayHistory}
+        note={report.note}
+        onAdvance={handleAdvancePhase}
+      />
+    ) : phase === 'DAY' ? (
+      <DayView {...phaseViewProps} />
+    ) : (
+      <NightView {...phaseViewProps} />
+    )
+
   if (ending) {
     return <RunOverScreen ending={ending} onRestart={handleRestart} />
   }
 
   return (
     <ErrorBoundary>
-      <Desktop>
-        <div
-          className={`w-full min-h-screen text-white relative overflow-hidden bg-[#050912]/70 backdrop-blur-sm ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''} max-[900px]:max-h-[100%] max-[900px]:min-h-[auto]`}
-          style={rootStyle}
-        >
-          <style>{shakeStyles}</style>
-          {lowSanity && <div className="hcr-noise" aria-hidden />}
-          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
+      <div className={desktopShaking ? 'desktop-shake' : ''}>
+        <Desktop>
+          <div
+            className={`w-full min-h-screen text-white relative overflow-hidden bg-[#050912]/70 backdrop-blur-sm ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''} max-[900px]:max-h-[100%] max-[900px]:min-h-[auto]`}
+            style={rootStyle}
+          >
+            {lowSanity && <div className="hcr-noise" aria-hidden />}
+            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
 
-          <div className="w-full flex items-start justify-center pt-6 pb-24 max-[900px]:pt-4 max-[900px]:pb-16">
-            <div className="w-full max-w-6xl flex flex-col gap-4 items-stretch">
-              <div className="flex items-center justify-between w-full text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 border border-neon/50 bg-neon/10 uppercase tracking-[0.3em] text-[11px]">Lapin Glory OS/95</span>
-                  {wasRestored && (
-                    <span className="px-3 py-1 rounded-full border border-neon/40 bg-neon/10 text-neon text-[11px] uppercase tracking-[0.2em]">Ladattu tallennus</span>
-                  )}
-                </div>
-                <button className="button-raw px-3 py-1" onClick={handleRestart}>
-                  Aloita uusi run
-                </button>
-              </div>
-
-              <PathProgressChips progress={pathProgress} />
-
-              <OSWindow title="FAKSI / TAPAHTUMA" isActive size="lg">
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] uppercase tracking-[0.2em]">
-                    <div className="glass-chip px-3 py-2">
-                      <p className="text-neon/80">Päivä</p>
-                      <p className="text-lg font-semibold">{dayCount}</p>
-                    </div>
-                    <div className="glass-chip px-3 py-2">
-                      <p className="text-neon/80">LAI</p>
-                      <p className="text-lg font-semibold">{lai.toFixed(0)}</p>
-                    </div>
-                    <div className="glass-chip px-3 py-2">
-                      <p className="text-neon/80">{corruptedLabels.rahat}</p>
-                      <p className="text-lg font-semibold">{canonicalStats.rahat.format(stats.rahat)}</p>
-                    </div>
-                    <div className="glass-chip px-3 py-2">
-                      <p className="text-neon/80">{corruptedLabels.jarki}</p>
-                      <p className="text-lg font-semibold">{canonicalStats.jarki.format(stats.jarki)}</p>
-                    </div>
-                  </div>
-
-                  {phase === 'MORNING' && (
-                    <MorningReport
-                      stats={stats}
-                      dayCount={report.day}
-                      rahatDelta={report.rahatDelta}
-                      jarkiDelta={report.jarkiDelta}
-                      laiDelta={report.laiDelta}
-                      history={dayHistory}
-                      note={report.note}
-                      onAdvance={handleAdvancePhase}
-                    />
-                  )}
-
-                  {phase !== 'MORNING' && activeEvent && (
-                    isPaperWar ? (
-                      <PaperWar
-                        event={activeEvent}
-                        stats={stats}
-                        inventory={inventory}
-                        locked={locked}
-                        outcome={outcome}
-                        fallbackMedia={fallbackMedia}
-                        onResolve={handlePaperWarResolve}
-                        onNextPhase={handleAdvancePhase}
-                        isGlitching={isGlitching}
-                      />
-                    ) : (
-                      <EventCard
-                        event={activeEvent}
-                        locked={locked}
-                        outcome={outcome}
-                        onChoice={handleEventChoice}
-                        onNextPhase={handleAdvancePhase}
-                        fallbackMedia={fallbackMedia}
-                        phase={phase}
-                        isGlitching={isGlitching}
-                      />
-                    )
-                  )}
-
-                  {phase !== 'MORNING' && !activeEvent && (
-                    <div className="glass-panel">
-                      <p className="text-xs uppercase tracking-[0.3em] text-neon">Hiljainen linja</p>
-                      <p className="text-sm text-slate-200 mt-2">Ei tapahtumia juuri nyt. Avaa ovi ja kuuntele huminaa.</p>
-                      <button className="button-raw mt-3" onClick={handleAdvancePhase}>
-                        Pakota seuraava vaihe →
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </OSWindow>
-
-              <NokiaPhone
-                className="nokia-shell"
-                jarki={stats.jarki}
-                lai={lai}
-                onPing={() => {
-                  const reading = pingNetMonitor()
-                  playSfx('nokia')
-                  return reading
-                }}
-                nextNightEventHint={nextNightEventHint}
-              />
-
-              {isShopOpen && (
-                <OSWindow title="SALKKUKAUPPA" isActive size="md" onClose={closeShop}>
-              <Shop phase={phase} inventory={inventory} stats={stats} onBuy={handleBuy} onUse={consumeItem} />
-                </OSWindow>
-              )}
-
-              {isLogOpen && (
-                <OSWindow title="LOKIKONE" isActive size="sm" onClose={closeLog}>
-                  <JournalWindow entries={journal} runHistory={runHistoryLines} />
-                </OSWindow>
-              )}
-
-              {isSettingsOpen && (
-                <OSWindow title="ASETUKSET" isActive size="sm" onClose={closeSettings}>
-                  <SettingsWindow
-                    muted={muted}
-                    toggleMute={toggleMute}
-                    backgroundPlaying={backgroundPlaying}
-                    toggleBackground={toggleBackground}
-                    backgroundVolume={backgroundVolume}
-                    sfxVolume={sfxVolume}
-                    onBackgroundVolumeChange={setBackgroundVolume}
-                    onSfxVolumeChange={setSfxVolume}
-                    textSpeed={textSpeed}
-                    onTextSpeedChange={setTextSpeed}
-                  />
-                </OSWindow>
-              )}
-            </div>
-          </div>
-
-          {import.meta.env.DEV && (
-            <div className="fixed dev-panel text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
-              <p className="text-[10px] uppercase tracking-[0.25em] text-neon">Active Mods</p>
-              <p className="text-[10px] text-slate-300">Työkalut ja lomakkeet, jotka vaikuttavat tämänhetkiseen event-mathiin.</p>
-              <ul className="space-y-1">
-                {relevantActiveMods.length === 0 && <li className="text-slate-400">Ei aktiivisia modifikaattoreita.</li>}
-                {relevantActiveMods.map((mod) => (
-                  <li key={mod.id} className="border-l-2 border-neon pl-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">{mod.name}</span>
-                      <span className="text-[9px] uppercase tracking-[0.2em] text-neon/80">{mod.type}</span>
-                    </div>
-                    <p className="text-slate-200">{mod.summary}</p>
-                    {mod.tags.length > 0 && (
-                      <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400">{mod.tags.join(', ')}</p>
+            <div className="w-full flex items-start justify-center pt-6 pb-24 max-[900px]:pt-4 max-[900px]:pb-16">
+              <div className="w-full max-w-6xl flex flex-col gap-4 items-stretch">
+                <div className="flex items-center justify-between w-full text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 border border-neon/50 bg-neon/10 uppercase tracking-[0.3em] text-[11px]">Lapin Glory OS/95</span>
+                    {wasRestored && (
+                      <span className="px-3 py-1 rounded-full border border-neon/40 bg-neon/10 text-neon text-[11px] uppercase tracking-[0.2em]">Ladattu tallennus</span>
                     )}
-                  </li>
-                ))}
-              </ul>
+                  </div>
+                  <button className="button-raw px-3 py-1" onClick={handleRestart}>
+                    Aloita uusi run
+                  </button>
+                </div>
+
+                <PathProgressChips progress={pathProgress} />
+
+                {phaseView}
+
+                <NokiaPhone
+                  className="nokia-shell"
+                  jarki={stats.jarki}
+                  lai={lai}
+                  onPing={() => {
+                    const reading = pingNetMonitor()
+                    playSfx('nokia')
+                    return reading
+                  }}
+                  nextNightEventHint={nextNightEventHint}
+                />
+
+                {isShopOpen && (
+                  <OSWindow title="SALKKUKAUPPA" isActive size="md" onClose={closeShop}>
+                    <Shop phase={phase} inventory={inventory} stats={stats} onBuy={handleBuy} onUse={consumeItem} />
+                  </OSWindow>
+                )}
+
+                {isLogOpen && (
+                  <OSWindow title="LOKIKONE" isActive size="sm" onClose={closeLog}>
+                    <JournalWindow entries={journal} runHistory={runHistoryLines} />
+                  </OSWindow>
+                )}
+
+                {isSettingsOpen && (
+                  <OSWindow title="ASETUKSET" isActive size="sm" onClose={closeSettings}>
+                    <SettingsWindow
+                      muted={muted}
+                      toggleMute={toggleMute}
+                      backgroundPlaying={backgroundPlaying}
+                      toggleBackground={toggleBackground}
+                      backgroundVolume={backgroundVolume}
+                      sfxVolume={sfxVolume}
+                      onBackgroundVolumeChange={setBackgroundVolume}
+                      onSfxVolumeChange={setSfxVolume}
+                      textSpeed={textSpeed}
+                      onTextSpeedChange={setTextSpeed}
+                    />
+                  </OSWindow>
+                )}
+              </div>
             </div>
-          )}
-          <DebugPanel
-            phase={phase}
-            currentEventId={activeEvent?.id}
+
+            {import.meta.env.DEV && (
+              <div className="fixed dev-panel text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-neon">Active Mods</p>
+                <p className="text-[10px] text-slate-300">Työkalut ja lomakkeet, jotka vaikuttavat tämänhetkiseen event-mathiin.</p>
+                <ul className="space-y-1">
+                  {relevantActiveMods.length === 0 && <li className="text-slate-400">Ei aktiivisia modifikaattoreita.</li>}
+                  {relevantActiveMods.map((mod) => (
+                    <li key={mod.id} className="border-l-2 border-neon pl-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">{mod.name}</span>
+                        <span className="text-[9px] uppercase tracking-[0.2em] text-neon/80">{mod.type}</span>
+                      </div>
+                      <p className="text-slate-200">{mod.summary}</p>
+                      {mod.tags.length > 0 && (
+                        <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400">{mod.tags.join(', ')}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <DebugPanel
+              phase={phase}
+              currentEventId={activeEvent?.id}
+              stats={stats}
+              isGlitching={isGlitching}
+            />
+          </div>
+          <Taskbar
             stats={stats}
-            isGlitching={isGlitching}
+            dayCount={dayCount}
+            lai={lai}
+            pathProgress={pathProgress}
+            onToggleShop={toggleShop}
+            onToggleLog={toggleLog}
+            onToggleSettings={toggleSettings}
           />
-        </div>
-        <Taskbar
-          stats={stats}
-          dayCount={dayCount}
-          lai={lai}
-          pathProgress={pathProgress}
-          onToggleShop={toggleShop}
-          onToggleLog={toggleLog}
-          onToggleSettings={toggleSettings}
-        />
-      </Desktop>
+        </Desktop>
+      </div>
     </ErrorBoundary>
   )
 }
