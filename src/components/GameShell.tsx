@@ -46,6 +46,8 @@ type RunSummary = {
   focusPath: BuildPath | null
 }
 
+type ErrorBoundaryState = { hasError: boolean; error?: Error }
+
 const formatDelta = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(0)}`
 
 type PathProgressChipsProps = {
@@ -455,8 +457,7 @@ const RunOverScreen = ({
   )
 }
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }>
-{
+class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
   constructor(props: { children: ReactNode }) {
     super(props)
     this.state = { hasError: false }
