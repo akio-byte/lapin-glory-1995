@@ -582,6 +582,7 @@ export const useGameLoop = (): GameState & GameActions => {
   )
   const prevPhaseRef = useRef<Phase>(phase)
   const eventRollRef = useRef<{ phase: Phase; day: number }>({ phase, day: dayCount })
+  const isTransitioningRef = useRef(false)
   const persistSnapshotRef = useRef<string>('')
 
   const ending: EndingState | null = useMemo(
@@ -648,7 +649,12 @@ export const useGameLoop = (): GameState & GameActions => {
   }
 
   const advancePhase = () => {
-    if (ending) return
+    if (ending || isTransitioningRef.current) return
+
+    isTransitioningRef.current = true
+
+    const currentStats = stats
+    const currentDayCount = dayCount
 
     setPhase((prev) => {
       const currentIndex = PHASE_ORDER.indexOf(prev)
@@ -658,20 +664,40 @@ export const useGameLoop = (): GameState & GameActions => {
         setMorningReport(null)
       }
 
+      if (next === 'MORNING') {
+        setMorningReport((existing) => {
+          if (existing?.day === currentDayCount) return existing
+          const report = createMorningReport({
+            stats: currentStats,
+            dayStartStats,
+            dayCount: currentDayCount,
+            lai,
+            dayHistory,
+          })
+          setDayHistory((prevHistory) => {
+            const withoutDupes = prevHistory.filter((entry) => entry.day !== currentDayCount)
+            return [
+              ...withoutDupes,
+              { day: currentDayCount, rahat: currentStats.rahat, lai, jarki: currentStats.jarki, maine: currentStats.maine },
+            ]
+          })
+          return report
+        })
+      }
+
       if (next === 'DAY') {
-        const upcomingDay = dayCount + 1
+        const upcomingDay = currentDayCount + 1
         const rent = getRentForDay(upcomingDay)
+        const sanityTension = currentStats.jarki < 25 ? 3 : currentStats.jarki < 50 ? 1 : currentStats.jarki > 85 ? -1 : 0
 
         setDayCount((count) => count + 1)
-        setDayStartStats(() => ({ ...baseStats }))
-        setDayHistory((prevHistory) => {
-          const withoutDupes = prevHistory.filter((entry) => entry.day !== dayCount)
-          return [...withoutDupes, { day: dayCount, rahat: stats.rahat, lai, jarki: stats.jarki, maine: stats.maine }]
+        setBaseStats((prev) => {
+          let nextBase = mergeStatDeltas(prev, { rahat: -rent })
+          if (lai > 85) nextBase = mergeStatDeltas(nextBase, { jarki: -2 })
+          if (lai < 10) nextBase = mergeStatDeltas(nextBase, { jarki: 1 })
+          setDayStartStats(nextBase)
+          return nextBase
         })
-        handleChoice({ rahat: -rent })
-        if (lai > 85) handleChoice({ jarki: -2 })
-        if (lai < 10) handleChoice({ jarki: 1 })
-        const sanityTension = stats.jarki < 25 ? 3 : stats.jarki < 50 ? 1 : stats.jarki > 85 ? -1 : 0
         if (sanityTension !== 0) adjustLAI(sanityTension)
         setNextNightEventHint(null)
       }
@@ -682,6 +708,10 @@ export const useGameLoop = (): GameState & GameActions => {
 
       return next
     })
+
+    setTimeout(() => {
+      isTransitioningRef.current = false
+    }, 0)
   }
 
   const consumeItem = (itemId: string) => {
@@ -853,26 +883,6 @@ export const useGameLoop = (): GameState & GameActions => {
   }, [currentEvent, dayCount, lai, phase, stats])
 
   useEffect(() => {
-    if (phase !== 'MORNING') return
-    if (morningReport?.day === dayCount) return
-
-    const report = createMorningReport({
-      stats,
-      dayStartStats,
-      dayCount,
-      lai,
-      dayHistory,
-    })
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMorningReport(report)
-    setDayHistory((prev) => {
-      const withoutDupes = prev.filter((entry) => entry.day !== dayCount)
-      return [...withoutDupes, { day: dayCount, rahat: stats.rahat, lai, jarki: stats.jarki, maine: stats.maine }]
-    })
-  }, [phase, stats, dayStartStats, dayCount, lai, dayHistory, morningReport])
-
-  useEffect(() => {
     if (ending) {
       safeRemove(STORAGE_KEY)
       persistSnapshotRef.current = ''
@@ -957,21 +967,31 @@ const advancePhaseInSimulation = (state: SimulationState) => {
   const next = PHASE_ORDER[(currentIndex + 1) % PHASE_ORDER.length]
   const stats = applyPassiveModifiers(state.baseStats, sumPassiveModifiers(state.inventory, ['tool', 'form', 'relic']))
 
+  if (next === 'MORNING' && state.morningReportDays[state.morningReportDays.length - 1] !== state.dayCount) {
+    const report = createMorningReport({
+      stats,
+      dayStartStats: state.dayStartStats,
+      dayCount: state.dayCount,
+      lai: state.lai,
+      dayHistory: state.dayHistory,
+    })
+    state.morningReportDays.push(report.day)
+    const withoutDupes = state.dayHistory.filter((entry) => entry.day !== state.dayCount)
+    state.dayHistory = [...withoutDupes, { day: state.dayCount, rahat: stats.rahat, lai: state.lai, jarki: stats.jarki, maine: stats.maine }]
+  }
+
   if (next === 'DAY') {
     const upcomingDay = state.dayCount + 1
     const rent = getRentForDay(upcomingDay)
-    const withoutDupes = state.dayHistory.filter((entry) => entry.day !== state.dayCount)
-    state.dayHistory = [...withoutDupes, { day: state.dayCount, rahat: stats.rahat, lai: state.lai, jarki: stats.jarki, maine: stats.maine }]
-    state.dayCount += 1
-    state.dayStartStats = { ...state.baseStats }
-    state.baseStats = mergeStatDeltas(state.baseStats, { rahat: -rent })
-    if (state.lai > 85) {
-      state.baseStats = mergeStatDeltas(state.baseStats, { jarki: -2 })
-    }
-    if (state.lai < 10) {
-      state.baseStats = mergeStatDeltas(state.baseStats, { jarki: 1 })
-    }
     const sanityTension = stats.jarki < 25 ? 3 : stats.jarki < 50 ? 1 : stats.jarki > 85 ? -1 : 0
+    const afterRent = mergeStatDeltas(state.baseStats, { rahat: -rent })
+    const withSanity = state.lai > 85 ? mergeStatDeltas(afterRent, { jarki: -2 }) : afterRent
+    const nextBaseStats = state.lai < 10 ? mergeStatDeltas(withSanity, { jarki: 1 }) : withSanity
+
+    state.dayCount += 1
+    state.baseStats = nextBaseStats
+    state.dayStartStats = nextBaseStats
+
     if (sanityTension !== 0) {
       state.lai = clamp(state.lai + sanityTension, 0, 100)
     }
@@ -997,6 +1017,7 @@ export type SimulationResult = {
   pathProgress: PathProgress
   dayHistory: DaySnapshot[]
   morningReportDays: number[]
+  finalDayCount: number
 }
 
 export const __test_simulateRun = (options?: { maxSteps?: number; random?: () => number }): SimulationResult => {
@@ -1022,22 +1043,6 @@ export const __test_simulateRun = (options?: { maxSteps?: number; random?: () =>
   for (let step = 0; step < maxSteps; step += 1) {
     const stats = applyPassiveModifiers(state.baseStats, sumPassiveModifiers(state.inventory, ['tool', 'form', 'relic']))
     const event = state.phase === 'MORNING' ? null : pickEventForPhase(state.phase, stats, state.lai, state.dayCount, random)
-
-    if (state.phase === 'MORNING' && state.morningReportDays[state.morningReportDays.length - 1] !== state.dayCount) {
-      const report = createMorningReport({
-        stats,
-        dayStartStats: state.dayStartStats,
-        dayCount: state.dayCount,
-        lai: state.lai,
-        dayHistory: state.dayHistory,
-      })
-      state.morningReportDays.push(report.day)
-      const withoutDupes = state.dayHistory.filter((entry) => entry.day !== state.dayCount)
-      state.dayHistory = [
-        ...withoutDupes,
-        { day: state.dayCount, rahat: stats.rahat, lai: state.lai, jarki: stats.jarki, maine: stats.maine },
-      ]
-    }
 
     if (event) {
       const choice = event.choices[0]
@@ -1071,7 +1076,15 @@ export const __test_simulateRun = (options?: { maxSteps?: number; random?: () =>
 
   const finalStats = applyPassiveModifiers(state.baseStats, sumPassiveModifiers(state.inventory, ['tool', 'form', 'relic']))
 
-  return { ending, log, finalStats, pathProgress: state.pathProgress, dayHistory: state.dayHistory, morningReportDays: state.morningReportDays }
+  return {
+    ending,
+    log,
+    finalStats,
+    pathProgress: state.pathProgress,
+    dayHistory: state.dayHistory,
+    morningReportDays: state.morningReportDays,
+    finalDayCount: state.dayCount,
+  }
 }
 
 export const __test_resolveChoice = (
