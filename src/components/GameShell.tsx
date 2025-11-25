@@ -25,6 +25,7 @@ import {
 } from '../data/gameData'
 import { canonicalStats } from '../data/statMeta'
 import { endingEpilogues, type EndingType } from '../data/endingData'
+import { MediaRegistry } from '../data/mediaRegistry'
 import { useGameLoop, type DaySnapshot } from '../hooks/useGameLoop'
 import { useAudio } from '../hooks/useAudio'
 import Desktop from './Desktop'
@@ -160,7 +161,12 @@ const MorningReportView = ({
   history: DaySnapshot[]
   onAdvance: () => void
 }) => (
-  <div className="glass-panel space-y-4">
+  <div
+    className="glass-panel space-y-4 morning-report-panel"
+    style={{
+      backgroundImage: `linear-gradient(160deg, rgba(5, 8, 17, 0.92), rgba(5, 8, 17, 0.75)), url(${MediaRegistry.morningReportBg})`,
+    }}
+  >
     <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-neon/70">
       <span>OS/95 Raportti</span>
       <span className="text-[11px]">Päivä {dayCount} →</span>
@@ -276,10 +282,34 @@ const PhaseWindow = ({
     phase === 'DAY'
       ? 'Ei lomakkeita juuri nyt. Juot kahvin, katsot ulos ja kuuntelet neonin sirinää.'
       : 'Yövuoro nielee valot. Tietokone humisee, eikä yhtään faksia luisu pöydälle.'
+  const phaseSubtitle =
+    phase === 'DAY'
+      ? 'Valon ja neonin saumassa byrokratia höyryää. Päivävuoron lämpö on vain kuviteltu.'
+      : 'Staalo ja valokuitu ujeltavat lumen alla. Yövuoro on kylmä kuin faxin valo.'
+  const phaseMedia = phase === 'DAY' ? MediaRegistry.dayViewBg : MediaRegistry.nightViewBg
 
   return (
     <OSWindow title={`FAKSI / TAPAHTUMA — ${phaseTitle}`} isActive size="lg">
       <div className="space-y-4">
+        <div
+          className="phase-banner"
+          style={{
+            backgroundImage: `linear-gradient(120deg, rgba(5, 9, 18, 0.92), rgba(5, 9, 18, 0.55)), url(${phaseMedia})`,
+          }}
+          role="presentation"
+        >
+          <div className="phase-banner__content">
+            <p className="phase-banner__title glitch-text" data-text={phaseTitle}>
+              {phaseTitle}
+            </p>
+            <p className="phase-banner__subtitle">{phaseSubtitle}</p>
+          </div>
+          <div className="phase-banner__chips">
+            <span className="phase-chip">D{dayCount.toString().padStart(2, '0')}</span>
+            <span className="phase-chip">{phase === 'DAY' ? '⚡ Neon shift' : '🌙 Kylmä linja'}</span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] uppercase tracking-[0.2em]">
           <div className="glass-chip px-3 py-2">
             <p className="text-neon/80">Päivä</p>
@@ -537,9 +567,24 @@ const GameShell = () => {
     setLocked(false)
   }, [])
 
+  const phaseBackground = useMemo(() => {
+    if (phase === 'MORNING') return MediaRegistry.morningReportBg
+    if (phase === 'NIGHT') return MediaRegistry.nightViewBg
+    return MediaRegistry.dayViewBg
+  }, [phase])
+
   const rootStyle = useMemo(
-    () => ({ '--glitch-duration': `${textSpeed}s`, '--sanity-hue': `${sanityHueShift}deg` } as CSSProperties),
-    [sanityHueShift, textSpeed],
+    () =>
+      ({
+        '--glitch-duration': `${textSpeed}s`,
+        '--sanity-hue': `${sanityHueShift}deg`,
+        backgroundImage: `linear-gradient(180deg, rgba(5, 9, 18, 0.92), rgba(5, 9, 18, 0.82)), url(${phaseBackground})`,
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center top',
+        backgroundAttachment: 'fixed',
+      } as CSSProperties),
+    [phaseBackground, sanityHueShift, textSpeed],
   )
 
   useEffect(() => {

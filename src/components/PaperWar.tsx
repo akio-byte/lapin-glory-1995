@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { GameEvent, Item, Stats } from '../data/gameData'
 import CRTVisual from './CRTVisual'
 import { canonicalStats } from '../data/statMeta'
+import { MediaRegistry } from '../data/mediaRegistry'
 
 export type PaperWarMove = 'ATTACK_FORM' | 'DEFEND_RECEIPT' | 'BLUFF'
 
@@ -473,7 +474,12 @@ const PaperWar = ({
         </div>
 
         {outcome && (
-          <div className="border-2 border-dashed border-neon/70 bg-coal/80 p-4 shadow-inner text-sm">
+          <div
+            className="paperwar-outcome border-2 border-dashed border-neon/70 p-4 shadow-inner text-sm"
+            style={{
+              backgroundImage: `linear-gradient(160deg, rgba(5, 8, 17, 0.92), rgba(5, 8, 17, 0.8)), url(${MediaRegistry.paperWarResultBg})`,
+            }}
+          >
             <p className="text-[10px] uppercase tracking-[0.3em] text-neon">Loppusumma</p>
             <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <span
@@ -499,7 +505,10 @@ const PaperWar = ({
                 {outcome}
               </p>
             </div>
-            <div className="mt-3 text-right">
+            <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-xs text-slate-200 uppercase tracking-[0.2em]">
+                Paperit rypistyvät, faksi sylkee viimeisen kuittauksen.
+              </div>
               <button className="button-raw bg-neon text-coal" onClick={onNextPhase}>
                 Next Phase →
               </button>
