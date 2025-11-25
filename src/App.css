@@ -607,4 +607,94 @@
   .event-card__text {
     max-height: 24vh;
   }
+
+  .phase-banner {
+    position: relative;
+    min-height: 140px;
+    border: 1px solid rgba(229, 243, 255, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .phase-banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(90deg, rgba(255, 0, 255, 0.08) 0 1px, transparent 1px 22px),
+      repeating-linear-gradient(0deg, rgba(34, 211, 238, 0.04) 0 1px, transparent 1px 18px);
+    mix-blend-mode: screen;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .phase-banner__content {
+    position: relative;
+    padding: 16px;
+    max-width: 70%;
+  }
+
+  .phase-banner__title {
+    font-size: clamp(22px, 2vw, 28px);
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  .phase-banner__subtitle {
+    margin-top: 6px;
+    font-size: 13px;
+    max-width: 520px;
+    color: #dbeafe;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  }
+
+  .phase-banner__chips {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .phase-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(5, 9, 18, 0.7);
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    box-shadow: 0 0 12px rgba(22, 242, 211, 0.18);
+  }
+
+  .morning-report-panel {
+    background-size: cover;
+    background-position: center;
+    background-blend-mode: screen;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .paperwar-outcome {
+    position: relative;
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+  }
+
+  .paperwar-outcome::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 20%, rgba(22, 242, 211, 0.25), transparent 35%),
+      radial-gradient(circle at 80% 0%, rgba(255, 0, 255, 0.14), transparent 32%);
+    mix-blend-mode: screen;
+    opacity: 0.65;
+    pointer-events: none;
+  }
 }
