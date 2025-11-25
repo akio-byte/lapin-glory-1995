@@ -583,7 +583,14 @@ export const useGameLoop = (): GameState & GameActions => {
   const prevPhaseRef = useRef<Phase>(phase)
   const eventRollRef = useRef<{ phase: Phase; day: number }>({ phase, day: dayCount })
   const isTransitioningRef = useRef(false)
+  const morningReportDayRef = useRef<number | null>(null)
   const persistSnapshotRef = useRef<string>('')
+  const choiceLockRef = useRef<{ phase: Phase; eventId: string | null; locked: boolean }>({
+    phase,
+    eventId: currentEvent?.id ?? null,
+    locked: false,
+  })
+  const lastResolutionRef = useRef<ChoiceResolution | null>(null)
 
   const ending: EndingState | null = useMemo(
     () => evaluateEndingForState({ stats, dayCount, phase, pathProgress, lai }),
@@ -655,59 +662,57 @@ export const useGameLoop = (): GameState & GameActions => {
 
     const currentStats = stats
     const currentDayCount = dayCount
+    const nextPhase = PHASE_ORDER[(PHASE_ORDER.indexOf(phase) + 1) % PHASE_ORDER.length]
 
-    setPhase((prev) => {
-      const currentIndex = PHASE_ORDER.indexOf(prev)
-      const next = PHASE_ORDER[(currentIndex + 1) % PHASE_ORDER.length]
+    if (phase === 'MORNING') {
+      setMorningReport(null)
+    }
 
-      if (prev === 'MORNING') {
-        setMorningReport(null)
-      }
+    if (nextPhase === 'MORNING' && morningReportDayRef.current !== currentDayCount) {
+      const report = createMorningReport({
+        stats: currentStats,
+        dayStartStats,
+        dayCount: currentDayCount,
+        lai,
+        dayHistory,
+      })
+      morningReportDayRef.current = currentDayCount
+      setMorningReport(report)
+      setDayHistory((prevHistory) => {
+        const withoutDupes = prevHistory.filter((entry) => entry.day !== currentDayCount)
+        const snapshot = {
+          day: currentDayCount,
+          rahat: currentStats.rahat,
+          lai,
+          jarki: currentStats.jarki,
+          maine: currentStats.maine,
+        }
+        return [...withoutDupes, snapshot].sort((a, b) => a.day - b.day)
+      })
+    }
 
-      if (next === 'MORNING') {
-        setMorningReport((existing) => {
-          if (existing?.day === currentDayCount) return existing
-          const report = createMorningReport({
-            stats: currentStats,
-            dayStartStats,
-            dayCount: currentDayCount,
-            lai,
-            dayHistory,
-          })
-          setDayHistory((prevHistory) => {
-            const withoutDupes = prevHistory.filter((entry) => entry.day !== currentDayCount)
-            return [
-              ...withoutDupes,
-              { day: currentDayCount, rahat: currentStats.rahat, lai, jarki: currentStats.jarki, maine: currentStats.maine },
-            ]
-          })
-          return report
-        })
-      }
+    if (nextPhase === 'DAY') {
+      const upcomingDay = currentDayCount + 1
+      const rent = getRentForDay(upcomingDay)
+      const sanityTension = currentStats.jarki < 25 ? 3 : currentStats.jarki < 50 ? 1 : currentStats.jarki > 85 ? -1 : 0
 
-      if (next === 'DAY') {
-        const upcomingDay = currentDayCount + 1
-        const rent = getRentForDay(upcomingDay)
-        const sanityTension = currentStats.jarki < 25 ? 3 : currentStats.jarki < 50 ? 1 : currentStats.jarki > 85 ? -1 : 0
+      setDayCount((count) => count + 1)
+      setBaseStats((prev) => {
+        let nextBase = mergeStatDeltas(prev, { rahat: -rent })
+        if (lai > 85) nextBase = mergeStatDeltas(nextBase, { jarki: -2 })
+        if (lai < 10) nextBase = mergeStatDeltas(nextBase, { jarki: 1 })
+        setDayStartStats(nextBase)
+        return nextBase
+      })
+      if (sanityTension !== 0) adjustLAI(sanityTension)
+      setNextNightEventHint(null)
+    }
 
-        setDayCount((count) => count + 1)
-        setBaseStats((prev) => {
-          let nextBase = mergeStatDeltas(prev, { rahat: -rent })
-          if (lai > 85) nextBase = mergeStatDeltas(nextBase, { jarki: -2 })
-          if (lai < 10) nextBase = mergeStatDeltas(nextBase, { jarki: 1 })
-          setDayStartStats(nextBase)
-          return nextBase
-        })
-        if (sanityTension !== 0) adjustLAI(sanityTension)
-        setNextNightEventHint(null)
-      }
+    if (nextPhase === 'NIGHT') {
+      setNextNightEventHint(null)
+    }
 
-      if (next === 'NIGHT') {
-        setNextNightEventHint(null)
-      }
-
-      return next
-    })
+    setPhase(nextPhase)
 
     setTimeout(() => {
       isTransitioningRef.current = false
@@ -748,6 +753,11 @@ export const useGameLoop = (): GameState & GameActions => {
   }
 
   const resolveChoice = (choice: GameEventChoice): ChoiceResolution => {
+    const lock = choiceLockRef.current
+    if (lock.locked && lock.phase === phase && lock.eventId === currentEvent?.id) {
+      return lastResolutionRef.current ?? { outcomeText: '', appliedEffects: {} }
+    }
+
     const resolution = computeChoiceResolution(
       choice,
       currentEvent,
@@ -758,13 +768,16 @@ export const useGameLoop = (): GameState & GameActions => {
       { activeTags },
     )
 
+    choiceLockRef.current = { phase, eventId: currentEvent?.id ?? null, locked: true }
+    lastResolutionRef.current = { outcomeText: resolution.outcomeText, appliedEffects: resolution.appliedEffects }
+
     handleChoice(resolution.appliedEffects)
 
     if (choice.pathXp) {
       grantPathXp(choice.pathXp, `choice:${choice.label}`)
     }
 
-    return { outcomeText: resolution.outcomeText, appliedEffects: resolution.appliedEffects }
+    return lastResolutionRef.current
   }
 
   const buildLaiBand = (value: number): NetMonitorReading['band'] => {
@@ -855,6 +868,7 @@ export const useGameLoop = (): GameState & GameActions => {
     setWasRestored(false)
     setCurrentEvent(null)
     eventRollRef.current = { phase: 'DAY', day: 1 }
+    morningReportDayRef.current = null
     persistSnapshotRef.current = ''
     safeRemove(STORAGE_KEY)
   }
@@ -866,6 +880,9 @@ export const useGameLoop = (): GameState & GameActions => {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentEvent(null)
     }
+
+    choiceLockRef.current = { phase, eventId: currentEvent?.id ?? null, locked: false }
+    lastResolutionRef.current = null
 
     if (phase === 'MORNING') {
       eventRollRef.current = { phase, day: dayCount }
@@ -881,6 +898,15 @@ export const useGameLoop = (): GameState & GameActions => {
       eventRollRef.current = { phase, day: dayCount }
     }
   }, [currentEvent, dayCount, lai, phase, stats])
+
+  useEffect(() => {
+    if (!ending) return
+    isTransitioningRef.current = false
+    choiceLockRef.current = { phase, eventId: null, locked: true }
+    setNextNightEventHint(null)
+    setCurrentEvent(null)
+    morningReportDayRef.current = null
+  }, [ending, phase])
 
   useEffect(() => {
     if (ending) {
