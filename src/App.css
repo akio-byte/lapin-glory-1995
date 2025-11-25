@@ -1,15 +1,45 @@
 @tailwind components;
 
 @layer components {
+  :root {
+    --bg-coal: #050811;
+    --bg-slate: #111827;
+    --fg-ice: #e5f3ff;
+    --fg-muted: #9ca3af;
+    --accent-teal: #16f2d3;
+    --accent-aurora: #60a5fa;
+  }
+
   .app-root {
     position: relative;
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
     overflow-y: auto;
-    background: radial-gradient(circle at 20% 20%, rgba(255, 0, 255, 0.08), transparent 30%),
-      radial-gradient(circle at 80% 0%, rgba(124, 140, 222, 0.08), transparent 35%),
-      #0f1118;
+    background: radial-gradient(circle at 18% 14%, rgba(96, 165, 250, 0.08), transparent 30%),
+      radial-gradient(circle at 82% 6%, rgba(22, 242, 211, 0.08), transparent 36%),
+      linear-gradient(145deg, #050811 0%, #0a1124 55%, #0b132e 100%);
+    color: var(--fg-ice);
+  }
+
+  .desktop-root {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .desktop-aurora {
+    position: absolute;
+    inset: -15% -10% 12% -10%;
+    background: radial-gradient(circle at 20% 30%, rgba(22, 242, 211, 0.18), transparent 36%),
+      radial-gradient(circle at 70% 20%, rgba(96, 165, 250, 0.16), transparent 40%),
+      radial-gradient(circle at 40% 70%, rgba(22, 242, 211, 0.12), transparent 38%);
+    filter: blur(40px);
+    opacity: 0.8;
+    pointer-events: none;
+    z-index: 0;
   }
 
   .desktop-shell {
@@ -20,73 +50,75 @@
     position: relative;
     overflow-x: clip;
     overflow-y: visible;
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(5, 8, 17, 0.8), rgba(5, 8, 17, 0.4));
   }
 
   .desktop-stage {
     flex: 1;
     position: relative;
-    padding: 20px 20px calc(var(--taskbar-height, 58px) + 32px);
+    padding: 28px 24px calc(var(--taskbar-height, 58px) + 38px);
     overflow-x: clip;
     overflow-y: visible;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    max-width: 1600px;
+    margin: 0 auto;
   }
 
-  @keyframes os-shake {
+  @keyframes desktop-jarki-shake {
     0% {
-      transform: translate(1px, 1px) rotate(0deg);
-    }
-    10% {
-      transform: translate(-1px, -2px) rotate(-1deg);
+      transform: translateX(0);
     }
     20% {
-      transform: translate(-3px, 0px) rotate(1deg);
+      transform: translateX(-12px);
     }
-    30% {
-      transform: translate(3px, 2px) rotate(0deg);
-    }
-    40% {
-      transform: translate(1px, -1px) rotate(1deg);
-    }
-    50% {
-      transform: translate(-1px, 2px) rotate(-1deg);
-    }
-    60% {
-      transform: translate(-3px, 1px) rotate(0deg);
+    45% {
+      transform: translateX(10px);
     }
     70% {
-      transform: translate(3px, 1px) rotate(-1deg);
-    }
-    80% {
-      transform: translate(-1px, -1px) rotate(-1deg);
-    }
-    90% {
-      transform: translate(1px, 2px) rotate(0deg);
+      transform: translateX(-7px);
     }
     100% {
-      transform: translate(1px, -2px) rotate(-1deg);
+      transform: translateX(0);
     }
   }
 
-  .desktop-shake {
-    animation: os-shake 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  .desktop-root--jarki-hit {
+    animation: desktop-jarki-shake 0.22s cubic-bezier(0.36, 0.07, 0.19, 0.97) 1;
+    will-change: transform;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .desktop-shake {
+    .desktop-root--jarki-hit {
       animation: none;
     }
   }
 
   .glass-panel,
   .panel {
-    background: radial-gradient(circle at 30% 30%, rgba(255, 0, 255, 0.05), transparent 45%),
-      rgba(13, 22, 37, 0.85);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(34, 211, 238, 0.35);
-    box-shadow: 0 0 30px rgba(34, 211, 238, 0.08), 0 10px 45px rgba(5, 10, 22, 0.65);
+    position: relative;
+    background: linear-gradient(160deg, rgba(5, 8, 17, 0.9), rgba(10, 18, 39, 0.82));
+    backdrop-filter: blur(16px) saturate(115%);
+    -webkit-backdrop-filter: blur(16px) saturate(115%);
+    border: 1px solid rgba(229, 243, 255, 0.08);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), 0 0 28px rgba(22, 242, 211, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.04);
     border-radius: 14px;
-    color: #e2e8f0;
+    color: var(--fg-ice);
+    overflow: hidden;
     @apply p-4;
+  }
+
+  .glass-panel::before,
+  .panel::before {
+    content: '';
+    position: absolute;
+    inset: -40% -30% auto auto;
+    background: radial-gradient(circle at 50% 50%, rgba(96, 165, 250, 0.3), transparent 40%);
+    opacity: 0.35;
+    pointer-events: none;
+    filter: blur(20px);
   }
 
   .button-raw {
@@ -112,19 +144,20 @@
 
   .os-window {
     position: relative;
-    width: min(960px, 95vw);
+    width: min(1040px, 95vw);
     margin: 0 auto;
-    background: rgba(20, 35, 50, 0.58);
-    border: 1px solid rgba(255, 0, 255, 0.35);
-    border-radius: 12px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), 0 0 30px rgba(255, 0, 255, 0.2);
-    color: #e2e8f0;
+    background: linear-gradient(145deg, rgba(5, 8, 17, 0.9), rgba(10, 18, 39, 0.78));
+    border: 1px solid rgba(229, 243, 255, 0.08);
+    border-radius: 16px;
+    backdrop-filter: blur(14px) saturate(125%);
+    -webkit-backdrop-filter: blur(14px) saturate(125%);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), 0 0 36px rgba(22, 242, 211, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    color: var(--fg-ice);
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: clamp(65vh, 80vh, 95vh);
+    height: clamp(68vh, 78vh, 92vh);
+    isolation: isolate;
   }
 
   .os-window.sm {
@@ -145,12 +178,12 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 12px;
-    background: linear-gradient(90deg, #ff00ff44, transparent);
-    border-bottom: 1px solid rgba(255, 0, 255, 0.35);
+    background: linear-gradient(90deg, rgba(22, 242, 211, 0.2), rgba(96, 165, 250, 0.12), transparent);
+    border-bottom: 1px solid rgba(229, 243, 255, 0.08);
     font-size: 12px;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: #f0f4ff;
+    color: var(--fg-ice);
     position: sticky;
     top: 0;
     z-index: 2;
@@ -161,7 +194,7 @@
     min-height: 0;
     overflow-y: auto;
     padding: 16px;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(6px);
   }
 
   .taskbar {
@@ -215,6 +248,40 @@
     white-space: nowrap;
   }
 
+  @keyframes jarki-chip-flash {
+    0% {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+    }
+    35% {
+      background: rgba(239, 68, 68, 0.28);
+      border-color: rgba(239, 68, 68, 0.65);
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.35), inset 0 0 6px rgba(239, 68, 68, 0.35);
+    }
+    75% {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 6px rgba(239, 68, 68, 0.25);
+    }
+    100% {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+    }
+  }
+
+  .taskbar-chip--jarki-hit {
+    color: #fee2e2;
+    animation: jarki-chip-flash 0.38s ease-in-out 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .taskbar-chip--jarki-hit {
+      animation: none;
+    }
+  }
+
   .taskbar .taskbar-actions {
     display: flex;
     align-items: center;
@@ -246,11 +313,18 @@
     bottom: calc(var(--taskbar-height, 58px) + 1rem);
     max-height: calc(100vh - var(--taskbar-height, 58px) - 2rem);
     max-width: min(320px, 26vw);
+    padding: 6px;
+    backdrop-filter: blur(10px) saturate(115%);
+    -webkit-backdrop-filter: blur(10px) saturate(115%);
+    background: linear-gradient(150deg, rgba(5, 8, 17, 0.7), rgba(10, 18, 39, 0.48));
+    border: 1px solid rgba(229, 243, 255, 0.06);
+    border-radius: 14px;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
   }
 
   @media (min-width: 1200px) {
     .desktop-stage {
-      padding-right: calc(20px + min(340px, 24vw));
+      padding-right: calc(24px + min(360px, 24vw));
     }
 
     .nokia-shell {
@@ -267,9 +341,9 @@
 
   .focus-outline:focus-visible,
   .button-raw:focus-visible {
-    outline: 2px solid #ff00ff;
+    outline: 2px solid var(--accent-teal);
     outline-offset: 2px;
-    box-shadow: 0 0 0 2px rgba(255, 0, 255, 0.25);
+    box-shadow: 0 0 0 2px rgba(22, 242, 211, 0.25);
   }
 
   @media (max-height: 900px) {
@@ -280,7 +354,7 @@
     }
 
     .desktop-stage {
-      padding: 14px 14px 78px;
+      padding: 20px 18px 82px;
     }
 
     .os-window {
@@ -340,7 +414,7 @@
     }
 
     .desktop-stage {
-      padding: 16px 12px 96px;
+      padding: 20px 14px 104px;
       overflow-y: auto;
     }
 
@@ -366,8 +440,9 @@
     }
 
     .desktop-stage {
-      padding: 12px 10px 88px;
+      padding: 16px 12px 92px;
       overflow-y: auto;
+      align-items: stretch;
     }
 
     .os-window {

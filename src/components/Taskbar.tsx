@@ -3,8 +3,8 @@ import { buildPathMeta, type BuildPath, type Stats } from '../data/gameData'
 import { canonicalStats } from '../data/statMeta'
 import '../App.css'
 
-const StatBadge = ({ label, value }: { label: string; value: string }) => (
-  <span className="taskbar-chip">
+const StatBadge = ({ label, value, className = '' }: { label: string; value: string; className?: string }) => (
+  <span className={`taskbar-chip ${className}`}>
     <Sparkles size={14} className="text-neon" />
     <span className="text-[11px] uppercase tracking-[0.2em] text-neon/80 taskbar__label">{label}</span>
     <span className="font-semibold">{value}</span>
@@ -19,6 +19,7 @@ const Taskbar = ({
   onToggleShop,
   onToggleLog,
   onToggleSettings,
+  jarkiHit = false,
 }: {
   stats: Stats
   dayCount: number
@@ -27,6 +28,7 @@ const Taskbar = ({
   onToggleShop: () => void
   onToggleLog: () => void
   onToggleSettings: () => void
+  jarkiHit?: boolean
 }) => {
   const orderedPaths = (Object.keys(pathProgress) as BuildPath[]).sort(
     (a, b) => (pathProgress[b]?.xp ?? 0) - (pathProgress[a]?.xp ?? 0),
@@ -57,7 +59,11 @@ const Taskbar = ({
 
       <div className="taskbar__stats">
         <StatBadge label="Rahat" value={canonicalStats.rahat.format(stats.rahat)} />
-        <StatBadge label="Järki" value={canonicalStats.jarki.format(stats.jarki)} />
+        <StatBadge
+          label="Järki"
+          value={canonicalStats.jarki.format(stats.jarki)}
+          className={jarkiHit ? 'taskbar-chip--jarki-hit' : ''}
+        />
         <StatBadge label="Maine" value={canonicalStats.maine.format(stats.maine)} />
         <span className="taskbar-chip">
           <Wallet size={14} className="text-neon" />
