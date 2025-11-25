@@ -238,6 +238,58 @@ const applyPassiveModifiers = (base: Stats, modifiers: Partial<Stats>): Stats =>
   return next
 }
 
+const buildMorningNote = (state: Stats) => {
+  const randomPick = (options: string[]) => options[Math.floor(Math.random() * options.length)]
+
+  if (state.jarki < 20)
+    return randomPick([
+      'Näytön takaa ilmestyy faksi: "Käy lepää, veli".',
+      'Ruudun kulma vuotaa valoa. Kuulostat itseltäsi vastaantulevassa faksissa.',
+    ])
+  if (state.maine > 65)
+    return randomPick([
+      'Huhu kiertää: olet Lapin virallinen neon-ikonoklasti.',
+      'Posti tuo tuplakirjauksen: kansa odottaa uutta raporttia sinulta.',
+    ])
+  if (state.rahat < -500)
+    return randomPick([
+      'Kirjanpitäjä kuiskaa, että markat pakenevat kuin revontulet.',
+      'Pankin faksi kysyy: onko tää vielä harrastus vai performanssi?',
+    ])
+  return randomPick([
+    'Kahvinkeittimen ääni muistuttaa huminaa. Uusi päivä, uusi lomake.',
+    'OS/95 piippaa hiljaa: "Muista hengittää ennen kuin avaat postin".',
+  ])
+}
+
+const createMorningReport = ({
+  stats,
+  dayStartStats,
+  dayCount,
+  lai,
+  dayHistory,
+}: {
+  stats: Stats
+  dayStartStats: Stats
+  dayCount: number
+  lai: number
+  dayHistory: DaySnapshot[]
+}): MorningReport => {
+  const moneyDelta = stats.rahat - dayStartStats.rahat
+  const jarkiDelta = stats.jarki - dayStartStats.jarki
+  const lastSnapshot = dayHistory.find((entry) => entry.day === dayCount - 1) ?? dayHistory[dayHistory.length - 1]
+  const lastLai = lastSnapshot?.lai ?? lai
+  const laiDelta = lai - lastLai
+
+  return {
+    rahatDelta: moneyDelta,
+    jarkiDelta,
+    laiDelta,
+    note: buildMorningNote(stats),
+    day: dayCount,
+  }
+}
+
 const hasLai = (
   state: PersistedState | null,
 ): state is PersistedStateV2 | PersistedStateV3 | PersistedStateV4 | PersistedStateV5 | PersistedStateV6 =>
@@ -534,7 +586,6 @@ export const useGameLoop = (): GameState & GameActions => {
   )
   const prevPhaseRef = useRef<Phase>(phase)
   const eventRollRef = useRef<{ phase: Phase; day: number }>({ phase, day: dayCount })
-  const morningProcessedRef = useRef<number | null>(null)
   const persistSnapshotRef = useRef<string>('')
 
   const ending: EndingState | null = useMemo(
@@ -606,6 +657,10 @@ export const useGameLoop = (): GameState & GameActions => {
     setPhase((prev) => {
       const currentIndex = PHASE_ORDER.indexOf(prev)
       const next = PHASE_ORDER[(currentIndex + 1) % PHASE_ORDER.length]
+
+      if (prev === 'MORNING') {
+        setMorningReport(null)
+      }
 
       if (next === 'DAY') {
         const upcomingDay = dayCount + 1
@@ -773,34 +828,9 @@ export const useGameLoop = (): GameState & GameActions => {
     setDayHistory([{ day: 1, rahat: INITIAL_STATS.rahat, lai: 0, jarki: INITIAL_STATS.jarki, maine: INITIAL_STATS.maine }])
     setWasRestored(false)
     setCurrentEvent(null)
-    morningProcessedRef.current = null
     eventRollRef.current = { phase: 'DAY', day: 1 }
     persistSnapshotRef.current = ''
     safeRemove(STORAGE_KEY)
-  }
-
-  const buildMorningNote = (state: Stats) => {
-    const randomPick = (options: string[]) => options[Math.floor(Math.random() * options.length)]
-
-    if (state.jarki < 20)
-      return randomPick([
-        'Näytön takaa ilmestyy faksi: "Käy lepää, veli".',
-        'Ruudun kulma vuotaa valoa. Kuulostat itseltäsi vastaantulevassa faksissa.',
-      ])
-    if (state.maine > 65)
-      return randomPick([
-        'Huhu kiertää: olet Lapin virallinen neon-ikonoklasti.',
-        'Posti tuo tuplakirjauksen: kansa odottaa uutta raporttia sinulta.',
-      ])
-    if (state.rahat < -500)
-      return randomPick([
-        'Kirjanpitäjä kuiskaa, että markat pakenevat kuin revontulet.',
-        'Pankin faksi kysyy: onko tää vielä harrastus vai performanssi?',
-      ])
-    return randomPick([
-      'Kahvinkeittimen ääni muistuttaa huminaa. Uusi päivä, uusi lomake.',
-      'OS/95 piippaa hiljaa: "Muista hengittää ennen kuin avaat postin".',
-    ])
   }
 
   useEffect(() => {
@@ -828,29 +858,23 @@ export const useGameLoop = (): GameState & GameActions => {
 
   useEffect(() => {
     if (phase !== 'MORNING') return
-    if (morningProcessedRef.current === dayCount) return
-    morningProcessedRef.current = dayCount
+    if (morningReport?.day === dayCount) return
 
-    const moneyDelta = stats.rahat - dayStartStats.rahat
-    const jarkiDelta = stats.jarki - dayStartStats.jarki
-    const lastSnapshot =
-      dayHistory.find((entry) => entry.day === dayCount - 1) ?? dayHistory[dayHistory.length - 1]
-    const lastLai = lastSnapshot?.lai ?? lai
-    const laiDelta = lai - lastLai
+    const report = createMorningReport({
+      stats,
+      dayStartStats,
+      dayCount,
+      lai,
+      dayHistory,
+    })
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMorningReport({
-      rahatDelta: moneyDelta,
-      jarkiDelta,
-      laiDelta,
-      note: buildMorningNote(stats),
-      day: dayCount,
-    })
+    setMorningReport(report)
     setDayHistory((prev) => {
       const withoutDupes = prev.filter((entry) => entry.day !== dayCount)
       return [...withoutDupes, { day: dayCount, rahat: stats.rahat, lai, jarki: stats.jarki, maine: stats.maine }]
     })
-  }, [phase, stats, dayStartStats, dayCount, lai, dayHistory])
+  }, [phase, stats, dayStartStats, dayCount, lai, dayHistory, morningReport])
 
   useEffect(() => {
     if (ending) {
@@ -915,6 +939,8 @@ type SimulationState = {
   dayCount: number
   pathProgress: PathProgress
   dayHistory: DaySnapshot[]
+  dayStartStats: Stats
+  morningReportDays: number[]
 }
 
 const resolveChoiceForSimulation = (
@@ -941,6 +967,7 @@ const advancePhaseInSimulation = (state: SimulationState) => {
     const withoutDupes = state.dayHistory.filter((entry) => entry.day !== state.dayCount)
     state.dayHistory = [...withoutDupes, { day: state.dayCount, rahat: stats.rahat, lai: state.lai, jarki: stats.jarki, maine: stats.maine }]
     state.dayCount += 1
+    state.dayStartStats = { ...state.baseStats }
     state.baseStats = mergeStatDeltas(state.baseStats, { rahat: -rent })
     if (state.lai > 85) {
       state.baseStats = mergeStatDeltas(state.baseStats, { jarki: -2 })
@@ -973,6 +1000,7 @@ export type SimulationResult = {
   finalStats: Stats
   pathProgress: PathProgress
   dayHistory: DaySnapshot[]
+  morningReportDays: number[]
 }
 
 export const __test_simulateRun = (options?: { maxSteps?: number; random?: () => number }): SimulationResult => {
@@ -987,6 +1015,8 @@ export const __test_simulateRun = (options?: { maxSteps?: number; random?: () =>
     dayHistory: [
       { day: 1, rahat: INITIAL_STATS.rahat, lai: 0, jarki: INITIAL_STATS.jarki, maine: INITIAL_STATS.maine },
     ],
+    dayStartStats: { ...INITIAL_STATS },
+    morningReportDays: [],
   }
 
   const maxSteps = options?.maxSteps ?? 240
@@ -996,6 +1026,22 @@ export const __test_simulateRun = (options?: { maxSteps?: number; random?: () =>
   for (let step = 0; step < maxSteps; step += 1) {
     const stats = applyPassiveModifiers(state.baseStats, sumPassiveModifiers(state.inventory, ['tool', 'form', 'relic']))
     const event = state.phase === 'MORNING' ? null : pickEventForPhase(state.phase, stats, state.lai, state.dayCount, random)
+
+    if (state.phase === 'MORNING' && state.morningReportDays[state.morningReportDays.length - 1] !== state.dayCount) {
+      const report = createMorningReport({
+        stats,
+        dayStartStats: state.dayStartStats,
+        dayCount: state.dayCount,
+        lai: state.lai,
+        dayHistory: state.dayHistory,
+      })
+      state.morningReportDays.push(report.day)
+      const withoutDupes = state.dayHistory.filter((entry) => entry.day !== state.dayCount)
+      state.dayHistory = [
+        ...withoutDupes,
+        { day: state.dayCount, rahat: stats.rahat, lai: state.lai, jarki: stats.jarki, maine: stats.maine },
+      ]
+    }
 
     if (event) {
       const choice = event.choices[0]
@@ -1029,7 +1075,7 @@ export const __test_simulateRun = (options?: { maxSteps?: number; random?: () =>
 
   const finalStats = applyPassiveModifiers(state.baseStats, sumPassiveModifiers(state.inventory, ['tool', 'form', 'relic']))
 
-  return { ending, log, finalStats, pathProgress: state.pathProgress, dayHistory: state.dayHistory }
+  return { ending, log, finalStats, pathProgress: state.pathProgress, dayHistory: state.dayHistory, morningReportDays: state.morningReportDays }
 }
 
 export const __test_resolveChoice = (
