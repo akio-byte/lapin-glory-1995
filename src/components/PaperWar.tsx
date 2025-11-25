@@ -127,18 +127,28 @@ const PaperWar = ({
   const resultClassName =
     resolutionTone === 'win' ? 'paperwar-result--win' : resolutionTone === 'loss' ? 'paperwar-result--loss' : ''
   const labelForResult = resolutionTone === 'win' ? 'VOITTO' : resolutionTone === 'loss' ? 'HÄVIÖ' : 'TASAPELI'
-  const paperBackdrop = useMemo(
-    () => MediaRegistry.paperWarResultBg ?? fallbackMedia.src,
-    [fallbackMedia.src],
+  const panelBackdrop = useMemo(() => media.src ?? fallbackMedia.src, [fallbackMedia.src, media.src])
+  const resultBackdrop = useMemo(
+    () => MediaRegistry.paperWarResultBg || panelBackdrop,
+    [panelBackdrop],
   )
   const panelSurfaceStyle = useMemo(
     () => ({
-      backgroundImage: `linear-gradient(180deg, rgba(5, 8, 17, 0.9), rgba(5, 8, 17, 0.82)), url(${paperBackdrop})`,
+      backgroundImage: `linear-gradient(180deg, rgba(5, 8, 17, 0.9), rgba(5, 8, 17, 0.82)), url(${panelBackdrop})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
     }),
-    [paperBackdrop],
+    [panelBackdrop],
+  )
+  const resultSurfaceStyle = useMemo(
+    () => ({
+      backgroundImage: `linear-gradient(160deg, rgba(5, 8, 17, 0.94), rgba(9, 14, 26, 0.82)), url(${resultBackdrop})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    }),
+    [resultBackdrop],
   )
   const resultAnimKey = useMemo(
     () => (outcome ? `${event.id}-${outcome}` : `${event.id}-pending`),
@@ -499,36 +509,44 @@ const PaperWar = ({
           ))}
         </div>
 
-          {outcome && (
-            <div className="paperwar-outcome border-2 border-dashed border-neon/70 p-4 shadow-inner text-sm" style={panelSurfaceStyle}>
+        {outcome && (
+          <div
+            className="paperwar-outcome relative border-2 border-dashed border-neon/70 p-4 shadow-inner text-sm overflow-hidden"
+            style={resultSurfaceStyle}
+            aria-live="polite"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-fuchsia-900/10 to-black/50" aria-hidden />
+            <div className="absolute inset-0 opacity-35 bg-[radial-gradient(circle_at_15%_20%,rgba(255,0,255,0.45),transparent_35%),radial-gradient(circle_at_85%_10%,rgba(96,165,250,0.35),transparent_32%)]" aria-hidden />
+            <div className="relative">
               <p className="text-[10px] uppercase tracking-[0.3em] text-neon">Loppusumma</p>
               <div className="mt-3 flex flex-col items-center gap-2 text-center">
-              <div
-                key={resultAnimKey}
-                className={`paperwar-result-label ${resultClassName}`}
-                style={{ color: resultColor }}
-              >
-                {labelForResult}
+                <div
+                  key={resultAnimKey}
+                  className={`paperwar-result-label ${resultClassName} drop-shadow-[0_0_16px_rgba(255,0,255,0.6)]`}
+                  style={{ color: resultColor }}
+                >
+                  {labelForResult}
+                </div>
+                <p
+                  className={`text-xl md:text-2xl font-black tracking-wide max-w-3xl drop-shadow-[0_0_16px_rgba(0,0,0,0.5)] ${
+                    resolutionTone === 'win'
+                      ? 'text-emerald-200'
+                      : resolutionTone === 'loss'
+                        ? 'text-rose-200'
+                        : 'text-amber-100'
+                  }`}
+                >
+                  {outcome}
+                </p>
               </div>
-              <p
-                className={`text-xl md:text-2xl font-black tracking-wide max-w-3xl ${
-                  resolutionTone === 'win'
-                    ? 'text-emerald-200'
-                    : resolutionTone === 'loss'
-                      ? 'text-rose-200'
-                      : 'text-amber-100'
-                }`}
-              >
-                {outcome}
-              </p>
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-xs text-slate-200 uppercase tracking-[0.2em]">
-                Paperit rypistyvät, faksi sylkee viimeisen kuittauksen.
+              <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                <div className="text-xs text-slate-200 uppercase tracking-[0.2em]">
+                  Paperit rypistyvät, faksi sylkee viimeisen kuittauksen.
+                </div>
+                <button className="button-raw bg-neon text-coal" onClick={onNextPhase}>
+                  Next Phase →
+                </button>
               </div>
-              <button className="button-raw bg-neon text-coal" onClick={onNextPhase}>
-                Next Phase →
-              </button>
             </div>
           </div>
         )}
