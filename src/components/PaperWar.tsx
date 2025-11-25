@@ -121,6 +121,11 @@ const PaperWar = ({
   const losses = rounds.filter((entry) => entry.result === 'loss').length
   const draws = rounds.filter((entry) => entry.result === 'draw').length
   const resolutionTone: RoundOutcome | null = outcome ? (wins > losses ? 'win' : losses > wins ? 'loss' : 'draw') : null
+  const resultColor =
+    resolutionTone === 'win' ? '#22C55E' : resolutionTone === 'loss' ? '#EF4444' : '#9CA3AF'
+  const resultClassName =
+    resolutionTone === 'win' ? 'paperwar-result--win' : resolutionTone === 'loss' ? 'paperwar-result--loss' : ''
+  const labelForResult = resolutionTone === 'win' ? 'VOITTO' : resolutionTone === 'loss' ? 'HÄVIÖ' : 'TASAPELI'
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -352,7 +357,15 @@ const PaperWar = ({
   }, [activeTags, applyRound, finished, hasItem, locked, relicGuard, usedSpecials])
 
   return (
-    <div className={`panel relative space-y-4 bg-asphalt/60 ${isGlitching ? 'glitch-veil' : ''}`}>
+    <div
+      className={`panel relative space-y-4 bg-asphalt/60 ${isGlitching ? 'glitch-veil' : ''}`}
+      style={{
+        backgroundImage: `linear-gradient(180deg, rgba(5, 8, 17, 0.9), rgba(5, 8, 17, 0.82)), url(${MediaRegistry.paperWarResultBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
       <div className="absolute inset-0 bg-repeat bg-[linear-gradient(90deg,rgba(255,0,255,0.06)_1px,transparent_1px),linear-gradient(rgba(255,0,255,0.05)_1px,transparent_1px)] bg-[length:22px_22px] opacity-10" />
       <div className="relative space-y-3">
         <div className="flex items-center justify-between">
@@ -481,20 +494,12 @@ const PaperWar = ({
             }}
           >
             <p className="text-[10px] uppercase tracking-[0.3em] text-neon">Loppusumma</p>
-            <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <span
-                className={`text-4xl sm:text-5xl font-black uppercase tracking-[0.35em] ${
-                  resolutionTone === 'win'
-                    ? 'text-emerald-300 drop-shadow-[0_0_18px_rgba(94,234,212,0.45)]'
-                    : resolutionTone === 'loss'
-                      ? 'text-rose-300 drop-shadow-[0_0_18px_rgba(248,113,113,0.4)]'
-                      : 'text-amber-200 drop-shadow-[0_0_12px_rgba(251,191,36,0.35)]'
-                }`}
-              >
-                {(resolutionTone ?? 'draw').toUpperCase()}
-              </span>
+            <div className="mt-3 flex flex-col items-center gap-2 text-center">
+              <div className={`paperwar-result-label ${resultClassName}`} style={{ color: resultColor }}>
+                {labelForResult}
+              </div>
               <p
-                className={`text-xl md:text-2xl font-black tracking-wide ${
+                className={`text-xl md:text-2xl font-black tracking-wide max-w-3xl ${
                   resolutionTone === 'win'
                     ? 'text-emerald-200'
                     : resolutionTone === 'loss'
