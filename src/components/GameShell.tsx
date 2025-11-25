@@ -162,18 +162,39 @@ const MorningReportView = ({
   onAdvance: () => void
 }) => (
   <div
-    className="phase-view-root morning-view-root"
+    className="glass-panel space-y-4 morning-report-panel"
     style={{
-      backgroundImage: `linear-gradient(180deg, rgba(5, 8, 17, 0.9), rgba(5, 8, 17, 0.82)), url(${MediaRegistry.morningReportBg})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
+      backgroundImage: `linear-gradient(160deg, rgba(5, 8, 17, 0.92), rgba(5, 8, 17, 0.75)), url(${MediaRegistry.morningReportBg})`,
     }}
   >
-    <div className="glass-panel space-y-4 morning-report-panel">
-      <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-neon/70">
-        <span>OS/95 Raportti</span>
-        <span className="text-[11px]">Päivä {dayCount} →</span>
+    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-neon/70">
+      <span>OS/95 Raportti</span>
+      <span className="text-[11px]">Päivä {dayCount} →</span>
+    </div>
+    <h2 className="text-2xl font-bold glitch-text" data-text="Aamuraportti">
+      Aamuraportti
+    </h2>
+    <p className="text-sm leading-relaxed text-slate-200">
+      Yö vaihtuu siniseen hetkeen. Lomakkeet kuivuvat, kassalipas jäätyy. Pidä mieli kasassa ennen seuraavaa faksia.
+    </p>
+    <div className="grid grid-cols-2 gap-3 text-sm">
+      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.rahat.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.rahat.format(stats.rahat)}</p>
+        <p className="text-xs text-slate-300">Eilen: {formatDelta(rahatDelta)} mk</p>
+      </div>
+      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.jarki.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.jarki.format(stats.jarki)}</p>
+        <p className="text-xs text-slate-300">Eilen: {formatDelta(jarkiDelta)}</p>
+      </div>
+      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.maine.label}</p>
+        <p className="text-lg font-semibold">{canonicalStats.maine.format(stats.maine)}</p>
+      </div>
+      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
+        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Sisu</p>
+        <p className="text-lg font-semibold">{stats.sisu} / 100</p>
       </div>
       <h2 className="text-2xl font-bold glitch-text" data-text="Aamuraportti">
         Aamuraportti
