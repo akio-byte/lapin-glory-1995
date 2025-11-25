@@ -127,6 +127,23 @@ const PaperWar = ({
   const resultClassName =
     resolutionTone === 'win' ? 'paperwar-result--win' : resolutionTone === 'loss' ? 'paperwar-result--loss' : ''
   const labelForResult = resolutionTone === 'win' ? 'VOITTO' : resolutionTone === 'loss' ? 'HÄVIÖ' : 'TASAPELI'
+  const paperBackdrop = useMemo(
+    () => MediaRegistry.paperWarResultBg ?? fallbackMedia.src,
+    [fallbackMedia.src],
+  )
+  const panelSurfaceStyle = useMemo(
+    () => ({
+      backgroundImage: `linear-gradient(180deg, rgba(5, 8, 17, 0.9), rgba(5, 8, 17, 0.82)), url(${paperBackdrop})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    }),
+    [paperBackdrop],
+  )
+  const resultAnimKey = useMemo(
+    () => (outcome ? `${event.id}-${outcome}` : `${event.id}-pending`),
+    [event.id, outcome],
+  )
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -361,15 +378,7 @@ const PaperWar = ({
   }, [activeTags, applyRound, finished, hasItem, locked, relicGuard, usedSpecials])
 
   return (
-    <div
-      className={`panel relative space-y-4 bg-asphalt/60 ${isGlitching ? 'glitch-veil' : ''}`}
-      style={{
-        backgroundImage: `linear-gradient(180deg, rgba(5, 8, 17, 0.9), rgba(5, 8, 17, 0.82)), url(${MediaRegistry.paperWarResultBg})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
-    >
+    <div className={`panel relative space-y-4 bg-asphalt/60 ${isGlitching ? 'glitch-veil' : ''}`} style={panelSurfaceStyle}>
       <div className="absolute inset-0 bg-repeat bg-[linear-gradient(90deg,rgba(255,0,255,0.06)_1px,transparent_1px),linear-gradient(rgba(255,0,255,0.05)_1px,transparent_1px)] bg-[length:22px_22px] opacity-10" />
       <div className="relative space-y-3">
         <div className="flex items-center justify-between">
@@ -490,16 +499,15 @@ const PaperWar = ({
           ))}
         </div>
 
-        {outcome && (
-          <div
-            className="paperwar-outcome border-2 border-dashed border-neon/70 p-4 shadow-inner text-sm"
-            style={{
-              backgroundImage: `linear-gradient(160deg, rgba(5, 8, 17, 0.92), rgba(5, 8, 17, 0.8)), url(${MediaRegistry.paperWarResultBg})`,
-            }}
-          >
-            <p className="text-[10px] uppercase tracking-[0.3em] text-neon">Loppusumma</p>
-            <div className="mt-3 flex flex-col items-center gap-2 text-center">
-              <div className={`paperwar-result-label ${resultClassName}`} style={{ color: resultColor }}>
+          {outcome && (
+            <div className="paperwar-outcome border-2 border-dashed border-neon/70 p-4 shadow-inner text-sm" style={panelSurfaceStyle}>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-neon">Loppusumma</p>
+              <div className="mt-3 flex flex-col items-center gap-2 text-center">
+              <div
+                key={resultAnimKey}
+                className={`paperwar-result-label ${resultClassName}`}
+                style={{ color: resultColor }}
+              >
                 {labelForResult}
               </div>
               <p

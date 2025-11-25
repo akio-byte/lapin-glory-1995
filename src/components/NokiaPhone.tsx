@@ -78,7 +78,7 @@ const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint, className }:
   useEffect(() => {
     if (typeof window === 'undefined') return
     const syncCompact = () => {
-      setIsCompact(window.innerHeight < 780)
+      setIsCompact(window.innerHeight < 780 || window.innerWidth < 1100)
     }
     syncCompact()
     window.addEventListener('resize', syncCompact)
@@ -95,7 +95,12 @@ const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint, className }:
     setIsMinimized((prev) => !prev)
   }, [])
 
-  const containerClass = ['fixed z-50 nokia-shell', className, isCompact ? 'nokia-shell--compact' : '']
+  const containerClass = [
+    'fixed nokia-shell',
+    className,
+    isCompact ? 'nokia-shell--compact' : '',
+    isMinimized ? 'nokia-shell--minimized' : '',
+  ]
     .filter(Boolean)
     .join(' ')
 
@@ -123,7 +128,7 @@ const NokiaPhone = ({ lai, jarki = 100, onPing, nextNightEventHint, className }:
     <div className={containerClass} style={{ fontFamily: '"VT323", "IBM Plex Mono", monospace' }}>
       <style>{pixelVibes}</style>
       <div
-        className={`bg-lime-900/80 text-green-200 border-4 border-lime-700 rounded-2xl shadow-[0_0_22px_rgba(110,130,0,0.6)] ${
+        className={`nokia-shell__body bg-lime-900/80 text-green-200 border-4 border-lime-700 rounded-2xl shadow-[0_0_22px_rgba(110,130,0,0.6)] ${
           isCompact ? 'w-56' : 'w-64'
         }`}
         style={{ maxHeight: 'calc(100vh - var(--taskbar-height, 58px) - 1rem)' }}

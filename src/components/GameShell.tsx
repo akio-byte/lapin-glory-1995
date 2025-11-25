@@ -10,29 +10,29 @@ import {
   type CSSProperties,
 } from 'react'
 import '../App.css'
-import EventCard from './EventCard'
 import NokiaPhone from './NokiaPhone'
-import PaperWar, { type PaperWarResolution } from './PaperWar'
+import type { PaperWarResolution } from './PaperWar'
 import Shop from './Shop'
 import DebugPanel from './DebugPanel'
 import {
   buildPathMeta,
   type BuildPath,
-  type GameEvent,
-  type GameEventChoice,
   type Item,
   type Stats,
 } from '../data/gameData'
 import { canonicalStats } from '../data/statMeta'
-import { endingEpilogues, type EndingType } from '../data/endingData'
+import type { EndingType } from '../data/endingData'
 import { MediaRegistry } from '../data/mediaRegistry'
-import { useGameLoop, type DaySnapshot } from '../hooks/useGameLoop'
+import { useGameLoop } from '../hooks/useGameLoop'
 import { useAudio } from '../hooks/useAudio'
 import Desktop from './Desktop'
 import OSWindow from './OSWindow'
 import Taskbar from './Taskbar'
 import JournalWindow from './JournalWindow'
 import SettingsWindow from './SettingsWindow'
+import MorningReportView from './views/MorningReportView'
+import { DayPhaseView, NightPhaseView, type PhaseViewProps } from './views/PhaseWindow'
+import RunOverScreen from './views/RunOverScreen'
 
 const RUN_HISTORY_KEY = 'lapin-glory-runs'
 
@@ -144,318 +144,6 @@ const PathProgressChips = ({ progress }: PathProgressChipsProps) => {
   )
 }
 
-const MorningReportView = ({
-  stats,
-  dayCount,
-  rahatDelta,
-  jarkiDelta,
-  laiDelta,
-  note,
-  history,
-  onAdvance,
-}: {
-  stats: Stats
-  dayCount: number
-  rahatDelta: number
-  jarkiDelta: number
-  laiDelta: number
-  note: string
-  history: DaySnapshot[]
-  onAdvance: () => void
-}) => (
-  <div
-    className="glass-panel space-y-4 morning-report-panel"
-    style={{
-      backgroundImage: `linear-gradient(160deg, rgba(5, 8, 17, 0.92), rgba(5, 8, 17, 0.75)), url(${MediaRegistry.morningReportBg})`,
-    }}
-  >
-    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-neon/70">
-      <span>OS/95 Raportti</span>
-      <span className="text-[11px]">Päivä {dayCount} →</span>
-    </div>
-    <h2 className="text-2xl font-bold glitch-text" data-text="Aamuraportti">
-      Aamuraportti
-    </h2>
-    <p className="text-sm leading-relaxed text-slate-200">
-      Yö vaihtuu siniseen hetkeen. Lomakkeet kuivuvat, kassalipas jäätyy. Pidä mieli kasassa ennen seuraavaa faksia.
-    </p>
-    <div className="grid grid-cols-2 gap-3 text-sm">
-      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.rahat.label}</p>
-        <p className="text-lg font-semibold">{canonicalStats.rahat.format(stats.rahat)}</p>
-        <p className="text-xs text-slate-300">Eilen: {formatDelta(rahatDelta)} mk</p>
-      </div>
-      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.jarki.label}</p>
-        <p className="text-lg font-semibold">{canonicalStats.jarki.format(stats.jarki)}</p>
-        <p className="text-xs text-slate-300">Eilen: {formatDelta(jarkiDelta)}</p>
-      </div>
-      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.maine.label}</p>
-        <p className="text-lg font-semibold">{canonicalStats.maine.format(stats.maine)}</p>
-      </div>
-      <div className="border border-neon/30 p-3 bg-coal/60 rounded">
-        <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Sisu</p>
-        <p className="text-lg font-semibold">{stats.sisu} / 100</p>
-      </div>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <div className="p-3 bg-black/40 border border-neon/30 rounded text-sm space-y-2">
-        <div className="flex items-center justify-between text-xs text-neon/70 uppercase tracking-[0.2em]">
-          <span>Raha / LAI trendi</span>
-          <span>Päivät -3 → -1</span>
-        </div>
-        <div className="space-y-1">
-          {[...history]
-            .filter((entry) => entry.day < dayCount)
-            .slice(-3)
-            .map((entry) => {
-              const prev = history.find((h) => h.day === entry.day - 1)
-              const profit = prev ? entry.rahat - prev.rahat : 0
-              const deltaLai = prev ? entry.lai - prev.lai : 0
-              return (
-                <div key={entry.day} className="flex items-center justify-between text-[13px]">
-                  <span className="text-slate-200">D{entry.day}</span>
-                  <span className="text-emerald-200">{formatDelta(profit)} mk</span>
-                  <span className="text-sky-200">LAI {formatDelta(deltaLai)}</span>
-                </div>
-              )
-            })}
-          {history.filter((entry) => entry.day < dayCount).length === 0 && (
-            <p className="text-slate-300">Ei vielä aiempia päiviä.</p>
-          )}
-        </div>
-      </div>
-      <div className="p-3 bg-black/40 border border-neon/30 rounded text-sm space-y-2">
-        <div className="flex items-center justify-between text-xs text-neon/70 uppercase tracking-[0.2em]">
-          <span>LAI muutos</span>
-          <span>Tämän aamun lukema</span>
-        </div>
-        <p className="text-slate-100">LAI {formatDelta(laiDelta)} → {stats.jarki < 30 ? 'Ole varovainen' : 'Hallinnassa'}</p>
-        <p className="text-xs text-slate-300">Raportti huomioi eilisillan päätöksen ja tämän aamun tilan.</p>
-      </div>
-    </div>
-    <div className="p-3 bg-black/40 border border-neon/30 text-sm rounded italic text-slate-100">{note}</div>
-    <div className="text-right">
-      <button className="button-raw" onClick={onAdvance}>
-        Hyväksy raportti →
-      </button>
-    </div>
-  </div>
-  );
-
-type PhaseViewProps = {
-  dayCount: number
-  lai: number
-  stats: Stats
-  corruptedLabels: { rahat: string; maine: string; jarki: string }
-  activeEvent: GameEvent | null
-  isPaperWar: boolean
-  inventory: Item[]
-  locked: boolean
-  outcome: string | null
-  fallbackMedia: NonNullable<GameEvent['media']>
-  isGlitching: boolean
-  onPaperWarResolve: (result: PaperWarResolution) => void
-  onEventChoice: (choice: GameEventChoice) => void
-  onAdvancePhase: () => void
-}
-
-const PhaseWindow = ({
-  phase,
-  dayCount,
-  lai,
-  stats,
-  corruptedLabels,
-  activeEvent,
-  isPaperWar,
-  inventory,
-  locked,
-  outcome,
-  fallbackMedia,
-  isGlitching,
-  onPaperWarResolve,
-  onEventChoice,
-  onAdvancePhase,
-}: PhaseViewProps & { phase: 'DAY' | 'NIGHT' }) => {
-  const phaseTitle = phase === 'DAY' ? 'PÄIVÄVUORO' : 'YÖVUORO'
-  const quietTitle = phase === 'DAY' ? 'Hiljainen linja' : 'Staalo nukkuu'
-  const quietBody =
-    phase === 'DAY'
-      ? 'Ei lomakkeita juuri nyt. Juot kahvin, katsot ulos ja kuuntelet neonin sirinää.'
-      : 'Yövuoro nielee valot. Tietokone humisee, eikä yhtään faksia luisu pöydälle.'
-  const phaseSubtitle =
-    phase === 'DAY'
-      ? 'Valon ja neonin saumassa byrokratia höyryää. Päivävuoron lämpö on vain kuviteltu.'
-      : 'Staalo ja valokuitu ujeltavat lumen alla. Yövuoro on kylmä kuin faxin valo.'
-  const phaseMedia = phase === 'DAY' ? MediaRegistry.dayViewBg : MediaRegistry.nightViewBg
-
-  return (
-    <OSWindow title={`FAKSI / TAPAHTUMA — ${phaseTitle}`} isActive size="lg">
-      <div className="space-y-4">
-        <div
-          className="phase-banner"
-          style={{
-            backgroundImage: `linear-gradient(120deg, rgba(5, 9, 18, 0.92), rgba(5, 9, 18, 0.55)), url(${phaseMedia})`,
-          }}
-          role="presentation"
-        >
-          <div className="phase-banner__content">
-            <p className="phase-banner__title glitch-text" data-text={phaseTitle}>
-              {phaseTitle}
-            </p>
-            <p className="phase-banner__subtitle">{phaseSubtitle}</p>
-          </div>
-          <div className="phase-banner__chips">
-            <span className="phase-chip">D{dayCount.toString().padStart(2, '0')}</span>
-            <span className="phase-chip">{phase === 'DAY' ? '⚡ Neon shift' : '🌙 Kylmä linja'}</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] uppercase tracking-[0.2em]">
-          <div className="glass-chip px-3 py-2">
-            <p className="text-neon/80">Päivä</p>
-            <p className="text-lg font-semibold">{dayCount}</p>
-          </div>
-          <div className="glass-chip px-3 py-2">
-            <p className="text-neon/80">LAI</p>
-            <p className="text-lg font-semibold">{lai.toFixed(0)}</p>
-          </div>
-          <div className="glass-chip px-3 py-2">
-            <p className="text-neon/80">{corruptedLabels.rahat}</p>
-            <p className="text-lg font-semibold">{canonicalStats.rahat.format(stats.rahat)}</p>
-          </div>
-          <div className="glass-chip px-3 py-2">
-            <p className="text-neon/80">{corruptedLabels.jarki}</p>
-            <p className="text-lg font-semibold">{canonicalStats.jarki.format(stats.jarki)}</p>
-          </div>
-        </div>
-
-        {activeEvent ? (
-          isPaperWar ? (
-            <PaperWar
-              event={activeEvent}
-              stats={stats}
-              inventory={inventory}
-              locked={locked}
-              outcome={outcome}
-              fallbackMedia={fallbackMedia}
-              onResolve={onPaperWarResolve}
-              onNextPhase={onAdvancePhase}
-              isGlitching={isGlitching}
-            />
-          ) : (
-            <EventCard
-              event={activeEvent}
-              locked={locked}
-              outcome={outcome}
-              onChoice={onEventChoice}
-              onNextPhase={onAdvancePhase}
-              fallbackMedia={fallbackMedia}
-              phase={phase}
-              isGlitching={isGlitching}
-            />
-          )
-        ) : (
-          <div className="glass-panel">
-            <p className="text-xs uppercase tracking-[0.3em] text-neon">{quietTitle}</p>
-            <p className="text-sm text-slate-200 mt-2">{quietBody}</p>
-            <button className="button-raw mt-3" onClick={onAdvancePhase}>
-              Pakota seuraava vaihe →
-            </button>
-          </div>
-        )}
-      </div>
-    </OSWindow>
-  )
-}
-
-const DayPhaseView = (props: PhaseViewProps) => (
-  <div
-    className="phase-view-root day-view-root"
-    style={{
-      backgroundImage: `linear-gradient(160deg, rgba(5, 9, 18, 0.86), rgba(5, 9, 18, 0.78)), url(${MediaRegistry.dayViewBg})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-    }}
-  >
-    <div className="phase-view-overlay">
-      <PhaseWindow phase="DAY" {...props} />
-    </div>
-  </div>
-)
-
-const NightPhaseView = (props: PhaseViewProps) => (
-  <div
-    className="phase-view-root night-view-root"
-    style={{
-      backgroundImage: `linear-gradient(180deg, rgba(5, 8, 17, 0.9), rgba(5, 8, 17, 0.82)), url(${MediaRegistry.nightViewBg})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-    }}
-  >
-    <div className="phase-view-overlay">
-      <PhaseWindow phase="NIGHT" {...props} />
-    </div>
-  </div>
-)
-
-const RunOverScreen = ({
-  ending,
-  onRestart,
-}: {
-  ending: { type: EndingType; stats: Stats; dayCount: number; lai: number }
-  onRestart: () => void
-}) => {
-  const copy = endingEpilogues[ending.type]
-
-  return (
-    <div className="min-h-screen bg-[#0f1118] text-white flex items-center justify-center px-6 py-10">
-      <div className="panel max-w-xl w-full space-y-4 bg-coal/80 border-2 border-neon/50">
-        <p className="text-[10px] uppercase tracking-[0.35em] text-neon/70 text-center">Game Over</p>
-        <h2 className="text-3xl font-bold glitch-text text-center" data-text={copy.title}>
-          {copy.title}
-        </h2>
-        <p className="text-sm text-slate-200 text-center">{copy.description({ stats: ending.stats, lai: ending.lai })}</p>
-        {copy.flavor && <p className="text-[12px] text-neon/80 text-center">{copy.flavor}</p>}
-        {copy.media && (
-          <div className="rounded overflow-hidden border border-neon/30">
-            {copy.media.type === 'image' ? (
-              <img src={copy.media.src} alt={copy.media.alt} className="w-full h-40 object-cover" />
-            ) : (
-              <video src={copy.media.src} autoPlay loop muted className="w-full h-48 object-cover" />
-            )}
-          </div>
-        )}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">Päiviä selvittiin</p>
-            <p className="text-lg font-semibold">{ending.dayCount}</p>
-          </div>
-          <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.rahat.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.rahat.format(ending.stats.rahat)}</p>
-          </div>
-          <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.jarki.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.jarki.format(ending.stats.jarki)}</p>
-          </div>
-          <div className="border border-neon/30 p-3 bg-black/40 rounded">
-            <p className="text-xs uppercase tracking-[0.2em] text-neon/60">{canonicalStats.maine.label}</p>
-            <p className="text-lg font-semibold">{canonicalStats.maine.format(ending.stats.maine)}</p>
-          </div>
-        </div>
-        <div className="text-center pt-2">
-          <button className="button-raw" onClick={onRestart}>
-            Aloita uusi run →
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
   constructor(props: { children: ReactNode }) {
