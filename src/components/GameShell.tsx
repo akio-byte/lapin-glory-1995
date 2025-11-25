@@ -31,7 +31,9 @@ import Taskbar from './Taskbar'
 import JournalWindow from './JournalWindow'
 import SettingsWindow from './SettingsWindow'
 import MorningReportView from './views/MorningReportView'
-import { DayPhaseView, NightPhaseView, type PhaseViewProps } from './views/PhaseWindow'
+import DayPhaseView from './views/DayPhaseView'
+import NightPhaseView from './views/NightPhaseView'
+import { type PhaseViewProps } from './views/PhaseWindow'
 import RunOverScreen from './views/RunOverScreen'
 
 const RUN_HISTORY_KEY = 'lapin-glory-runs'
@@ -625,20 +627,30 @@ const GameShell = () => {
               )}
 
               {isSettingsOpen && (
-                <OSWindow title="ASETUKSET" isActive size="sm" onClose={closeSettings} className="os-window--modal">
-                  <SettingsWindow
-                    muted={muted}
-                    toggleMute={toggleMute}
-                    backgroundPlaying={backgroundPlaying}
-                    toggleBackground={toggleBackground}
-                    backgroundVolume={backgroundVolume}
-                    sfxVolume={sfxVolume}
-                    onBackgroundVolumeChange={setBackgroundVolume}
-                    onSfxVolumeChange={setSfxVolume}
-                    textSpeed={textSpeed}
-                    onTextSpeedChange={setTextSpeed}
+                <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 py-8">
+                  <button
+                    type="button"
+                    className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                    aria-label="Sulje asetukset"
+                    onClick={closeSettings}
                   />
-                </OSWindow>
+                  <div className="relative z-10 w-full max-w-2xl drop-shadow-[0_0_48px_rgba(255,0,255,0.35)]">
+                    <OSWindow title="ASETUKSET" isActive size="sm" onClose={closeSettings} className="os-window--modal">
+                      <SettingsWindow
+                        muted={muted}
+                        toggleMute={toggleMute}
+                        backgroundPlaying={backgroundPlaying}
+                        toggleBackground={toggleBackground}
+                        backgroundVolume={backgroundVolume}
+                        sfxVolume={sfxVolume}
+                        onBackgroundVolumeChange={setBackgroundVolume}
+                        onSfxVolumeChange={setSfxVolume}
+                        textSpeed={textSpeed}
+                        onTextSpeedChange={setTextSpeed}
+                      />
+                    </OSWindow>
+                  </div>
+                </div>
               )}
             </div>
           </div>

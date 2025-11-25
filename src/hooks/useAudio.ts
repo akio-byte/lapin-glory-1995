@@ -35,18 +35,20 @@ type AudioPrefs = {
   muted: boolean
   backgroundVolume: number
   sfxVolume: number
+  backgroundPlaying: boolean
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
 const loadPrefs = (): AudioPrefs => {
-  const defaults = { muted: false, backgroundVolume: 0.25, sfxVolume: 0.3 }
+  const defaults: AudioPrefs = { muted: false, backgroundVolume: 0.25, sfxVolume: 0.3, backgroundPlaying: false }
   const parsed = safeReadJson<Partial<AudioPrefs>>(AUDIO_PREFS_KEY)
   if (!parsed) return defaults
   return {
     muted: parsed.muted ?? defaults.muted,
     backgroundVolume: clamp(parsed.backgroundVolume ?? defaults.backgroundVolume, 0, 1),
     sfxVolume: clamp(parsed.sfxVolume ?? defaults.sfxVolume, 0, 1),
+    backgroundPlaying: parsed.backgroundPlaying ?? defaults.backgroundPlaying,
   }
 }
 
@@ -63,7 +65,7 @@ export const useAudio = (config: UseAudioConfig = {}) => {
   const [muted, setMuted] = useState(prefs.muted)
   const [backgroundVolume, setBackgroundVolume] = useState(prefs.backgroundVolume)
   const [sfxVolume, setSfxVolume] = useState(prefs.sfxVolume)
-  const [backgroundPlaying, setBackgroundPlaying] = useState(false)
+  const [backgroundPlaying, setBackgroundPlaying] = useState(prefs.backgroundPlaying)
   const [backgroundMode, setBackgroundMode] = useState<'normal' | 'intense'>('normal')
   const [isPrimed, setIsPrimed] = useState(false)
 
@@ -171,9 +173,9 @@ export const useAudio = (config: UseAudioConfig = {}) => {
   )
 
   useEffect(() => {
-    const payload: AudioPrefs = { muted, backgroundVolume, sfxVolume }
+    const payload: AudioPrefs = { muted, backgroundVolume, sfxVolume, backgroundPlaying }
     safeWriteJson(AUDIO_PREFS_KEY, payload)
-  }, [backgroundVolume, muted, sfxVolume])
+  }, [backgroundPlaying, backgroundVolume, muted, sfxVolume])
 
   const toggleMute = useCallback(() => {
     setMuted((prev) => !prev)
