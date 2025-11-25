@@ -179,15 +179,26 @@ body {
   filter: saturate(1.2) contrast(1.05);
 }
 
+.glitch-veil {
+  position: relative;
+  isolation: isolate;
+}
+
+.glitch-veil > * {
+  position: relative;
+  z-index: 1;
+}
+
 .glitch-veil::before {
   content: '';
   position: absolute;
   inset: 0;
   background: repeating-linear-gradient(0deg, rgba(255, 0, 255, 0.05) 0, rgba(0, 255, 255, 0.05) 2px, transparent 4px);
   mix-blend-mode: screen;
-  opacity: 0.5;
+  opacity: 0.22;
   animation: glitchPulse 1.1s steps(2, end) infinite;
   pointer-events: none;
+  z-index: 0;
 }
 
 .hcr-noise {

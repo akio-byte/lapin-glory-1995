@@ -100,7 +100,7 @@ const EventCard = ({ event, locked, outcome, onChoice, onNextPhase, fallbackMedi
         <div className="rounded-lg overflow-hidden border border-neon/20 shadow-inner event-card__media">
           <CRTVisual media={media} isGlitching={isGlitching} />
         </div>
-        <p className="text-sm leading-relaxed bg-coal/70 border border-neon/40 p-3 overflow-y-auto event-card__text">
+        <p className="text-sm leading-relaxed bg-coal/90 border border-neon/50 p-3 overflow-y-auto event-card__text">
           {event.text}
         </p>
 
