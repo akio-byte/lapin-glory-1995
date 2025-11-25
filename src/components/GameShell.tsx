@@ -141,7 +141,7 @@ const PathProgressChips = ({ progress }: PathProgressChipsProps) => {
   )
 }
 
-const MorningReport = ({
+const MorningReportView = ({
   stats,
   dayCount,
   rahatDelta,
@@ -253,7 +253,7 @@ type PhaseViewProps = {
   onAdvancePhase: () => void
 }
 
-const PhaseView = ({
+const PhaseWindow = ({
   phase,
   dayCount,
   lai,
@@ -338,9 +338,9 @@ const PhaseView = ({
   )
 }
 
-const DayView = (props: PhaseViewProps) => <PhaseView phase="DAY" {...props} />
+const DayPhaseView = (props: PhaseViewProps) => <PhaseWindow phase="DAY" {...props} />
 
-const NightView = (props: PhaseViewProps) => <PhaseView phase="NIGHT" {...props} />
+const NightPhaseView = (props: PhaseViewProps) => <PhaseWindow phase="NIGHT" {...props} />
 
 const RunOverScreen = ({
   ending,
@@ -776,7 +776,7 @@ const GameShell = () => {
 
   const phaseView =
     phase === 'MORNING' ? (
-      <MorningReport
+      <MorningReportView
         stats={stats}
         dayCount={report.day}
         rahatDelta={report.rahatDelta}
@@ -787,9 +787,9 @@ const GameShell = () => {
         onAdvance={handleAdvancePhase}
       />
     ) : phase === 'DAY' ? (
-      <DayView {...phaseViewProps} />
+      <DayPhaseView {...phaseViewProps} />
     ) : (
-      <NightView {...phaseViewProps} />
+      <NightPhaseView {...phaseViewProps} />
     )
 
   if (ending) {
@@ -798,103 +798,9 @@ const GameShell = () => {
 
   return (
     <ErrorBoundary>
-      <Desktop isJarkiHit={desktopJarkiHit}>
-          <div
-            className={`w-full min-h-screen text-white relative overflow-hidden bg-[#050912]/70 backdrop-blur-sm ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''} max-[900px]:max-h-[100%] max-[900px]:min-h-[auto]`}
-            style={rootStyle}
-          >
-            {lowSanity && <div className="hcr-noise" aria-hidden />}
-            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
-
-            <div className="w-full flex items-start justify-center pt-6 pb-24 max-[900px]:pt-4 max-[900px]:pb-16">
-              <div className="w-full max-w-6xl flex flex-col gap-4 items-stretch">
-                <div className="flex items-center justify-between w-full text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="px-3 py-1 border border-neon/50 bg-neon/10 uppercase tracking-[0.3em] text-[11px]">Lapin Glory OS/95</span>
-                    {wasRestored && (
-                      <span className="px-3 py-1 rounded-full border border-neon/40 bg-neon/10 text-neon text-[11px] uppercase tracking-[0.2em]">Ladattu tallennus</span>
-                    )}
-                  </div>
-                  <button className="button-raw px-3 py-1" onClick={handleRestart}>
-                    Aloita uusi run
-                  </button>
-                </div>
-
-                <PathProgressChips progress={pathProgress} />
-
-                {phaseView}
-
-                <NokiaPhone
-                  className="nokia-shell"
-                  jarki={stats.jarki}
-                  lai={lai}
-                  onPing={() => {
-                    const reading = pingNetMonitor()
-                    playSfx('nokia')
-                    return reading
-                  }}
-                  nextNightEventHint={nextNightEventHint}
-                />
-
-                {isShopOpen && (
-                  <OSWindow title="SALKKUKAUPPA" isActive size="md" onClose={closeShop}>
-                    <Shop phase={phase} inventory={inventory} stats={stats} onBuy={handleBuy} onUse={consumeItem} />
-                  </OSWindow>
-                )}
-
-                {isLogOpen && (
-                  <OSWindow title="LOKIKONE" isActive size="sm" onClose={closeLog}>
-                    <JournalWindow entries={journal} runHistory={runHistoryLines} />
-                  </OSWindow>
-                )}
-
-                {isSettingsOpen && (
-                  <OSWindow title="ASETUKSET" isActive size="sm" onClose={closeSettings}>
-                    <SettingsWindow
-                      muted={muted}
-                      toggleMute={toggleMute}
-                      backgroundPlaying={backgroundPlaying}
-                      toggleBackground={toggleBackground}
-                      backgroundVolume={backgroundVolume}
-                      sfxVolume={sfxVolume}
-                      onBackgroundVolumeChange={setBackgroundVolume}
-                      onSfxVolumeChange={setSfxVolume}
-                      textSpeed={textSpeed}
-                      onTextSpeedChange={setTextSpeed}
-                    />
-                  </OSWindow>
-                )}
-              </div>
-            </div>
-
-            {import.meta.env.DEV && (
-              <div className="fixed dev-panel text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
-                <p className="text-[10px] uppercase tracking-[0.25em] text-neon">Active Mods</p>
-                <p className="text-[10px] text-slate-300">Työkalut ja lomakkeet, jotka vaikuttavat tämänhetkiseen event-mathiin.</p>
-                <ul className="space-y-1">
-                  {relevantActiveMods.length === 0 && <li className="text-slate-400">Ei aktiivisia modifikaattoreita.</li>}
-                  {relevantActiveMods.map((mod) => (
-                    <li key={mod.id} className="border-l-2 border-neon pl-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold">{mod.name}</span>
-                        <span className="text-[9px] uppercase tracking-[0.2em] text-neon/80">{mod.type}</span>
-                      </div>
-                      <p className="text-slate-200">{mod.summary}</p>
-                      {mod.tags.length > 0 && (
-                        <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400">{mod.tags.join(', ')}</p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <DebugPanel
-              phase={phase}
-              currentEventId={activeEvent?.id}
-              stats={stats}
-              isGlitching={isGlitching}
-            />
-          </div>
+      <Desktop
+        isJarkiHit={desktopJarkiHit}
+        taskbar={
           <Taskbar
             stats={stats}
             dayCount={dayCount}
@@ -905,6 +811,104 @@ const GameShell = () => {
             onToggleSettings={toggleSettings}
             jarkiHit={desktopJarkiHit}
           />
+        }
+      >
+        <div
+          className={`w-full min-h-screen text-white relative overflow-hidden bg-[#050912]/70 backdrop-blur-sm ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''} max-[900px]:max-h-[100%] max-[900px]:min-h-[auto]`}
+          style={rootStyle}
+        >
+          {lowSanity && <div className="hcr-noise" aria-hidden />}
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
+
+          <div className="w-full flex items-start justify-center pt-6 pb-24 max-[900px]:pt-4 max-[900px]:pb-16">
+            <div className="w-full max-w-6xl flex flex-col gap-4 items-stretch lg:pr-64">
+              <div className="flex items-center justify-between w-full text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 border border-neon/50 bg-neon/10 uppercase tracking-[0.3em] text-[11px]">Lapin Glory OS/95</span>
+                  {wasRestored && (
+                    <span className="px-3 py-1 rounded-full border border-neon/40 bg-neon/10 text-neon text-[11px] uppercase tracking-[0.2em]">Ladattu tallennus</span>
+                  )}
+                </div>
+                <button className="button-raw px-3 py-1" onClick={handleRestart}>
+                  Aloita uusi run
+                </button>
+              </div>
+
+              <PathProgressChips progress={pathProgress} />
+
+              {phaseView}
+
+              <NokiaPhone
+                className="nokia-shell"
+                jarki={stats.jarki}
+                lai={lai}
+                onPing={() => {
+                  const reading = pingNetMonitor()
+                  playSfx('nokia')
+                  return reading
+                }}
+                nextNightEventHint={nextNightEventHint}
+              />
+
+              {isShopOpen && (
+                <OSWindow title="SALKKUKAUPPA" isActive size="md" onClose={closeShop}>
+                  <Shop phase={phase} inventory={inventory} stats={stats} onBuy={handleBuy} onUse={consumeItem} />
+                </OSWindow>
+              )}
+
+              {isLogOpen && (
+                <OSWindow title="LOKIKONE" isActive size="sm" onClose={closeLog}>
+                  <JournalWindow entries={journal} runHistory={runHistoryLines} />
+                </OSWindow>
+              )}
+
+              {isSettingsOpen && (
+                <OSWindow title="ASETUKSET" isActive size="sm" onClose={closeSettings}>
+                  <SettingsWindow
+                    muted={muted}
+                    toggleMute={toggleMute}
+                    backgroundPlaying={backgroundPlaying}
+                    toggleBackground={toggleBackground}
+                    backgroundVolume={backgroundVolume}
+                    sfxVolume={sfxVolume}
+                    onBackgroundVolumeChange={setBackgroundVolume}
+                    onSfxVolumeChange={setSfxVolume}
+                    textSpeed={textSpeed}
+                    onTextSpeedChange={setTextSpeed}
+                  />
+                </OSWindow>
+              )}
+            </div>
+          </div>
+
+          {import.meta.env.DEV && (
+            <div className="fixed dev-panel text-[11px] bg-black/80 border border-neon/40 rounded-md p-3 w-64 shadow-[0_0_20px_rgba(255,0,255,0.25)] space-y-1">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-neon">Active Mods</p>
+              <p className="text-[10px] text-slate-300">Työkalut ja lomakkeet, jotka vaikuttavat tämänhetkiseen event-mathiin.</p>
+              <ul className="space-y-1">
+                {relevantActiveMods.length === 0 && <li className="text-slate-400">Ei aktiivisia modifikaattoreita.</li>}
+                {relevantActiveMods.map((mod) => (
+                  <li key={mod.id} className="border-l-2 border-neon pl-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">{mod.name}</span>
+                      <span className="text-[9px] uppercase tracking-[0.2em] text-neon/80">{mod.type}</span>
+                    </div>
+                    <p className="text-slate-200">{mod.summary}</p>
+                    {mod.tags.length > 0 && (
+                      <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400">{mod.tags.join(', ')}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <DebugPanel
+            phase={phase}
+            currentEventId={activeEvent?.id}
+            stats={stats}
+            isGlitching={isGlitching}
+          />
+        </div>
       </Desktop>
     </ErrorBoundary>
   )

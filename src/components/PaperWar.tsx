@@ -475,17 +475,30 @@ const PaperWar = ({
         {outcome && (
           <div className="border-2 border-dashed border-neon/70 bg-coal/80 p-4 shadow-inner text-sm">
             <p className="text-[10px] uppercase tracking-[0.3em] text-neon">Loppusumma</p>
-            <p
-              className={`mt-2 text-2xl font-black tracking-wide ${
-                resolutionTone === 'win'
-                  ? 'text-emerald-300'
-                  : resolutionTone === 'loss'
-                    ? 'text-rose-300'
-                    : 'text-amber-200'
-              }`}
-            >
-              {outcome}
-            </p>
+            <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <span
+                className={`text-4xl sm:text-5xl font-black uppercase tracking-[0.35em] ${
+                  resolutionTone === 'win'
+                    ? 'text-emerald-300 drop-shadow-[0_0_18px_rgba(94,234,212,0.45)]'
+                    : resolutionTone === 'loss'
+                      ? 'text-rose-300 drop-shadow-[0_0_18px_rgba(248,113,113,0.4)]'
+                      : 'text-amber-200 drop-shadow-[0_0_12px_rgba(251,191,36,0.35)]'
+                }`}
+              >
+                {(resolutionTone ?? 'draw').toUpperCase()}
+              </span>
+              <p
+                className={`text-xl md:text-2xl font-black tracking-wide ${
+                  resolutionTone === 'win'
+                    ? 'text-emerald-200'
+                    : resolutionTone === 'loss'
+                      ? 'text-rose-200'
+                      : 'text-amber-100'
+                }`}
+              >
+                {outcome}
+              </p>
+            </div>
             <div className="mt-3 text-right">
               <button className="button-raw bg-neon text-coal" onClick={onNextPhase}>
                 Next Phase →

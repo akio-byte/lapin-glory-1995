@@ -172,7 +172,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 const MAX_DAYS = 30
 
 export const INITIAL_STATS: Stats = {
-  rahat: 0,
+  rahat: 200,
   maine: 10,
   jarki: 100,
   sisu: 50,
