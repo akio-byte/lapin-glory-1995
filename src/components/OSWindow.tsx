@@ -13,15 +13,17 @@ const OSWindow = ({
   onClose,
   isActive,
   size,
+  className,
 }: {
   title: string
   children: ReactNode
   onClose?: () => void
   isActive: boolean
   size?: 'sm' | 'md' | 'lg'
+  className?: string
 }) => {
   return (
-    <div className={`os-window ${size ? sizeClassMap[size] : ''} ${isActive ? 'ring-2 ring-neon/60' : ''}`}>
+    <div className={`os-window ${size ? sizeClassMap[size] : ''} ${isActive ? 'ring-2 ring-neon/60' : ''} ${className ?? ''}`}>
       <div className="os-window__titlebar">
         <span className="glitch-text" data-text={title}>
           {title}

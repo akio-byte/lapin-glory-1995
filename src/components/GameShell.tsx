@@ -619,13 +619,13 @@ const GameShell = () => {
               )}
 
               {isLogOpen && (
-                <OSWindow title="LOKIKONE" isActive size="sm" onClose={closeLog}>
+                <OSWindow title="LOKIKONE" isActive size="sm" onClose={closeLog} className="os-window--modal">
                   <JournalWindow entries={journal} runHistory={runHistoryLines} />
                 </OSWindow>
               )}
 
               {isSettingsOpen && (
-                <OSWindow title="ASETUKSET" isActive size="sm" onClose={closeSettings}>
+                <OSWindow title="ASETUKSET" isActive size="sm" onClose={closeSettings} className="os-window--modal">
                   <SettingsWindow
                     muted={muted}
                     toggleMute={toggleMute}
