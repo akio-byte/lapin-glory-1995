@@ -21,12 +21,20 @@ type EndingState = {
   lai: number
 }
 
-type MorningReport = {
+export type MorningReport = {
   rahatDelta: number
   jarkiDelta: number
   laiDelta: number
   note: string
   day: number
+}
+
+type MorningReportParams = {
+  stats: Stats
+  dayStartStats: Stats
+  dayCount: number
+  lai: number
+  dayHistory: DaySnapshot[]
 }
 
 export type NetMonitorReading = {
@@ -262,19 +270,7 @@ const buildMorningNote = (state: Stats) => {
   ])
 }
 
-const createMorningReport = ({
-  stats,
-  dayStartStats,
-  dayCount,
-  lai,
-  dayHistory,
-}: {
-  stats: Stats
-  dayStartStats: Stats
-  dayCount: number
-  lai: number
-  dayHistory: DaySnapshot[]
-}): MorningReport => {
+const createMorningReport = ({ stats, dayStartStats, dayCount, lai, dayHistory }: MorningReportParams): MorningReport => {
   const moneyDelta = stats.rahat - dayStartStats.rahat
   const jarkiDelta = stats.jarki - dayStartStats.jarki
   const lastSnapshot = dayHistory.find((entry) => entry.day === dayCount - 1) ?? dayHistory[dayHistory.length - 1]

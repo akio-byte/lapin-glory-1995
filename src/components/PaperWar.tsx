@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GameEvent, Item, Stats } from '../data/gameData'
 import CRTVisual from './CRTVisual'
 import { canonicalStats } from '../data/statMeta'
@@ -113,6 +113,7 @@ const PaperWar = ({
   const [sanityShield, setSanityShield] = useState(0)
   const [usedSpecials, setUsedSpecials] = useState<Record<string, boolean>>({})
   const [networkPeeked, setNetworkPeeked] = useState(false)
+  const lastEventIdRef = useRef<string | null>(null)
 
   const activeTags = useMemo(() => new Set(inventory.flatMap((item) => item.tags ?? [])), [inventory])
   const relicGuard = useMemo(() => inventory.some((item) => item.type === 'relic'), [inventory])
@@ -129,6 +130,9 @@ const PaperWar = ({
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    if (lastEventIdRef.current === event.id) return
+
+    lastEventIdRef.current = event.id
     setRounds([])
     setPendingEffects({})
     setLocalSanity(stats.jarki)
