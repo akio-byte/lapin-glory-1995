@@ -892,7 +892,7 @@ const GameShell = () => {
           style={rootStyle}
         >
           {lowSanity && <div className="hcr-noise" aria-hidden />}
-          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
+          <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(255,0,255,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(124,140,222,0.12),transparent_35%)]" />
 
           <div className="w-full flex items-start justify-center pt-6 pb-24 max-[900px]:pt-4 max-[900px]:pb-16">
             <div className="w-full max-w-6xl flex flex-col gap-4 items-stretch lg:pr-64">
