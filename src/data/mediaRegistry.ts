@@ -26,6 +26,10 @@ const safeMediaImport = (fileName: string): string => {
 export const MediaRegistry = {
   faxMachine: safeMediaImport('fax_machine.png'),
   officeBg: safeMediaImport('office_bg.png'),
+  dayViewBg: safeMediaImport('day_view_bg.png'),
+  nightViewBg: safeMediaImport('night_view_bg.png'),
+  morningReportBg: safeMediaImport('morning_report_bg.png'),
+  paperWarResultBg: safeMediaImport('paperwar_result_bg.png'),
   surrealVideo: safeMediaImport('Surreal_Horror_Video_Generation.mp4'),
   snowyStreet: safeMediaImport('Snowy_Finland_Street_VHS.mp4'),
   placeholder: PLACEHOLDER_ASSET,
