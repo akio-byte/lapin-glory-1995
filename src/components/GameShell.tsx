@@ -504,7 +504,7 @@ const GameShell = () => {
   const laiPrevRef = useRef(lai)
   const endingLoggedRef = useRef(false)
   const [sanityHueShift, setSanityHueShift] = useState(0)
-  const [desktopShaking, setDesktopShaking] = useState(false)
+  const [desktopJarkiHit, setDesktopJarkiHit] = useState(false)
 
   const activeEvent = useMemo(() => currentEvent, [currentEvent])
   const isPaperWar = activeEvent?.paperWar
@@ -564,8 +564,8 @@ const GameShell = () => {
     if (stats.jarki < prevStats.jarki) {
       playSfx('static')
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDesktopShaking(true)
-      shakeTimer = window.setTimeout(() => setDesktopShaking(false), 650)
+      setDesktopJarkiHit(true)
+      shakeTimer = window.setTimeout(() => setDesktopJarkiHit(false), 260)
     }
     sanityPrevRef.current = stats
     return () => {
@@ -798,8 +798,7 @@ const GameShell = () => {
 
   return (
     <ErrorBoundary>
-      <div className={desktopShaking ? 'desktop-shake' : ''}>
-        <Desktop>
+      <Desktop isJarkiHit={desktopJarkiHit}>
           <div
             className={`w-full min-h-screen text-white relative overflow-hidden bg-[#050912]/70 backdrop-blur-sm ${wrapperGlitchClass} ${isGlitching ? 'glitch-veil' : ''} ${lowSanity ? 'low-sanity' : ''} max-[900px]:max-h-[100%] max-[900px]:min-h-[auto]`}
             style={rootStyle}
@@ -904,9 +903,9 @@ const GameShell = () => {
             onToggleShop={toggleShop}
             onToggleLog={toggleLog}
             onToggleSettings={toggleSettings}
+            jarkiHit={desktopJarkiHit}
           />
-        </Desktop>
-      </div>
+      </Desktop>
     </ErrorBoundary>
   )
 }
